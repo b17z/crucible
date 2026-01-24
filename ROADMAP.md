@@ -1,48 +1,60 @@
 # crucible Roadmap
 
-## Done (Phase 1 MVP)
+## Done
 
+### Phase 1: MVP
 - [x] MCP server skeleton (stdio transport)
 - [x] Domain detection (extension + content markers)
-- [x] Tool delegation: semgrep, ruff, slither (shell out)
-- [x] Persona routing by domain (21 personas defined)
+- [x] Tool delegation: semgrep, ruff, slither
 - [x] Knowledge loader (principles from markdown)
-- [x] Basic `review` and `quick_review` tools
 - [x] Result types (errors as values)
 - [x] Tests for domain detection
 
-## Phase 2: Multi-Tool Polish
+### Phase 2: Architecture Refactor
+- [x] Simplify MCP to 6 tools (remove persona logic from MCP)
+- [x] Internal domain detection (returns metadata, not exposed as tool)
+- [x] `quick_review` returns `domains_detected` + `severity_summary`
+- [x] CLI: `crucible skills install/list`
+- [x] Initial skills: security-engineer, web3-engineer
+- [x] Remove dead code (Persona enum, PERSONA_ROUTING, persona engine)
 
-- [ ] Better semgrep configs per domain (p/python, p/javascript, p/smart-contracts)
+**New architecture:** MCP = data, Skills = perspective, Claude = orchestrator
+
+## In Progress
+
+### Phase 3: Skills Expansion
+- [ ] Convert remaining personas to skills (backend, devops, performance, etc.)
+- [ ] Skill trigger refinement (test which domains auto-load which skills)
+- [ ] Project-level skill overrides (`.claude/skills/crucible/`)
+
+## Future
+
+### Multi-Tool Polish
+- [ ] Better semgrep configs per domain
 - [ ] ESLint delegation for TypeScript
-- [ ] Unified finding deduplication (same issue from multiple tools)
-- [ ] Severity normalization across tools
+- [ ] Unified finding deduplication
 - [ ] Caching for repeated scans
 
-## Phase 3: Persona Engine
-
-- [ ] Persona prompt templates (structured, not just markdown extraction)
-- [ ] Multi-persona review (invoke N personas, not just first)
-- [ ] Tension detection algorithm (compare persona outputs)
-- [ ] Synthesis: combine findings + personas + tensions into recommendation
-
-## Phase 4: MCP Composition
-
+### MCP Composition
 - [ ] Use slither-mcp instead of shell out (when stable)
 - [ ] Use semgrep-mcp instead of shell out (when available)
-- [ ] Tool capability discovery (what's installed?)
 
-## Phase 5: Knowledge Evolution
+### Knowledge Evolution
+- [ ] Domain-specific principle files
+- [ ] Principle citation in reviews
 
-- [ ] Principles as structured YAML (not just markdown)
-- [ ] Domain-specific principle files (SMART_CONTRACT_SECURITY.md, etc.)
-- [ ] Checklist generation from persona approvals
-- [ ] Principle citation in reviews ("violates: Defense in Depth")
-
-## Ideas (Unscheduled)
-
-- [ ] GitHub PR integration (review PR diffs directly)
+### Integration
+- [ ] GitHub PR integration (review PR diffs)
 - [ ] CI mode output format (SARIF, GitHub annotations)
-- [ ] Custom persona injection (user-defined personas)
-- [ ] Learning from past reviews (what got approved/rejected)
 - [ ] Integration with Sage (checkpoint review sessions)
+
+## Design Decisions
+
+### Tensions
+Claude synthesizes tensions naturally when multiple skills are loaded. No explicit tension detection algorithm needed - skills provide conflicting guidance, Claude identifies trade-offs. See `docs/FUTURE_ENHANCEMENTS.md` for alternatives if needed.
+
+### Personas → Skills
+Personas moved from MCP to Claude skills. Benefits:
+- Claude auto-loads based on domain triggers
+- Skills can be customized per-project
+- MCP stays stateless and simple

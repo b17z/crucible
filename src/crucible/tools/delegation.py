@@ -1,11 +1,66 @@
 """Tool delegation - shell out to static analysis tools."""
 
 import json
+import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from crucible.errors import Result, err, ok
-from crucible.models import Severity, ToolFinding
+from crucible.models import Domain, Severity, ToolFinding
+
+# Semgrep configs by domain
+SEMGREP_CONFIGS: dict[Domain, list[str]] = {
+    Domain.SMART_CONTRACT: ["p/smart-contracts", "p/solidity"],
+    Domain.FRONTEND: ["p/javascript", "p/typescript", "p/react"],
+    Domain.BACKEND: ["p/python", "p/golang", "p/rust"],
+    Domain.INFRASTRUCTURE: ["p/terraform", "p/dockerfile", "p/kubernetes"],
+    Domain.UNKNOWN: ["auto"],
+}
+
+
+@dataclass(frozen=True)
+class ToolStatus:
+    """Status of an external tool."""
+
+    name: str
+    installed: bool
+    path: str | None
+    version: str | None
+
+
+def check_tool(name: str) -> ToolStatus:
+    """Check if a tool is installed and get its version."""
+    path = shutil.which(name)
+    if not path:
+        return ToolStatus(name=name, installed=False, path=None, version=None)
+
+    # Try to get version
+    version = None
+    try:
+        if name == "semgrep":
+            result = subprocess.run([name, "--version"], capture_output=True, text=True, timeout=5)
+            version = result.stdout.strip().split("\n")[0] if result.returncode == 0 else None
+        elif name == "ruff" or name == "slither":
+            result = subprocess.run([name, "--version"], capture_output=True, text=True, timeout=5)
+            version = result.stdout.strip() if result.returncode == 0 else None
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    return ToolStatus(name=name, installed=True, path=path, version=version)
+
+
+def check_all_tools() -> dict[str, ToolStatus]:
+    """Check status of all supported tools."""
+    tools = ["semgrep", "ruff", "slither"]
+    return {name: check_tool(name) for name in tools}
+
+
+def get_semgrep_config(domain: Domain) -> str:
+    """Get the appropriate semgrep config for a domain."""
+    configs = SEMGREP_CONFIGS.get(domain, SEMGREP_CONFIGS[Domain.UNKNOWN])
+    # Join multiple configs with --config flags handled by semgrep
+    return configs[0] if configs else "auto"
 
 
 def _severity_from_semgrep(level: str) -> Severity:
@@ -111,7 +166,7 @@ def delegate_ruff(
         finding = ToolFinding(
             tool="ruff",
             rule=r.get("code", "unknown"),
-            severity=Severity.LOW,  # Ruff is mostly style/lint
+            severity=_severity_from_ruff(r.get("code", "")),
             message=r.get("message", ""),
             location=f"{r.get('filename', '?')}:{r.get('location', {}).get('row', '?')}",
             suggestion=r.get("fix", {}).get("message") if r.get("fix") else None,
@@ -119,6 +174,28 @@ def delegate_ruff(
         findings.append(finding)
 
     return ok(findings)
+
+
+def _severity_from_ruff(code: str) -> Severity:
+    """Map ruff rule codes to severity based on category."""
+    if not code:
+        return Severity.LOW
+
+    # Security-related rules are higher severity
+    # S = bandit (security), T = flake8-print (debug code)
+    if code.startswith("S"):
+        # S1xx = security issues
+        if code.startswith("S1"):
+            return Severity.HIGH
+        return Severity.MEDIUM
+
+    # Error-prone patterns
+    # B = bugbear, E9xx = syntax errors, F = pyflakes
+    if code.startswith("B") or code.startswith("E9") or code.startswith("F"):
+        return Severity.MEDIUM
+
+    # Everything else is low (style, formatting)
+    return Severity.LOW
 
 
 def delegate_slither(

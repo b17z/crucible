@@ -10,7 +10,13 @@ from mcp.types import TextContent, Tool
 from crucible.domain.detection import detect_domain, get_personas_for_domain
 from crucible.knowledge.loader import get_persona_section, load_principles
 from crucible.models import Domain, Severity, ToolFinding
-from crucible.tools.delegation import delegate_ruff, delegate_semgrep, delegate_slither
+from crucible.tools.delegation import (
+    check_all_tools,
+    delegate_ruff,
+    delegate_semgrep,
+    delegate_slither,
+    get_semgrep_config,
+)
 
 server = Server("crucible")
 
@@ -187,6 +193,14 @@ async def list_tools() -> list[Tool]:
                 "required": ["path"],
             },
         ),
+        Tool(
+            name="check_tools",
+            description="Check which analysis tools are installed and available",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -264,26 +278,63 @@ def _handle_delegate_slither(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text=f"Error: {result.error}")]
 
 
+def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle check_tools tool."""
+    statuses = check_all_tools()
+
+    parts: list[str] = ["# Tool Status\n"]
+    for name, status in statuses.items():
+        if status.installed:
+            version_str = f" ({status.version})" if status.version else ""
+            parts.append(f"- **{name}**: ✅ Installed{version_str}")
+        else:
+            parts.append(f"- **{name}**: ❌ Not found")
+
+    # Add install hints for missing tools
+    missing = [name for name, status in statuses.items() if not status.installed]
+    if missing:
+        parts.append("\n## Install Missing Tools\n")
+        install_cmds = {
+            "semgrep": "pip install semgrep",
+            "ruff": "pip install ruff",
+            "slither": "pip install slither-analyzer",
+        }
+        for name in missing:
+            if name in install_cmds:
+                parts.append(f"```bash\n{install_cmds[name]}\n```")
+
+    return [TextContent(type="text", text="\n".join(parts))]
+
+
 def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle quick_review tool."""
     path = arguments.get("path", "")
     tools = arguments.get("tools")
 
-    # Auto-detect tools based on file extension if not specified
+    # Detect domain for smarter tool selection and config
+    domain = Domain.UNKNOWN
+    if path.endswith(".sol"):
+        domain = Domain.SMART_CONTRACT
+        default_tools = ["slither", "semgrep"]
+    elif path.endswith(".py"):
+        domain = Domain.BACKEND
+        default_tools = ["ruff", "semgrep"]
+    elif path.endswith((".ts", ".tsx", ".js", ".jsx")):
+        domain = Domain.FRONTEND
+        default_tools = ["semgrep"]
+    else:
+        default_tools = ["semgrep"]
+
     if not tools:
-        if path.endswith(".sol"):
-            tools = ["slither", "semgrep"]
-        elif path.endswith(".py"):
-            tools = ["ruff", "semgrep"]
-        else:
-            tools = ["semgrep"]
+        tools = default_tools
 
     all_findings: list[str] = []
 
     if "semgrep" in tools:
-        result = delegate_semgrep(path)
+        config = get_semgrep_config(domain)
+        result = delegate_semgrep(path, config)
         if result.is_ok:
-            all_findings.append("## Semgrep\n" + _format_findings(result.value))
+            all_findings.append(f"## Semgrep (config: {config})\n" + _format_findings(result.value))
         else:
             all_findings.append(f"## Semgrep\nError: {result.error}")
 
@@ -359,6 +410,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         "delegate_slither": _handle_delegate_slither,
         "quick_review": _handle_quick_review,
         "review": _handle_review,
+        "check_tools": _handle_check_tools,
     }
 
     handler = handlers.get(name)

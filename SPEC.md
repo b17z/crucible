@@ -14,8 +14,6 @@
 4. **Surfaces** tensions between persona perspectives
 5. **Synthesizes** actionable recommendations
 
-**The moat isn't static analysis** — tools like Slither and Semgrep already do that well. The moat is **judgment at scale** through composable personas + evolving principles.
-
 ---
 
 ## Architecture

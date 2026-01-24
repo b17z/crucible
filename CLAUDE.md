@@ -261,6 +261,35 @@ The `.gitignore` blocks:
 - All key formats (`.pem`, `.key`, etc.)
 - Terraform state (often contains secrets)
 
+## Sage Memory
+
+You have Sage MCP tools for persistent memory. **Use them.**
+
+### Session Start
+Call `sage_health()` to check for continuity from previous sessions.
+
+### After Research/Synthesis
+Call `sage_autosave_check(trigger_event="synthesis", core_question="...", current_thesis="...", confidence=0.X)`
+
+### Save Knowledge
+Call `sage_save_knowledge(knowledge_id="...", content="...", keywords=[...])` for reusable insights.
+
+### Recall Knowledge
+Call `sage_recall_knowledge(query="...")` before starting work on a topic.
+
+## Commit Messages
+
+Use semantic commits with parentheses: `(type): description`
+
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `init`
+
+Examples:
+- `(feat): add tension detection between personas`
+- `(fix): handle empty semgrep output`
+- `(docs): update persona routing table`
+
+No co-author lines.
+
 ## Don't Forget
 
 - [ ] Run `pre-commit install` before writing any code
@@ -268,3 +297,4 @@ The `.gitignore` blocks:
 - [ ] New features need tests (unit + integration)
 - [ ] Check SPEC.md for implementation details
 - [ ] Types must pass `mypy --strict`
+- [ ] Use Sage for persistent memory

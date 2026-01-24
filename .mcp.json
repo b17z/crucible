@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "crucible": {
+      "command": "crucible-mcp"
+    },
+    "sage": {
+      "command": "sage-mcp"
+    }
+  }
+}

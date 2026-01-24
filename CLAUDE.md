@@ -12,20 +12,22 @@ ruff check src/ --fix      # Lint
 
 ## What's Implemented
 
-| Tool | Status |
-|------|--------|
-| `detect_domain(code, file_path?)` | ✅ Extension + content detection |
-| `get_persona(persona)` | ✅ Load from markdown |
-| `get_principles(topic?)` | ✅ Load from markdown |
-| `quick_review(path)` | ✅ Runs semgrep/ruff/slither |
-| `review(code, file_path?)` | ✅ Domain + first persona |
-| `delegate_semgrep/ruff/slither` | ✅ Shell out to tools |
+| Tool | Purpose |
+|------|---------|
+| `quick_review(path)` | Run analyzers, return findings + domains |
+| `get_principles(topic?)` | Load engineering checklists |
+| `delegate_semgrep(path)` | Direct semgrep access |
+| `delegate_ruff(path)` | Direct ruff access |
+| `delegate_slither(path)` | Direct slither access |
+| `check_tools()` | What's installed |
+
+Domain detection is internal - `quick_review` returns `domains_detected` metadata for skill selection.
 
 ## Project Structure
 
 ```
 src/crucible/
-├── server.py           # MCP server (8 tools)
+├── server.py           # MCP server (6 tools)
 ├── models.py           # Domain, Persona, ToolFinding
 ├── errors.py           # Result types (Ok/Err)
 ├── domain/

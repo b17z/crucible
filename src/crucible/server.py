@@ -10,6 +10,7 @@ from mcp.types import TextContent, Tool
 from crucible.domain.detection import detect_domain, get_personas_for_domain
 from crucible.knowledge.loader import get_persona_section, load_principles
 from crucible.models import Domain, Severity, ToolFinding
+from crucible.personas.engine import format_multi_persona_review, invoke_personas
 from crucible.tools.delegation import (
     check_all_tools,
     delegate_ruff,
@@ -53,7 +54,7 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="review",
-            description="Full code review: detect domain, run tools, apply persona perspective",
+            description="Multi-persona code review: detect domain, get perspectives from multiple relevant personas",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -69,9 +70,15 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Override domain (smart_contract, frontend, backend, infrastructure)",
                     },
-                    "persona": {
-                        "type": "string",
-                        "description": "Specific persona to use (security, web3, backend, etc.)",
+                    "personas": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific personas to use. Default: auto-select based on domain",
+                    },
+                    "max_personas": {
+                        "type": "integer",
+                        "description": "Maximum personas to include (default: 3)",
+                        "default": 3,
                     },
                 },
                 "required": ["code"],
@@ -356,11 +363,12 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
 
 
 def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle review tool."""
+    """Handle review tool with multi-persona support."""
     code = arguments.get("code", "")
     file_path = arguments.get("file_path")
     domain_override = arguments.get("domain")
-    persona_name = arguments.get("persona")
+    persona_list = arguments.get("personas")
+    max_personas = arguments.get("max_personas", 3)
 
     # Detect domain
     if domain_override:
@@ -373,29 +381,21 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
         domain = result.value if result.is_ok else Domain.UNKNOWN
 
     # Get relevant personas
-    personas = get_personas_for_domain(domain)
-    if persona_name:
-        personas = [persona_name]
+    persona_names = persona_list or get_personas_for_domain(domain)
 
-    # Build review output
-    parts: list[str] = []
-    parts.append("# Code Review\n")
-    parts.append(f"**Domain:** {domain.value}")
-    parts.append(f"**Personas:** {', '.join(personas)}\n")
+    # Invoke multiple personas
+    perspectives = invoke_personas(persona_names, max_personas=max_personas)
 
-    # Load persona perspective
-    principles_result = load_principles("checklist")
-    if principles_result.is_ok:
-        for p in personas[:1]:  # MVP: just first persona
-            section = get_persona_section(p, principles_result.value)
-            if section:
-                parts.append(f"\n## {p.title()} Perspective\n")
-                parts.append(section)
+    if not perspectives:
+        return [TextContent(type="text", text="No personas found for this domain.")]
 
-    parts.append("\n---\n")
-    parts.append("*Use `quick_review` with a file path to run static analysis tools.*")
+    # Format the multi-persona review
+    output = format_multi_persona_review(perspectives, domain.value)
 
-    return [TextContent(type="text", text="\n".join(parts))]
+    # Add footer
+    output += "\n*Use `quick_review` with a file path to run static analysis tools.*"
+
+    return [TextContent(type="text", text=output)]
 
 
 @server.call_tool()  # type: ignore[misc]

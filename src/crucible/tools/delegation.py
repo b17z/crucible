@@ -52,7 +52,7 @@ def check_tool(name: str) -> ToolStatus:
 
 def check_all_tools() -> dict[str, ToolStatus]:
     """Check status of all supported tools."""
-    tools = ["semgrep", "ruff", "slither"]
+    tools = ["semgrep", "ruff", "slither", "bandit"]
     return {name: check_tool(name) for name in tools}
 
 
@@ -196,6 +196,65 @@ def _severity_from_ruff(code: str) -> Severity:
 
     # Everything else is low (style, formatting)
     return Severity.LOW
+
+
+def delegate_bandit(
+    path: str,
+    timeout: int = 60,
+) -> Result[list[ToolFinding], str]:
+    """
+    Run bandit on a Python file or directory.
+
+    Bandit catches hardcoded secrets (B105, B106, B107) that semgrep's
+    p/bandit config doesn't include.
+
+    Args:
+        path: File or directory to scan
+        timeout: Timeout in seconds
+
+    Returns:
+        Result containing list of findings or error message
+    """
+    if not Path(path).exists():
+        return err(f"Path does not exist: {path}")
+
+    try:
+        result = subprocess.run(
+            ["bandit", "-f", "json", "-r", path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except FileNotFoundError:
+        return err("bandit not found. Install with: pip install bandit")
+    except subprocess.TimeoutExpired:
+        return err(f"bandit timed out after {timeout}s")
+
+    try:
+        output = json.loads(result.stdout) if result.stdout else {"results": []}
+    except json.JSONDecodeError as e:
+        return err(f"Failed to parse bandit output: {e}")
+
+    # Map bandit severity to our Severity
+    severity_map = {
+        "HIGH": Severity.HIGH,
+        "MEDIUM": Severity.MEDIUM,
+        "LOW": Severity.LOW,
+    }
+
+    findings: list[ToolFinding] = []
+    for r in output.get("results", []):
+        finding = ToolFinding(
+            tool="bandit",
+            rule=r.get("test_id", "unknown"),
+            severity=severity_map.get(r.get("issue_severity", ""), Severity.INFO),
+            message=r.get("issue_text", ""),
+            location=f"{r.get('filename', '?')}:{r.get('line_number', '?')}",
+            suggestion=None,
+        )
+        findings.append(finding)
+
+    return ok(findings)
 
 
 def delegate_slither(

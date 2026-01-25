@@ -39,24 +39,15 @@ Let Claude figure it out. Skills provide perspectives, Claude naturally identifi
 
 ## Additional Skills
 
-Personas from SENIOR_ENGINEER_CHECKLIST.md not yet converted to skills:
+Potential future skills not yet implemented:
 
-- backend-engineer
-- devops-engineer
-- product-engineer
-- performance-engineer
-- data-engineer
-- accessibility-engineer
 - mobile-engineer
 - uiux-engineer
-- fde-engineer
+- fde-engineer (field/solutions engineer)
 - customer-success
-- tech-lead
-- pragmatist
-- purist
-- gas-optimizer
-- protocol-architect
-- mev-researcher
+- gas-optimizer (web3-specific)
+- protocol-architect (web3-specific)
+- mev-researcher (web3-specific)
 - formal-verification
 - incident-responder
 

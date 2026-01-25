@@ -1,6 +1,8 @@
 ---
+version: "1.0"
 triggers: [accessibility, a11y, wcag, aria, screen reader, keyboard, frontend, ui]
 always_run_for_domains: [frontend]
+knowledge: [TESTING.md]
 ---
 
 # Accessibility Engineer

@@ -1,5 +1,7 @@
 ---
+version: "1.0"
 triggers: [incident, outage, postmortem, recovery, rollback, hotfix, emergency]
+knowledge: [OBSERVABILITY.md, SECURITY.md]
 ---
 
 # Incident Responder

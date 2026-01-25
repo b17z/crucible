@@ -1,5 +1,7 @@
 ---
+version: "1.0"
 triggers: [integration, customer, configuration, sdk, api client, onboarding, enterprise]
+knowledge: [API_DESIGN.md, DOCUMENTATION.md, ERROR_HANDLING.md]
 ---
 
 # Field/Solutions Engineer

@@ -1,5 +1,7 @@
 ---
+version: "1.0"
 triggers: [backend, api, server, database, postgres, mysql, redis, queue, microservice, rest, graphql]
+knowledge: [API_DESIGN.md, DATABASE.md, ERROR_HANDLING.md]
 ---
 
 # Backend/Systems Engineer

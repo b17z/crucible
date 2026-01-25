@@ -49,11 +49,13 @@
 - [x] CLI: `crucible skills init <skill>` - copy skill for customization
 - [x] CLI: `crucible skills show <skill>` - show resolution
 - [x] Skill version metadata
+- [x] Comprehensive test suite (257 tests, 69% coverage)
 
 ## In Progress
 
 ### Phase 5: Polish
 - [ ] Skill trigger refinement (test which domains auto-load which skills)
+- [ ] Increase test coverage to 80%+
 
 ## Future
 

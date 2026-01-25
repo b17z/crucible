@@ -1,5 +1,7 @@
 ---
+version: "1.0"
 triggers: [product, feature, user, ux, requirements, metrics, analytics]
+knowledge: [API_DESIGN.md, ERROR_HANDLING.md]
 ---
 
 # Product Engineer

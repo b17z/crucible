@@ -1,5 +1,7 @@
 ---
+version: "1.0"
 triggers: [architecture, design, tradeoff, abstraction, refactor, technical debt]
+knowledge: [DOCUMENTATION.md, SYSTEM_DESIGN.md]
 ---
 
 # Tech Lead

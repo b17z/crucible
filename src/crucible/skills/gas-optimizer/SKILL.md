@@ -1,6 +1,8 @@
 ---
+version: "1.0"
 triggers: [gas, optimization, solidity, evm, storage, calldata, assembly]
 always_run_for_domains: [smart_contract]
+knowledge: [SMART_CONTRACT.md]
 ---
 
 # Gas Optimizer

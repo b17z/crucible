@@ -1,71 +1,48 @@
 # crucible
 
-Code review MCP server. Runs static analysis tools and loads engineering checklists based on what kind of code you're looking at.
+Code review MCP server. Runs static analysis tools and loads engineering knowledge.
 
 ## Quick Reference
 
 ```bash
 pip install -e ".[dev]"    # Install
-pytest                     # Test
+pytest                     # Test (263 tests)
 ruff check src/ --fix      # Lint
-
-# Skill management
-crucible skills list                    # List all skills
-crucible skills install                 # Install skills to ~/.claude/skills/
-crucible skills init <skill>            # Copy skill to .crucible/skills/ for customization
-crucible skills show <skill>            # Show skill resolution cascade
 ```
 
-## What's Implemented
+## MCP Tools
 
 | Tool | Purpose |
 |------|---------|
-| `quick_review(path)` | Run analyzers, return findings + domains |
-| `get_principles(topic?)` | Load engineering checklists |
-| `delegate_semgrep(path)` | Direct semgrep access |
-| `delegate_ruff(path)` | Direct ruff access |
-| `delegate_slither(path)` | Direct slither access |
-| `delegate_bandit(path)` | Direct bandit access (Python security) |
-| `check_tools()` | What's installed |
+| `quick_review(path)` | Run analysis, return findings + domains |
+| `get_principles(topic)` | Load engineering knowledge |
+| `delegate_semgrep/ruff/slither/bandit` | Direct tool access |
+| `check_tools()` | Show installed tools |
 
-Domain detection is internal - `quick_review` returns `domains_detected` metadata for skill selection. For Python files, `quick_review` runs ruff + bandit + semgrep by default.
+## CLI Commands
+
+```bash
+crucible skills list              # List all skills
+crucible skills install           # Install to ~/.claude/crucible/
+crucible skills init <skill>      # Copy for project customization
+crucible skills show <skill>      # Show resolution cascade
+
+crucible knowledge list/install/init/show  # Same for knowledge
+```
 
 ## Project Structure
 
 ```
 src/crucible/
 ├── server.py           # MCP server (7 tools)
-├── models.py           # Domain, Persona, ToolFinding
+├── cli.py              # Skills/knowledge management
+├── models.py           # Domain, Severity, ToolFinding
 ├── errors.py           # Result types (Ok/Err)
-├── domain/
-│   └── detection.py    # Extension + content matching
-├── tools/
-│   └── delegation.py   # Shell out to analysis tools
-└── knowledge/
-    └── loader.py       # Parse persona markdown
-
-knowledge/
-├── ENGINEERING_PRINCIPLES.md
-└── SENIOR_ENGINEER_CHECKLIST.md
-
-skills/                         # 18 bundled persona skills
-├── security-engineer/
-├── web3-engineer/
-├── backend-engineer/
-└── ...
+├── domain/detection.py # Classify code by extension/content
+├── tools/delegation.py # Shell out to analysis tools
+├── knowledge/          # 12 bundled knowledge files
+└── skills/             # 18 bundled persona skills
 ```
-
-## Skill Resolution
-
-Skills are loaded with cascade priority (first found wins):
-
-```
-1. <project>/.crucible/skills/<skill>/SKILL.md   # Project-level (highest)
-2. ~/.claude/skills/crucible/<skill>/SKILL.md    # User-level
-3. <package>/skills/<skill>/SKILL.md             # Bundled (lowest)
-```
-
-Use `crucible skills init <skill>` to copy a skill for project customization.
 
 ## Patterns
 
@@ -79,7 +56,7 @@ def do_thing() -> Result[Value, str]:
     return ok(value)
 ```
 
-**Frozen dataclasses for models:**
+**Frozen dataclasses:**
 ```python
 @dataclass(frozen=True)
 class ToolFinding:
@@ -90,29 +67,12 @@ class ToolFinding:
     location: str
 ```
 
-## Development
+## Cascade Resolution
 
-```bash
-pytest                        # Run tests
-pytest tests/test_X.py -v     # Specific file
-ruff check src/ --fix         # Lint
-```
-
-**Before committing:**
-- Tests pass
-- Ruff clean
-- New features have tests
-
-## Sage Memory
-
-Use Sage for persistent memory across sessions.
-
-```
-sage_health()                           # Session start
-sage_recall_knowledge(query="...")      # Before starting work
-sage_autosave_check(trigger="synthesis", core_question="...", current_thesis="...", confidence=0.X)
-sage_save_knowledge(id="...", content="...", keywords=[...])
-```
+Skills and knowledge follow priority (first found wins):
+1. `.crucible/skills/` or `.crucible/knowledge/` (project)
+2. `~/.claude/crucible/` (user)
+3. bundled (package)
 
 ## Commit Messages
 
@@ -120,18 +80,12 @@ Format: `(type): description`
 
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
-```
-(feat): add tension detection
-(fix): handle empty semgrep output
-(docs): update persona table
-```
+## Documentation
 
-## External Tools
-
-Install separately:
-
-```bash
-pip install semgrep           # Required
-pip install ruff              # Required
-pip install slither-analyzer  # For .sol files
-```
+See `docs/` for:
+- FEATURES.md - Complete feature reference
+- ARCHITECTURE.md - How pieces fit together
+- CUSTOMIZATION.md - Skill/knowledge cascade
+- SKILLS.md - All 18 personas
+- KNOWLEDGE.md - All 12 knowledge files
+- CONTRIBUTING.md - For contributors

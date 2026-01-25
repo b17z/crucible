@@ -1,5 +1,7 @@
 ---
+version: "1.0"
 triggers: [formal verification, invariant, specification, proof, certora, halmos, symbolic]
+knowledge: [SMART_CONTRACT.md, TESTING.md]
 ---
 
 # Formal Verification Engineer

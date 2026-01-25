@@ -2,6 +2,8 @@
 
 Code review MCP server for Claude. Runs static analysis and loads review skills based on what kind of code you're looking at.
 
+> **Note:** This project is not affiliated with Atlassian or their Crucible code review tool. Just an unfortunate naming collision.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Your Code  ──→  Crucible  ──→  Claude                                       │
@@ -17,7 +19,10 @@ Code review MCP server for Claude. Runs static analysis and loads review skills 
 ## Quick Start
 
 ```bash
-# Install
+# Install from PyPI
+pip install crucible-mcp
+
+# Or install from source
 pip install -e ".[dev]"
 
 # Install skills to ~/.claude/crucible/skills/

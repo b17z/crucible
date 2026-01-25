@@ -8,6 +8,12 @@ Code review MCP server. Runs static analysis tools and loads engineering checkli
 pip install -e ".[dev]"    # Install
 pytest                     # Test
 ruff check src/ --fix      # Lint
+
+# Skill management
+crucible skills list                    # List all skills
+crucible skills install                 # Install skills to ~/.claude/skills/
+crucible skills init <skill>            # Copy skill to .crucible/skills/ for customization
+crucible skills show <skill>            # Show skill resolution cascade
 ```
 
 ## What's Implemented
@@ -40,8 +46,26 @@ src/crucible/
 
 knowledge/
 ├── ENGINEERING_PRINCIPLES.md
-└── SENIOR_ENGINEER_CHECKLIST.md  # 21 personas
+└── SENIOR_ENGINEER_CHECKLIST.md
+
+skills/                         # 18 bundled persona skills
+├── security-engineer/
+├── web3-engineer/
+├── backend-engineer/
+└── ...
 ```
+
+## Skill Resolution
+
+Skills are loaded with cascade priority (first found wins):
+
+```
+1. <project>/.crucible/skills/<skill>/SKILL.md   # Project-level (highest)
+2. ~/.claude/skills/crucible/<skill>/SKILL.md    # User-level
+3. <package>/skills/<skill>/SKILL.md             # Bundled (lowest)
+```
+
+Use `crucible skills init <skill>` to copy a skill for project customization.
 
 ## Patterns
 

@@ -43,11 +43,17 @@
 
 **Total: 18 skills**
 
+### Phase 4: Skill Customization
+- [x] Project-level skill overrides (`.crucible/skills/`)
+- [x] Skill resolution cascade (project → user → bundled)
+- [x] CLI: `crucible skills init <skill>` - copy skill for customization
+- [x] CLI: `crucible skills show <skill>` - show resolution
+- [x] Skill version metadata
+
 ## In Progress
 
-### Phase 4: Skills Polish
+### Phase 5: Polish
 - [ ] Skill trigger refinement (test which domains auto-load which skills)
-- [ ] Project-level skill overrides (`.claude/skills/crucible/`)
 
 ## Future
 

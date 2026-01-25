@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [security, auth, authentication, authorization, secrets, vulnerability, injection, xss, csrf, owasp]
 always_run: true
 ---

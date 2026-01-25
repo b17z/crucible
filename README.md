@@ -2,6 +2,8 @@
 
 Code review MCP server for Claude. Runs static analysis and loads review skills based on what kind of code you're looking at.
 
+> **Note:** This project is not affiliated with Atlassian or their Crucible code review tool. Just an unfortunate naming collision.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Your Code  ──→  Crucible  ──→  Claude                                       │
@@ -17,21 +19,26 @@ Code review MCP server for Claude. Runs static analysis and loads review skills 
 ## Quick Start
 
 ```bash
-# Install
+# Install from PyPI
+pip install crucible-mcp
+
+# Or install from source
 pip install -e ".[dev]"
 
 # Install skills to ~/.claude/crucible/skills/
 crucible skills install
 
-# Install required analysis tools
-pip install semgrep ruff
-pip install slither-analyzer  # For Solidity
-pip install bandit            # Optional, Python security
+# Install analysis tools for your stack
+pip install semgrep ruff              # Python
+pip install slither-analyzer          # Solidity
+pip install bandit                    # Python security
 ```
+
+> **Tools are separate by design.** Different workflows need different analyzers. Install what you need, skip what you don't. Crucible gracefully handles missing tools.
 
 ## MCP Setup
 
-Add to your Claude Code `.mcp.json`:
+Works with any MCP client (Claude Code, Cursor, etc.). Add to your `.mcp.json`:
 
 ```json
 {

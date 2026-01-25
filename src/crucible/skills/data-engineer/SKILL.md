@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [data, database, schema, migration, etl, pipeline, sql, analytics, warehouse]
 ---
 

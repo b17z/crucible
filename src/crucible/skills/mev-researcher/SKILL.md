@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [mev, frontrun, sandwich, flashloan, arbitrage, mempool, searcher]
 always_run_for_domains: [smart_contract]
 ---

@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [protocol, defi, tokenomics, governance, upgradeable, proxy, diamond]
 always_run_for_domains: [smart_contract]
 ---

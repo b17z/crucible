@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [support, documentation, error message, user facing, help, troubleshoot]
 ---
 

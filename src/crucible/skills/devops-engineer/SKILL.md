@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [devops, infrastructure, deployment, ci, cd, docker, kubernetes, terraform, aws, gcp, azure, monitoring, observability]
 ---
 

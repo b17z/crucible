@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [mobile, ios, android, react native, flutter, app, bundle size, offline]
 ---
 

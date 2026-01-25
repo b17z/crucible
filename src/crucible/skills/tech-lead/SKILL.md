@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [architecture, design, tradeoff, abstraction, refactor, technical debt]
 ---
 

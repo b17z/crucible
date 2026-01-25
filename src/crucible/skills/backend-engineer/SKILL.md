@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [backend, api, server, database, postgres, mysql, redis, queue, microservice, rest, graphql]
 ---
 

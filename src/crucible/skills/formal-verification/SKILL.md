@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [formal verification, invariant, specification, proof, certora, halmos, symbolic]
 ---
 

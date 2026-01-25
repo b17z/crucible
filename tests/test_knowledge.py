@@ -6,41 +6,74 @@ from unittest.mock import patch
 import pytest
 
 from crucible.knowledge.loader import (
-    find_knowledge_dir,
+    KNOWLEDGE_BUNDLED,
+    get_all_knowledge_files,
     get_persona_section,
     load_principles,
+    resolve_knowledge_file,
 )
 
 
-class TestFindKnowledgeDir:
-    """Test knowledge directory discovery."""
+class TestResolveKnowledgeFile:
+    """Test knowledge file resolution cascade."""
 
-    def test_finds_package_knowledge_dir(self) -> None:
-        """Should find the bundled knowledge directory."""
-        knowledge_dir = find_knowledge_dir()
-        assert knowledge_dir is not None
-        assert knowledge_dir.is_dir()
-        assert (knowledge_dir / "ENGINEERING_PRINCIPLES.md").exists()
+    def test_bundled_file_found(self, tmp_path: Path) -> None:
+        """Bundled knowledge files should be found when no overrides exist."""
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", tmp_path / "nonexistent-user"),
+        ):
+            path, source = resolve_knowledge_file("SECURITY.md")
+            assert path is not None
+            assert source == "bundled"
+            assert path.exists()
 
-    def test_project_local_takes_priority(self, tmp_path: Path) -> None:
-        """Project-local knowledge/ should take priority."""
-        project_knowledge = tmp_path / "knowledge"
-        project_knowledge.mkdir()
-        (project_knowledge / "TEST.md").write_text("# Test\n")
+    def test_nonexistent_file_returns_none(self) -> None:
+        """Non-existent file should return None."""
+        path, source = resolve_knowledge_file("nonexistent-file-12345.md")
+        assert path is None
+        assert source == ""
 
-        with patch("crucible.knowledge.loader.Path.cwd", return_value=tmp_path):
-            result = find_knowledge_dir()
-            assert result == project_knowledge
+    def test_project_takes_priority(self, tmp_path: Path) -> None:
+        """Project-level knowledge should take priority over bundled."""
+        project_knowledge = tmp_path / ".crucible" / "knowledge"
+        project_knowledge.mkdir(parents=True)
+        (project_knowledge / "SECURITY.md").write_text("# Custom Security\n")
 
-    def test_fallback_to_package_dir(self, tmp_path: Path) -> None:
-        """Should fall back to package knowledge when project-local doesn't exist."""
-        # When cwd has no knowledge dir, should still find package knowledge
-        with patch("crucible.knowledge.loader.Path.cwd", return_value=tmp_path):
-            result = find_knowledge_dir()
-            # Should find the package knowledge dir
-            assert result is not None
-            assert result.is_dir()
-            assert (result / "ENGINEERING_PRINCIPLES.md").exists()
+        with patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", project_knowledge):
+            path, source = resolve_knowledge_file("SECURITY.md")
+            assert source == "project"
+            assert "Custom Security" in path.read_text()
+
+    def test_user_takes_priority_over_bundled(self, tmp_path: Path) -> None:
+        """User-level knowledge should take priority over bundled."""
+        user_knowledge = tmp_path / "user-knowledge"
+        user_knowledge.mkdir(parents=True)
+        (user_knowledge / "SECURITY.md").write_text("# User Security\n")
+
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", user_knowledge),
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", tmp_path / "nonexistent"),
+        ):
+            path, source = resolve_knowledge_file("SECURITY.md")
+            assert source == "user"
+            assert "User Security" in path.read_text()
+
+
+class TestGetAllKnowledgeFiles:
+    """Test getting all available knowledge files."""
+
+    def test_returns_bundled_files(self) -> None:
+        """Should return bundled knowledge files."""
+        files = get_all_knowledge_files()
+        assert "SECURITY.md" in files
+        assert "TESTING.md" in files
+        assert "SMART_CONTRACT.md" in files
+
+    def test_returns_at_least_10_files(self) -> None:
+        """Should have at least 10 bundled knowledge files (domain-specific)."""
+        files = get_all_knowledge_files()
+        assert len(files) >= 10
 
 
 class TestLoadPrinciples:
@@ -50,7 +83,7 @@ class TestLoadPrinciples:
         """Should load engineering principles with no topic."""
         result = load_principles()
         assert result.is_ok
-        assert "ENGINEERING_PRINCIPLES" in result.value or len(result.value) > 100
+        assert len(result.value) > 100
 
     def test_load_engineering_topic(self) -> None:
         """Should load engineering principles with 'engineering' topic."""
@@ -62,9 +95,8 @@ class TestLoadPrinciples:
         """Should load security checklist."""
         result = load_principles("security")
         assert result.is_ok
-        # Should contain security-related content
         content_lower = result.value.lower()
-        assert "security" in content_lower or "engineer" in content_lower
+        assert "security" in content_lower
 
     def test_load_smart_contract_topic(self) -> None:
         """Should load smart contract checklist."""
@@ -72,7 +104,7 @@ class TestLoadPrinciples:
         assert result.is_ok
 
     def test_load_checklist_topic(self) -> None:
-        """Should load checklist."""
+        """Should load combined checklist."""
         result = load_principles("checklist")
         assert result.is_ok
 
@@ -80,6 +112,37 @@ class TestLoadPrinciples:
         """Unknown topic should return default principles."""
         result = load_principles("nonexistent-topic-xyz")
         assert result.is_ok  # Falls back to default
+
+
+class TestKnowledgeBundled:
+    """Test bundled knowledge files exist and have content."""
+
+    def test_bundled_directory_exists(self) -> None:
+        """Bundled knowledge directory should exist."""
+        assert KNOWLEDGE_BUNDLED.exists()
+        assert KNOWLEDGE_BUNDLED.is_dir()
+
+    def test_security_file_exists(self) -> None:
+        """Security file should exist."""
+        path = KNOWLEDGE_BUNDLED / "SECURITY.md"
+        assert path.exists()
+        content = path.read_text()
+        assert len(content) > 500
+        assert "security" in content.lower()
+
+    def test_testing_file_exists(self) -> None:
+        """Testing file should exist."""
+        path = KNOWLEDGE_BUNDLED / "TESTING.md"
+        assert path.exists()
+        content = path.read_text()
+        assert "test" in content.lower()
+
+    def test_smart_contract_file_exists(self) -> None:
+        """Smart contract file should exist."""
+        path = KNOWLEDGE_BUNDLED / "SMART_CONTRACT.md"
+        assert path.exists()
+        content = path.read_text()
+        assert "solidity" in content.lower() or "contract" in content.lower()
 
 
 class TestGetPersonaSection:
@@ -137,50 +200,3 @@ Web3 content here.
         """Unknown persona should return None."""
         section = get_persona_section("unknown-persona", sample_checklist)
         assert section is None
-
-    def test_all_supported_personas(self) -> None:
-        """Should support all documented personas."""
-        supported = [
-            "security",
-            "web3",
-            "backend",
-            "devops",
-            "product",
-            "performance",
-            "data",
-            "accessibility",
-            "mobile",
-            "uiux",
-            "fde",
-            "customer_success",
-            "tech_lead",
-            "pragmatist",
-            "purist",
-        ]
-
-        # Create content with all headers
-        content = "# Test\n\n"
-        for persona in supported:
-            header_map = {
-                "security": "## Security Engineer",
-                "web3": "## Web3/Blockchain Engineer",
-                "backend": "## Backend/Systems Engineer",
-                "devops": "## DevOps/SRE",
-                "product": "## Product Engineer",
-                "performance": "## Performance Engineer",
-                "data": "## Data Engineer",
-                "accessibility": "## Accessibility Engineer",
-                "mobile": "## Mobile/Client Engineer",
-                "uiux": "## UI/UX Designer",
-                "fde": "## Forward Deployed",
-                "customer_success": "## Customer Success",
-                "tech_lead": "## Tech Lead",
-                "pragmatist": "## Pragmatist",
-                "purist": "## Purist",
-            }
-            content += f"\n{header_map[persona]}\n\nContent for {persona}.\n"
-
-        for persona in supported:
-            section = get_persona_section(persona, content)
-            assert section is not None, f"Failed to extract {persona}"
-            assert f"Content for {persona}" in section

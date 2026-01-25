@@ -1,23 +1,55 @@
-"""Load engineering principles from markdown files."""
+"""Load engineering principles from markdown files.
+
+Knowledge follows the same cascade as skills:
+1. Project: .crucible/knowledge/
+2. User: ~/.claude/crucible/knowledge/
+3. Bundled: package knowledge/
+"""
 
 from pathlib import Path
 
 from crucible.errors import Result, err, ok
 
+# Knowledge directories (same pattern as skills)
+KNOWLEDGE_BUNDLED = Path(__file__).parent / "principles"
+KNOWLEDGE_USER = Path.home() / ".claude" / "crucible" / "knowledge"
+KNOWLEDGE_PROJECT = Path(".crucible") / "knowledge"
 
-def find_knowledge_dir() -> Path | None:
-    """Find the knowledge directory, checking project then package."""
-    # Check project-local first
-    project_knowledge = Path.cwd() / "knowledge"
-    if project_knowledge.is_dir():
-        return project_knowledge
 
-    # Check package directory
-    package_knowledge = Path(__file__).parent.parent.parent.parent / "knowledge"
-    if package_knowledge.is_dir():
-        return package_knowledge
+def resolve_knowledge_file(filename: str) -> tuple[Path | None, str]:
+    """Find knowledge file with cascade priority.
 
-    return None
+    Returns (path, source) where source is 'project', 'user', or 'bundled'.
+    """
+    # 1. Project-level (highest priority)
+    project_path = KNOWLEDGE_PROJECT / filename
+    if project_path.exists():
+        return project_path, "project"
+
+    # 2. User-level
+    user_path = KNOWLEDGE_USER / filename
+    if user_path.exists():
+        return user_path, "user"
+
+    # 3. Bundled (lowest priority)
+    bundled_path = KNOWLEDGE_BUNDLED / filename
+    if bundled_path.exists():
+        return bundled_path, "bundled"
+
+    return None, ""
+
+
+def get_all_knowledge_files() -> set[str]:
+    """Get all available knowledge file names from all sources."""
+    files: set[str] = set()
+
+    for source_dir in [KNOWLEDGE_BUNDLED, KNOWLEDGE_USER, KNOWLEDGE_PROJECT]:
+        if source_dir.exists():
+            for file_path in source_dir.iterdir():
+                if file_path.is_file() and file_path.suffix == ".md":
+                    files.add(file_path.name)
+
+    return files
 
 
 def load_principles(topic: str | None = None) -> Result[str, str]:
@@ -25,36 +57,33 @@ def load_principles(topic: str | None = None) -> Result[str, str]:
     Load engineering principles from markdown files.
 
     Args:
-        topic: Optional topic filter (e.g., "security", "smart_contract")
+        topic: Optional topic filter (e.g., "security", "smart_contract", "engineering")
 
     Returns:
         Result containing principles content or error message
     """
-    knowledge_dir = find_knowledge_dir()
-    if not knowledge_dir:
-        return err("Knowledge directory not found")
-
-    # Map topics to files
+    # Map topics to domain-specific files
     topic_files = {
-        None: ["ENGINEERING_PRINCIPLES.md"],
-        "engineering": ["ENGINEERING_PRINCIPLES.md"],
-        "security": ["SENIOR_ENGINEER_CHECKLIST.md"],
-        "smart_contract": [
-            "SENIOR_ENGINEER_CHECKLIST.md",
-        ],
-        "checklist": ["SENIOR_ENGINEER_CHECKLIST.md"],
+        None: ["SECURITY.md", "TESTING.md"],  # Default: security + testing basics
+        "engineering": ["TESTING.md", "ERROR_HANDLING.md", "TYPE_SAFETY.md"],
+        "security": ["SECURITY.md"],
+        "smart_contract": ["SMART_CONTRACT.md"],
+        "checklist": ["SECURITY.md", "TESTING.md", "ERROR_HANDLING.md"],
     }
 
     files_to_load = topic_files.get(topic, topic_files[None])
     content_parts: list[str] = []
 
     for filename in files_to_load:
-        filepath = knowledge_dir / filename
-        if filepath.exists():
-            content_parts.append(filepath.read_text())
+        path, _source = resolve_knowledge_file(filename)
+        if path and path.exists():
+            content_parts.append(path.read_text())
 
     if not content_parts:
-        return err(f"No principles found for topic: {topic}")
+        available = get_all_knowledge_files()
+        if available:
+            return err(f"No principles found for topic: {topic}. Available files: {', '.join(sorted(available))}")
+        return err("No knowledge files found. Run 'crucible knowledge list' to see available topics.")
 
     return ok("\n\n---\n\n".join(content_parts))
 

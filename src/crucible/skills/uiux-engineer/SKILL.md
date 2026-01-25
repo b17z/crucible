@@ -1,6 +1,7 @@
 ---
 version: "1.0"
 triggers: [ui, ux, design, component, css, styling, animation, design system]
+knowledge: [TYPE_SAFETY.md]
 ---
 
 # UI/UX Engineer

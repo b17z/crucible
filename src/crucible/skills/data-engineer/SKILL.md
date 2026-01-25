@@ -1,6 +1,7 @@
 ---
 version: "1.0"
 triggers: [data, database, schema, migration, etl, pipeline, sql, analytics, warehouse]
+knowledge: [DATABASE.md, TYPE_SAFETY.md]
 ---
 
 # Data Engineer

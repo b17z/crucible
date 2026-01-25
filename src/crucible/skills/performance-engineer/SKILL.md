@@ -1,6 +1,7 @@
 ---
 version: "1.0"
 triggers: [performance, optimization, latency, throughput, profiling, caching, slow, benchmark]
+knowledge: [SYSTEM_DESIGN.md, DATABASE.md, OBSERVABILITY.md]
 ---
 
 # Performance Engineer

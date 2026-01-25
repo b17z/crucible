@@ -1,6 +1,7 @@
 ---
 version: "1.0"
 triggers: [support, documentation, error message, user facing, help, troubleshoot]
+knowledge: [DOCUMENTATION.md, ERROR_HANDLING.md]
 ---
 
 # Customer Success Engineer

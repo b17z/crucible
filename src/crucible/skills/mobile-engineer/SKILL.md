@@ -1,6 +1,7 @@
 ---
 version: "1.0"
 triggers: [mobile, ios, android, react native, flutter, app, bundle size, offline]
+knowledge: [ERROR_HANDLING.md, TESTING.md]
 ---
 
 # Mobile Engineer

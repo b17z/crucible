@@ -30,12 +30,22 @@
   - [x] data-engineer
   - [x] product-engineer
   - [x] tech-lead
+- [x] Add remaining personas:
+  - [x] mobile-engineer
+  - [x] uiux-engineer
+  - [x] fde-engineer
+  - [x] customer-success
+  - [x] gas-optimizer (web3)
+  - [x] protocol-architect (web3)
+  - [x] mev-researcher (web3)
+  - [x] formal-verification
+  - [x] incident-responder
 
-**Total: 9 skills**
+**Total: 18 skills**
 
 ## In Progress
 
-### Phase 3b: Skills Polish
+### Phase 4: Skills Polish
 - [ ] Skill trigger refinement (test which domains auto-load which skills)
 - [ ] Project-level skill overrides (`.claude/skills/crucible/`)
 

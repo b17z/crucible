@@ -39,17 +39,12 @@ Let Claude figure it out. Skills provide perspectives, Claude naturally identifi
 
 ## Additional Skills
 
-Potential future skills not yet implemented:
+All planned personas have been implemented (18 total). Potential future additions:
 
-- mobile-engineer
-- uiux-engineer
-- fde-engineer (field/solutions engineer)
-- customer-success
-- gas-optimizer (web3-specific)
-- protocol-architect (web3-specific)
-- mev-researcher (web3-specific)
-- formal-verification
-- incident-responder
+- compliance-engineer (GDPR, SOC2, HIPAA)
+- ml-engineer (model deployment, inference optimization)
+- api-designer (REST/GraphQL best practices)
+- testing-engineer (test strategy, coverage gaps)
 
 ---
 

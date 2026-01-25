@@ -1,4 +1,5 @@
 ---
+version: "1.0"
 triggers: [solidity, smart_contract, web3, ethereum, evm, defi, vyper, foundry, hardhat, blockchain]
 always_run_for_domains: [smart_contract]
 ---

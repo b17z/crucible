@@ -1,34 +1,37 @@
-# crucible
+# Crucible
 
-Code review MCP server. Runs static analysis tools and returns findings with domain metadata. Claude uses the domain info to load relevant review skills.
-
-## Architecture
+Code review MCP server for Claude. Runs static analysis and loads review skills based on what kind of code you're looking at.
 
 ```
-MCP (crucible)          Skills (Claude)           Claude
-─────────────────       ─────────────────         ─────────────────
-quick_review(path)  →   domains_detected    →     Loads relevant skills
-                        severity_summary          (security-engineer,
-                        findings                   web3-engineer, etc.)
-
-                                                  Synthesizes review
-                                                  Surfaces tensions
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Your Code  ──→  Crucible  ──→  Claude                                       │
+│                  (analysis)     (synthesis)                                  │
+│                                                                             │
+│  .sol file  ──→  slither, semgrep  ──→  web3-engineer skill loaded          │
+│  .py file   ──→  ruff, bandit      ──→  backend-engineer skill loaded       │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **MCP provides data. Skills provide perspective. Claude orchestrates.**
 
-## Install
+## Quick Start
 
 ```bash
+# Install
 pip install -e ".[dev]"
 
-# Install review skills to ~/.claude/skills/crucible/
+# Install skills to ~/.claude/crucible/skills/
 crucible skills install
+
+# Install required analysis tools
+pip install semgrep ruff
+pip install slither-analyzer  # For Solidity
+pip install bandit            # Optional, Python security
 ```
 
-## Usage
+## MCP Setup
 
-Add to your `.mcp.json`:
+Add to your Claude Code `.mcp.json`:
 
 ```json
 {
@@ -40,79 +43,92 @@ Add to your `.mcp.json`:
 }
 ```
 
-Then in Claude Code:
+Then in Claude:
 
 ```
-# Run static analysis - returns findings + domain metadata
-quick_review(path="src/Vault.sol")
-→ domains_detected: solidity, smart_contract, web3
-→ severity_summary: {critical: 1, high: 3}
-→ Slither findings, Semgrep findings
+Review src/Vault.sol
 
-# Claude sees "smart_contract" domain, loads web3-engineer skill
-# Skill provides questions, red flags, approval criteria
+→ Crucible: domains_detected: [solidity, smart_contract, web3]
+→ Crucible: severity_summary: {critical: 1, high: 3}
+→ Claude loads: web3-engineer, security-engineer skills
+→ Claude synthesizes multi-perspective review
 ```
 
 ## MCP Tools
 
 | Tool | Purpose |
 |------|---------|
-| `quick_review(path)` | Run analyzers, return findings + domains |
-| `get_principles(topic?)` | Load engineering checklists |
-| `delegate_semgrep(path)` | Direct semgrep access |
-| `delegate_ruff(path)` | Direct ruff access |
-| `delegate_slither(path)` | Direct slither access |
+| `quick_review(path)` | Run analysis, return findings + domains |
+| `get_principles(topic)` | Load engineering knowledge |
+| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit) |
 | `check_tools()` | Show installed analysis tools |
 
-Domain detection is internal - `quick_review` returns `domains_detected` metadata that Claude uses to select skills.
-
-## Skills
-
-Review perspectives, installed via `crucible skills install`:
-
-| Skill | Triggers | Focus |
-|-------|----------|-------|
-| `security-engineer` | auth, secrets, injection | Threat models, input validation |
-| `web3-engineer` | solidity, smart_contract | Reentrancy, CEI pattern, gas |
-
-More personas available in `knowledge/SENIOR_ENGINEER_CHECKLIST.md` - can be converted to skills as needed.
-
-## External Tools
-
-crucible shells out to these (install separately):
+## CLI
 
 ```bash
-pip install semgrep           # Multi-language patterns
-pip install ruff              # Python linting
-pip install slither-analyzer  # Solidity analysis
+crucible skills list              # List all skills
+crucible skills show <skill>      # Show which version is active
+crucible skills init <skill>      # Copy to .crucible/ for customization
+
+crucible knowledge list           # List all knowledge files
+crucible knowledge init <file>    # Copy for customization
 ```
+
+## How It Works
+
+Crucible detects what kind of code you're reviewing, runs the right analysis tools, and returns findings with domain metadata. Claude uses this to load appropriate review skills.
+
+```
+.sol file  →  slither + semgrep  →  web3-engineer, gas-optimizer skills
+.py file   →  ruff + bandit      →  backend-engineer, security-engineer skills
+```
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full flow.
+
+## Customization
+
+Override skills and knowledge for your project or personal preferences:
+
+```bash
+# Customize a skill for your project
+crucible skills init security-engineer
+# Creates .crucible/skills/security-engineer/SKILL.md
+
+# Add project-specific concerns, team conventions, etc.
+```
+
+Resolution order (first found wins):
+1. `.crucible/` — Project overrides
+2. `~/.claude/crucible/` — User preferences
+3. Bundled — Package defaults
+
+See [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for the full guide.
+
+## What's Included
+
+**18 Review Skills** — Different review perspectives (security, performance, accessibility, web3, etc.)
+
+See [SKILLS.md](docs/SKILLS.md) for the full list with triggers and focus areas.
+
+**12 Knowledge Files** — Engineering principles for security, testing, APIs, databases, smart contracts, etc.
+
+See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered and skill linkages.
+
+## Documentation
+
+| Doc | What's In It |
+|-----|--------------|
+| [FEATURES.md](docs/FEATURES.md) | Complete feature reference |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
+| [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) | Override skills and knowledge for your project |
+| [SKILLS.md](docs/SKILLS.md) | All 18 review personas with triggers and key questions |
+| [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 12 knowledge files with topics covered |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # Run tests
+pytest                    # Run tests (263 tests)
 ruff check src/ --fix     # Lint
-```
-
-## Structure
-
-```
-src/crucible/
-├── server.py           # MCP server (6 tools)
-├── cli.py              # crucible skills install/list
-├── models.py           # Domain, Severity, ToolFinding
-├── domain/
-│   └── detection.py    # Classify code by extension/content
-├── tools/
-│   └── delegation.py   # Shell out to semgrep, ruff, slither
-├── knowledge/
-│   └── loader.py       # Load principles markdown
-└── skills/
-    ├── security-engineer/SKILL.md
-    └── web3-engineer/SKILL.md
-
-knowledge/
-├── ENGINEERING_PRINCIPLES.md    # Core engineering philosophy
-└── SENIOR_ENGINEER_CHECKLIST.md # 21 persona checklists (reference)
 ```

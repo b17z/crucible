@@ -11,19 +11,41 @@
 - [x] Tests for domain detection
 
 ### Phase 2: Architecture Refactor
-- [x] Simplify MCP to 6 tools (remove persona logic from MCP)
+- [x] Simplify MCP to 7 tools (remove persona logic from MCP)
 - [x] Internal domain detection (returns metadata, not exposed as tool)
 - [x] `quick_review` returns `domains_detected` + `severity_summary`
 - [x] CLI: `crucible skills install/list`
 - [x] Initial skills: security-engineer, web3-engineer
 - [x] Remove dead code (Persona enum, PERSONA_ROUTING, persona engine)
+- [x] Expose delegate_bandit as MCP tool
 
 **New architecture:** MCP = data, Skills = perspective, Claude = orchestrator
 
+### Phase 3: Skills Expansion
+- [x] Convert core personas to skills:
+  - [x] backend-engineer
+  - [x] devops-engineer
+  - [x] performance-engineer
+  - [x] accessibility-engineer
+  - [x] data-engineer
+  - [x] product-engineer
+  - [x] tech-lead
+- [x] Add remaining personas:
+  - [x] mobile-engineer
+  - [x] uiux-engineer
+  - [x] fde-engineer
+  - [x] customer-success
+  - [x] gas-optimizer (web3)
+  - [x] protocol-architect (web3)
+  - [x] mev-researcher (web3)
+  - [x] formal-verification
+  - [x] incident-responder
+
+**Total: 18 skills**
+
 ## In Progress
 
-### Phase 3: Skills Expansion
-- [ ] Convert remaining personas to skills (backend, devops, performance, etc.)
+### Phase 4: Skills Polish
 - [ ] Skill trigger refinement (test which domains auto-load which skills)
 - [ ] Project-level skill overrides (`.claude/skills/crucible/`)
 

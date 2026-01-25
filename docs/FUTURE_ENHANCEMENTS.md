@@ -39,26 +39,12 @@ Let Claude figure it out. Skills provide perspectives, Claude naturally identifi
 
 ## Additional Skills
 
-Personas from SENIOR_ENGINEER_CHECKLIST.md not yet converted to skills:
+All planned personas have been implemented (18 skills). Potential future additions:
 
-- backend-engineer
-- devops-engineer
-- product-engineer
-- performance-engineer
-- data-engineer
-- accessibility-engineer
-- mobile-engineer
-- uiux-engineer
-- fde-engineer
-- customer-success
-- tech-lead
-- pragmatist
-- purist
-- gas-optimizer
-- protocol-architect
-- mev-researcher
-- formal-verification
-- incident-responder
+- compliance-engineer (GDPR, SOC2, HIPAA)
+- ml-engineer (model deployment, inference optimization)
+- api-designer (REST/GraphQL best practices)
+- testing-engineer (test strategy, coverage gaps)
 
 ---
 

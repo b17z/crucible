@@ -19,15 +19,16 @@ ruff check src/ --fix      # Lint
 | `delegate_semgrep(path)` | Direct semgrep access |
 | `delegate_ruff(path)` | Direct ruff access |
 | `delegate_slither(path)` | Direct slither access |
+| `delegate_bandit(path)` | Direct bandit access (Python security) |
 | `check_tools()` | What's installed |
 
-Domain detection is internal - `quick_review` returns `domains_detected` metadata for skill selection.
+Domain detection is internal - `quick_review` returns `domains_detected` metadata for skill selection. For Python files, `quick_review` runs ruff + bandit + semgrep by default.
 
 ## Project Structure
 
 ```
 src/crucible/
-├── server.py           # MCP server (6 tools)
+├── server.py           # MCP server (7 tools)
 ├── models.py           # Domain, Persona, ToolFinding
 ├── errors.py           # Result types (Ok/Err)
 ├── domain/

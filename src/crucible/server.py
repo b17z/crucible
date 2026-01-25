@@ -11,6 +11,7 @@ from crucible.knowledge.loader import load_principles
 from crucible.models import Domain, Severity, ToolFinding
 from crucible.tools.delegation import (
     check_all_tools,
+    delegate_bandit,
     delegate_ruff,
     delegate_semgrep,
     delegate_slither,
@@ -63,7 +64,7 @@ async def list_tools() -> list[Tool]:
                     "tools": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Tools to run (semgrep, ruff, slither). Default: auto-detect based on file type",
+                        "description": "Tools to run (semgrep, ruff, slither, bandit). Default: auto-detect based on file type",
                     },
                 },
                 "required": ["path"],
@@ -135,6 +136,20 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="delegate_bandit",
+            description="Run bandit Python security analyzer",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "File or directory to scan",
+                    },
+                },
+                "required": ["path"],
+            },
+        ),
+        Tool(
             name="check_tools",
             description="Check which analysis tools are installed and available",
             inputSchema={
@@ -187,6 +202,16 @@ def _handle_delegate_slither(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text=f"Error: {result.error}")]
 
 
+def _handle_delegate_bandit(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle delegate_bandit tool."""
+    path = arguments.get("path", "")
+    result = delegate_bandit(path)
+
+    if result.is_ok:
+        return [TextContent(type="text", text=_format_findings(result.value))]
+    return [TextContent(type="text", text=f"Error: {result.error}")]
+
+
 def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle check_tools tool."""
     statuses = check_all_tools()
@@ -207,6 +232,7 @@ def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
             "semgrep": "pip install semgrep",
             "ruff": "pip install ruff",
             "slither": "pip install slither-analyzer",
+            "bandit": "pip install bandit",
         }
         for name in missing:
             if name in install_cmds:
@@ -252,7 +278,7 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
     if domain == Domain.SMART_CONTRACT:
         default_tools = ["slither", "semgrep"]
     elif domain == Domain.BACKEND and "python" in domain_tags:
-        default_tools = ["ruff", "semgrep"]
+        default_tools = ["ruff", "bandit", "semgrep"]
     elif domain == Domain.FRONTEND:
         default_tools = ["semgrep"]
     else:
@@ -290,6 +316,14 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
         else:
             tool_results.append(f"## Slither\nError: {result.error}")
 
+    if "bandit" in tools:
+        result = delegate_bandit(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+            tool_results.append(f"## Bandit\n{_format_findings(result.value)}")
+        else:
+            tool_results.append(f"## Bandit\nError: {result.error}")
+
     # Compute severity summary
     severity_counts: dict[str, int] = {}
     for f in all_findings:
@@ -315,6 +349,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         "delegate_semgrep": _handle_delegate_semgrep,
         "delegate_ruff": _handle_delegate_ruff,
         "delegate_slither": _handle_delegate_slither,
+        "delegate_bandit": _handle_delegate_bandit,
         "quick_review": _handle_quick_review,
         "check_tools": _handle_check_tools,
     }

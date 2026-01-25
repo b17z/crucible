@@ -35,27 +35,33 @@ jobs:
 
       - name: Bump version
         id: bump
+        env:
+          CURRENT_VERSION: ${{ steps.current.outputs.version }}
+          BUMP_TYPE: ${{ inputs.bump }}
         run: |
-          IFS='.' read -r major minor patch <<< "${{ steps.current.outputs.version }}"
-          case "${{ inputs.bump }}" in
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          case "$BUMP_TYPE" in
             major) major=$((major + 1)); minor=0; patch=0 ;;
             minor) minor=$((minor + 1)); patch=0 ;;
             patch) patch=$((patch + 1)) ;;
           esac
           NEW_VERSION="$major.$minor.$patch"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          sed -i "s/version = \"${{ steps.current.outputs.version }}\"/version = \"$NEW_VERSION\"/" pyproject.toml
+          sed -i "s/version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" pyproject.toml
 
       - name: Commit and tag
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml
-          git commit -m "(release): v${{ steps.bump.outputs.version }}"
-          git tag "v${{ steps.bump.outputs.version }}"
+          git commit -m "(release): v$NEW_VERSION"
+          git tag "v$NEW_VERSION"
           git push && git push --tags
 
       - name: Create release
-        run: gh release create "v${{ steps.bump.outputs.version }}" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+        run: gh release create "v$NEW_VERSION" --generate-notes

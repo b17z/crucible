@@ -28,15 +28,17 @@ pip install -e ".[dev]"
 # Install skills to ~/.claude/crucible/skills/
 crucible skills install
 
-# Install required analysis tools
-pip install semgrep ruff
-pip install slither-analyzer  # For Solidity
-pip install bandit            # Optional, Python security
+# Install analysis tools for your stack
+pip install semgrep ruff              # Python
+pip install slither-analyzer          # Solidity
+pip install bandit                    # Python security
 ```
+
+> **Tools are separate by design.** Different workflows need different analyzers. Install what you need, skip what you don't. Crucible gracefully handles missing tools.
 
 ## MCP Setup
 
-Add to your Claude Code `.mcp.json`:
+Works with any MCP client (Claude Code, Cursor, etc.). Add to your `.mcp.json`:
 
 ```json
 {

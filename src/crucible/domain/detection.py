@@ -65,11 +65,3 @@ def detect_domain(
 
     # Fallback to unknown
     return ok(Domain.UNKNOWN)
-
-
-def get_personas_for_domain(domain: Domain) -> list[str]:
-    """Get relevant persona names for a domain."""
-    from crucible.models import PERSONA_ROUTING
-
-    personas = PERSONA_ROUTING.get(domain, PERSONA_ROUTING[Domain.UNKNOWN])
-    return [p.value for p in personas]

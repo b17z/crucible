@@ -7,10 +7,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from crucible.domain.detection import detect_domain, get_personas_for_domain
-from crucible.knowledge.loader import get_persona_section, load_principles
+from crucible.knowledge.loader import load_principles
 from crucible.models import Domain, Severity, ToolFinding
-from crucible.personas.engine import format_multi_persona_review, invoke_personas
 from crucible.tools.delegation import (
     check_all_tools,
     delegate_ruff,
@@ -53,40 +51,8 @@ async def list_tools() -> list[Tool]:
     """List available tools."""
     return [
         Tool(
-            name="review",
-            description="Multi-persona code review: detect domain, get perspectives from multiple relevant personas",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "The source code to review",
-                    },
-                    "file_path": {
-                        "type": "string",
-                        "description": "Optional file path for domain detection",
-                    },
-                    "domain": {
-                        "type": "string",
-                        "description": "Override domain (smart_contract, frontend, backend, infrastructure)",
-                    },
-                    "personas": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific personas to use. Default: auto-select based on domain",
-                    },
-                    "max_personas": {
-                        "type": "integer",
-                        "description": "Maximum personas to include (default: 3)",
-                        "default": 3,
-                    },
-                },
-                "required": ["code"],
-            },
-        ),
-        Tool(
             name="quick_review",
-            description="Fast review: run tools only, no persona interpretation (good for CI)",
+            description="Run static analysis tools on code. Returns findings with domain metadata for skill selection.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -97,28 +63,10 @@ async def list_tools() -> list[Tool]:
                     "tools": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Tools to run (semgrep, ruff, slither). Default: auto-detect",
+                        "description": "Tools to run (semgrep, ruff, slither). Default: auto-detect based on file type",
                     },
                 },
                 "required": ["path"],
-            },
-        ),
-        Tool(
-            name="detect_domain",
-            description="Auto-detect code domain from content and file path",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "The source code content",
-                    },
-                    "file_path": {
-                        "type": "string",
-                        "description": "Optional file path",
-                    },
-                },
-                "required": ["code"],
             },
         ),
         Tool(
@@ -132,20 +80,6 @@ async def list_tools() -> list[Tool]:
                         "description": "Topic filter (engineering, security, smart_contract, checklist)",
                     },
                 },
-            },
-        ),
-        Tool(
-            name="get_persona",
-            description="Get a specific persona's review perspective",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "persona": {
-                        "type": "string",
-                        "description": "Persona name (security, web3, backend, devops, etc.)",
-                    },
-                },
-                "required": ["persona"],
             },
         ),
         Tool(
@@ -211,24 +145,6 @@ async def list_tools() -> list[Tool]:
     ]
 
 
-def _handle_detect_domain(arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle detect_domain tool."""
-    code = arguments.get("code", "")
-    file_path = arguments.get("file_path")
-    result = detect_domain(code, file_path)
-
-    if result.is_ok:
-        domain = result.value
-        personas = get_personas_for_domain(domain)
-        return [
-            TextContent(
-                type="text",
-                text=f"**Domain:** {domain.value}\n**Relevant personas:** {', '.join(personas)}",
-            )
-        ]
-    return [TextContent(type="text", text=f"Error: {result.error}")]
-
-
 def _handle_get_principles(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle get_principles tool."""
     topic = arguments.get("topic")
@@ -237,20 +153,6 @@ def _handle_get_principles(arguments: dict[str, Any]) -> list[TextContent]:
     if result.is_ok:
         return [TextContent(type="text", text=result.value)]
     return [TextContent(type="text", text=f"Error: {result.error}")]
-
-
-def _handle_get_persona(arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle get_persona tool."""
-    persona = arguments.get("persona", "")
-    principles_result = load_principles("checklist")
-
-    if principles_result.is_err:
-        return [TextContent(type="text", text=f"Error: {principles_result.error}")]
-
-    section = get_persona_section(persona, principles_result.value)
-    if section:
-        return [TextContent(type="text", text=section)]
-    return [TextContent(type="text", text=f"Persona not found: {persona}")]
 
 
 def _handle_delegate_semgrep(arguments: dict[str, Any]) -> list[TextContent]:
@@ -313,21 +215,45 @@ def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text="\n".join(parts))]
 
 
+def _detect_domain(path: str) -> tuple[Domain, list[str]]:
+    """Internal domain detection from file path.
+
+    Returns (domain, list of domain tags for skill matching).
+    """
+    if path.endswith(".sol"):
+        return Domain.SMART_CONTRACT, ["solidity", "smart_contract", "web3"]
+    elif path.endswith(".vy"):
+        return Domain.SMART_CONTRACT, ["vyper", "smart_contract", "web3"]
+    elif path.endswith(".py"):
+        return Domain.BACKEND, ["python", "backend"]
+    elif path.endswith((".ts", ".tsx")):
+        return Domain.FRONTEND, ["typescript", "frontend"]
+    elif path.endswith((".js", ".jsx")):
+        return Domain.FRONTEND, ["javascript", "frontend"]
+    elif path.endswith(".go"):
+        return Domain.BACKEND, ["go", "backend"]
+    elif path.endswith(".rs"):
+        return Domain.BACKEND, ["rust", "backend"]
+    elif path.endswith((".tf", ".yaml", ".yml")):
+        return Domain.INFRASTRUCTURE, ["infrastructure", "devops"]
+    else:
+        return Domain.UNKNOWN, ["unknown"]
+
+
 def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle quick_review tool."""
+    """Handle quick_review tool - returns findings with domain metadata."""
     path = arguments.get("path", "")
     tools = arguments.get("tools")
 
-    # Detect domain for smarter tool selection and config
-    domain = Domain.UNKNOWN
-    if path.endswith(".sol"):
-        domain = Domain.SMART_CONTRACT
+    # Internal domain detection
+    domain, domain_tags = _detect_domain(path)
+
+    # Select tools based on domain
+    if domain == Domain.SMART_CONTRACT:
         default_tools = ["slither", "semgrep"]
-    elif path.endswith(".py"):
-        domain = Domain.BACKEND
+    elif domain == Domain.BACKEND and "python" in domain_tags:
         default_tools = ["ruff", "semgrep"]
-    elif path.endswith((".ts", ".tsx", ".js", ".jsx")):
-        domain = Domain.FRONTEND
+    elif domain == Domain.FRONTEND:
         default_tools = ["semgrep"]
     else:
         default_tools = ["semgrep"]
@@ -335,81 +261,61 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
     if not tools:
         tools = default_tools
 
-    all_findings: list[str] = []
+    # Collect all findings
+    all_findings: list[ToolFinding] = []
+    tool_results: list[str] = []
 
     if "semgrep" in tools:
         config = get_semgrep_config(domain)
         result = delegate_semgrep(path, config)
         if result.is_ok:
-            all_findings.append(f"## Semgrep (config: {config})\n" + _format_findings(result.value))
+            all_findings.extend(result.value)
+            tool_results.append(f"## Semgrep\n{_format_findings(result.value)}")
         else:
-            all_findings.append(f"## Semgrep\nError: {result.error}")
+            tool_results.append(f"## Semgrep\nError: {result.error}")
 
     if "ruff" in tools:
         result = delegate_ruff(path)
         if result.is_ok:
-            all_findings.append("## Ruff\n" + _format_findings(result.value))
+            all_findings.extend(result.value)
+            tool_results.append(f"## Ruff\n{_format_findings(result.value)}")
         else:
-            all_findings.append(f"## Ruff\nError: {result.error}")
+            tool_results.append(f"## Ruff\nError: {result.error}")
 
     if "slither" in tools:
         result = delegate_slither(path)
         if result.is_ok:
-            all_findings.append("## Slither\n" + _format_findings(result.value))
+            all_findings.extend(result.value)
+            tool_results.append(f"## Slither\n{_format_findings(result.value)}")
         else:
-            all_findings.append(f"## Slither\nError: {result.error}")
+            tool_results.append(f"## Slither\nError: {result.error}")
 
-    return [TextContent(type="text", text="\n\n".join(all_findings))]
+    # Compute severity summary
+    severity_counts: dict[str, int] = {}
+    for f in all_findings:
+        sev = f.severity.value
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
+    # Build structured output
+    output_parts = [
+        "# Review Results\n",
+        f"**Domains detected:** {', '.join(domain_tags)}",
+        f"**Severity summary:** {severity_counts or 'No findings'}\n",
+        "\n".join(tool_results),
+    ]
 
-def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle review tool with multi-persona support."""
-    code = arguments.get("code", "")
-    file_path = arguments.get("file_path")
-    domain_override = arguments.get("domain")
-    persona_list = arguments.get("personas")
-    max_personas = arguments.get("max_personas", 3)
-
-    # Detect domain
-    if domain_override:
-        try:
-            domain = Domain(domain_override)
-        except ValueError:
-            domain = Domain.UNKNOWN
-    else:
-        result = detect_domain(code, file_path)
-        domain = result.value if result.is_ok else Domain.UNKNOWN
-
-    # Get relevant personas
-    persona_names = persona_list or get_personas_for_domain(domain)
-
-    # Invoke multiple personas
-    perspectives = invoke_personas(persona_names, max_personas=max_personas)
-
-    if not perspectives:
-        return [TextContent(type="text", text="No personas found for this domain.")]
-
-    # Format the multi-persona review
-    output = format_multi_persona_review(perspectives, domain.value)
-
-    # Add footer
-    output += "\n*Use `quick_review` with a file path to run static analysis tools.*"
-
-    return [TextContent(type="text", text=output)]
+    return [TextContent(type="text", text="\n".join(output_parts))]
 
 
 @server.call_tool()  # type: ignore[misc]
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     """Handle tool calls."""
     handlers = {
-        "detect_domain": _handle_detect_domain,
         "get_principles": _handle_get_principles,
-        "get_persona": _handle_get_persona,
         "delegate_semgrep": _handle_delegate_semgrep,
         "delegate_ruff": _handle_delegate_ruff,
         "delegate_slither": _handle_delegate_slither,
         "quick_review": _handle_quick_review,
-        "review": _handle_review,
         "check_tools": _handle_check_tools,
     }
 

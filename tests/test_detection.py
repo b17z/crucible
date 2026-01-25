@@ -5,7 +5,6 @@ from crucible.domain.detection import (
     detect_domain,
     detect_domain_from_content,
     detect_domain_from_extension,
-    get_personas_for_domain,
 )
 from crucible.models import Domain
 
@@ -82,29 +81,3 @@ class TestDetectDomain:
         result = detect_domain(code)
         assert result.is_ok
         assert result.value == Domain.UNKNOWN
-
-
-class TestPersonaRouting:
-    """Test persona routing by domain."""
-
-    def test_smart_contract_personas(self) -> None:
-        personas = get_personas_for_domain(Domain.SMART_CONTRACT)
-        assert "security" in personas
-        assert "web3" in personas
-        assert "gas_optimizer" in personas
-
-    def test_frontend_personas(self) -> None:
-        personas = get_personas_for_domain(Domain.FRONTEND)
-        assert "product" in personas
-        assert "accessibility" in personas
-        assert "uiux" in personas
-
-    def test_backend_personas(self) -> None:
-        personas = get_personas_for_domain(Domain.BACKEND)
-        assert "security" in personas
-        assert "backend" in personas
-        assert "data" in personas
-
-    def test_unknown_has_security(self) -> None:
-        personas = get_personas_for_domain(Domain.UNKNOWN)
-        assert "security" in personas

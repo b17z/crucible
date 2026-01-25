@@ -1,11 +1,29 @@
 # crucible
 
-Code review MCP server. Detects what kind of code you're looking at, runs the right static analysis tools, and loads relevant engineering checklists.
+Code review MCP server. Runs static analysis tools and returns findings with domain metadata. Claude uses the domain info to load relevant review skills.
+
+## Architecture
+
+```
+MCP (crucible)          Skills (Claude)           Claude
+─────────────────       ─────────────────         ─────────────────
+quick_review(path)  →   domains_detected    →     Loads relevant skills
+                        severity_summary          (security-engineer,
+                        findings                   web3-engineer, etc.)
+
+                                                  Synthesizes review
+                                                  Surfaces tensions
+```
+
+**MCP provides data. Skills provide perspective. Claude orchestrates.**
 
 ## Install
 
 ```bash
 pip install -e ".[dev]"
+
+# Install review skills to ~/.claude/skills/crucible/
+crucible skills install
 ```
 
 ## Usage
@@ -25,49 +43,39 @@ Add to your `.mcp.json`:
 Then in Claude Code:
 
 ```
-# Detect what kind of code this is
-detect_domain(code="pragma solidity ^0.8.0; ...")
-→ Domain: smart_contract
-→ Personas: security, web3, gas_optimizer, ...
+# Run static analysis - returns findings + domain metadata
+quick_review(path="src/Vault.sol")
+→ domains_detected: solidity, smart_contract, web3
+→ severity_summary: {critical: 1, high: 3}
+→ Slither findings, Semgrep findings
 
-# Get a specific persona's checklist
-get_persona(persona="security")
-→ Questions they ask, red flags, approval criteria
-
-# Run static analysis
-quick_review(path="src/")
-→ Findings from semgrep, ruff, slither (based on file types)
-
-# Full review with persona context
-review(code="...", file_path="Vault.sol")
-→ Domain + relevant persona perspective
+# Claude sees "smart_contract" domain, loads web3-engineer skill
+# Skill provides questions, red flags, approval criteria
 ```
 
 ## MCP Tools
 
-| Tool | What it does |
-|------|-------------|
-| `detect_domain` | Classify code as smart_contract, frontend, backend, infrastructure |
-| `get_principles` | Load engineering principles by topic |
-| `get_persona` | Get a persona's checklist (security, web3, backend, etc.) |
-| `quick_review` | Run static analysis tools, return findings |
-| `review` | Detect domain + load relevant persona perspective |
-| `delegate_semgrep` | Run semgrep directly |
-| `delegate_ruff` | Run ruff directly |
-| `delegate_slither` | Run slither directly |
+| Tool | Purpose |
+|------|---------|
+| `quick_review(path)` | Run analyzers, return findings + domains |
+| `get_principles(topic?)` | Load engineering checklists |
+| `delegate_semgrep(path)` | Direct semgrep access |
+| `delegate_ruff(path)` | Direct ruff access |
+| `delegate_slither(path)` | Direct slither access |
+| `check_tools()` | Show installed analysis tools |
 
-## Personas
+Domain detection is internal - `quick_review` returns `domains_detected` metadata that Claude uses to select skills.
 
-21 review personas, routed by domain:
+## Skills
 
-| Domain | Personas |
-|--------|----------|
-| `smart_contract` | security, web3, gas_optimizer, protocol_architect, mev_researcher, incident_responder |
-| `frontend` | product, accessibility, uiux, performance, mobile |
-| `backend` | security, backend, data, devops, performance |
-| `infrastructure` | devops, security, performance |
+Review perspectives, installed via `crucible skills install`:
 
-Each persona has key questions, red flags, and approval criteria. See `knowledge/SENIOR_ENGINEER_CHECKLIST.md`.
+| Skill | Triggers | Focus |
+|-------|----------|-------|
+| `security-engineer` | auth, secrets, injection | Threat models, input validation |
+| `web3-engineer` | solidity, smart_contract | Reentrancy, CEI pattern, gas |
+
+More personas available in `knowledge/SENIOR_ENGINEER_CHECKLIST.md` - can be converted to skills as needed.
 
 ## External Tools
 
@@ -91,16 +99,20 @@ ruff check src/ --fix     # Lint
 
 ```
 src/crucible/
-├── server.py           # MCP server
-├── models.py           # Domain, Persona, ToolFinding types
+├── server.py           # MCP server (6 tools)
+├── cli.py              # crucible skills install/list
+├── models.py           # Domain, Severity, ToolFinding
 ├── domain/
 │   └── detection.py    # Classify code by extension/content
 ├── tools/
 │   └── delegation.py   # Shell out to semgrep, ruff, slither
-└── knowledge/
-    └── loader.py       # Load personas from markdown
+├── knowledge/
+│   └── loader.py       # Load principles markdown
+└── skills/
+    ├── security-engineer/SKILL.md
+    └── web3-engineer/SKILL.md
 
 knowledge/
 ├── ENGINEERING_PRINCIPLES.md    # Core engineering philosophy
-└── SENIOR_ENGINEER_CHECKLIST.md # 21 persona checklists
+└── SENIOR_ENGINEER_CHECKLIST.md # 21 persona checklists (reference)
 ```

@@ -4,19 +4,19 @@ How the pieces fit together.
 
 ## The Big Picture
 
-Crucible is an MCP server that helps Claude review code. It does two things:
+Crucible is a Claude Code customization layer. It does two things:
 
-1. **Runs static analysis** → Returns findings with domain metadata
-2. **Provides engineering knowledge** → Skills (personas) + principles
+1. **Detects context** → What domain is this code in?
+2. **Loads patterns** → Personas (how to think) + Knowledge (what to apply)
 
-Claude uses the domain metadata to load relevant skills, then synthesizes a multi-perspective review.
+Claude uses the domain detection to load relevant personas and knowledge.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              REVIEW FLOW                                     │
+│                              HOW IT WORKS                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  User: "Review src/Vault.sol"
+  User: "Work on src/Vault.sol"
            │
            ▼
   ┌─────────────────────────────────────────────────────────────────────────┐
@@ -38,9 +38,9 @@ Claude uses the domain metadata to load relevant skills, then synthesizes a mult
   │  CLAUDE                                                                  │
   │                                                                          │
   │  1. Sees domains: ["smart_contract", "web3"]                             │
-  │  2. Loads skills matching triggers: web3-engineer, security-engineer     │
-  │  3. Skills provide: questions, red flags, checklists                     │
-  │  4. Synthesizes multi-perspective review                                 │
+  │  2. Loads matching personas: web3-engineer, security-engineer            │
+  │  3. Personas provide: questions, red flags, checklists                   │
+  │  4. Claude thinks like your stack requires                               │
   └─────────────────────────────────────────────────────────────────────────┘
 ```
 

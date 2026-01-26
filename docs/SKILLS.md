@@ -1,10 +1,10 @@
-# Crucible Skills
+# Crucible Personas
 
-All 18 bundled review personas.
+All 18 bundled personas.
 
 ## Overview
 
-Skills are review perspectives that Claude loads based on trigger keywords. Each skill provides:
+Personas are domain-specific thinking that Claude loads based on context. Each persona provides:
 
 - **Key Questions** - What to ask about the code
 - **Red Flags** - Patterns that indicate problems

@@ -1,44 +1,25 @@
 # Crucible
 
-Code review MCP server for Claude. Runs static analysis and loads review skills based on what kind of code you're looking at.
-
-> **Note:** This project is not affiliated with Atlassian or their Crucible code review tool. Just an unfortunate naming collision.
+Load your coding patterns into Claude Code.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Your Code  ──→  Crucible  ──→  Claude                                       │
-│                  (analysis)     (synthesis)                                  │
-│                                                                             │
-│  .sol file  ──→  slither, semgrep  ──→  web3-engineer skill loaded          │
-│  .py file   ──→  ruff, bandit      ──→  backend-engineer skill loaded       │
-└─────────────────────────────────────────────────────────────────────────────┘
+├── Personas:      Domain-specific thinking (how to approach problems)
+├── Knowledge:     Coding patterns and principles (what to apply)
+├── Cascade:       Project → User → Bundled (customizable at every level)
+└── Context-aware: Loads relevant skills based on what you're working on
 ```
 
-**MCP provides data. Skills provide perspective. Claude orchestrates.**
+**Personas for domains. Knowledge for patterns. All customizable.**
 
-## Quick Start
+> Not affiliated with Atlassian's Crucible.
+
+## Install
 
 ```bash
-# Install from PyPI
 pip install crucible-mcp
-
-# Or install from source
-pip install -e ".[dev]"
-
-# Install skills to ~/.claude/crucible/skills/
-crucible skills install
-
-# Install analysis tools for your stack
-pip install semgrep ruff              # Python
-pip install slither-analyzer          # Solidity
-pip install bandit                    # Python security
 ```
 
-> **Tools are separate by design.** Different workflows need different analyzers. Install what you need, skip what you don't. Crucible gracefully handles missing tools.
-
-## MCP Setup
-
-Works with any MCP client (Claude Code, Cursor, etc.). Add to your `.mcp.json`:
+Add to Claude Code (`.mcp.json`):
 
 ```json
 {
@@ -50,15 +31,25 @@ Works with any MCP client (Claude Code, Cursor, etc.). Add to your `.mcp.json`:
 }
 ```
 
-Then in Claude:
+With hot reload (recommended for customization):
+
+```json
+{
+  "mcpServers": {
+    "crucible": {
+      "command": "mcpmon",
+      "args": ["--watch", "~/.crucible/", "--", "crucible-mcp"]
+    }
+  }
+}
+```
+
+## How It Works
 
 ```
-Review src/Vault.sol
+Code → Detect Domain → Load Personas + Knowledge → Claude with YOUR patterns
 
-→ Crucible: domains_detected: [solidity, smart_contract, web3]
-→ Crucible: severity_summary: {critical: 1, high: 3}
-→ Claude loads: web3-engineer, security-engineer skills
-→ Claude synthesizes multi-perspective review
+.sol file → web3 domain → security-engineer + SMART_CONTRACT.md → Knows your security rules
 ```
 
 ## MCP Tools
@@ -79,15 +70,6 @@ crucible skills init <skill>      # Copy to .crucible/ for customization
 
 crucible knowledge list           # List all knowledge files
 crucible knowledge init <file>    # Copy for customization
-```
-
-## How It Works
-
-Crucible detects what kind of code you're reviewing, runs the right analysis tools, and returns findings with domain metadata. Claude uses this to load appropriate review skills.
-
-```
-.sol file  →  slither + semgrep  →  web3-engineer, gas-optimizer skills
-.py file   →  ruff + bandit      →  backend-engineer, security-engineer skills
 ```
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full flow.
@@ -113,13 +95,13 @@ See [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for the full guide.
 
 ## What's Included
 
-**18 Review Skills** — Different review perspectives (security, performance, accessibility, web3, etc.)
+**18 Personas** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
 
-See [SKILLS.md](docs/SKILLS.md) for the full list with triggers and focus areas.
+See [SKILLS.md](docs/SKILLS.md) for the full list.
 
-**12 Knowledge Files** — Engineering principles for security, testing, APIs, databases, smart contracts, etc.
+**12 Knowledge Files** — Coding patterns and principles for security, testing, APIs, databases, smart contracts, etc.
 
-See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered and skill linkages.
+See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered.
 
 ## Documentation
 
@@ -128,7 +110,7 @@ See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered and skill linkages.
 | [FEATURES.md](docs/FEATURES.md) | Complete feature reference |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
 | [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) | Override skills and knowledge for your project |
-| [SKILLS.md](docs/SKILLS.md) | All 18 review personas with triggers and key questions |
+| [SKILLS.md](docs/SKILLS.md) | All 18 personas with triggers and focus areas |
 | [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 12 knowledge files with topics covered |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 

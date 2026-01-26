@@ -1,6 +1,6 @@
 # Crucible Knowledge
 
-All 12 bundled engineering knowledge files.
+All 14 bundled engineering knowledge files.
 
 ## Overview
 
@@ -222,16 +222,55 @@ FEATURES, ROADMAP, ARCHITECTURE patterns.
 
 ---
 
+### GITIGNORE.md
+
+Defense-in-depth patterns for preventing secret commits.
+
+**Topics covered:**
+- Structured organization by category
+- Environment files (.env, .envrc)
+- Private keys and certificates
+- Credentials and cloud configs
+- Paranoid mode catch-all patterns (*secret*, *password*, *credential*)
+- OS and editor files
+- Dependencies by language
+- Build and test outputs
+- Tool-specific ignores (Terraform, Docker, Kubernetes)
+
+**Linked by:** security-engineer, devops-engineer
+
+---
+
+### PRECOMMIT.md
+
+Automated guardrails before code enters the repo.
+
+**Topics covered:**
+- Pre-commit framework setup
+- Multi-layer secret detection (gitleaks, detect-secrets, custom)
+- High-confidence secret patterns (AWS, GitHub, OpenAI, Anthropic)
+- Python hooks (ruff, mypy)
+- File hygiene hooks
+- Commit message validation
+- CI integration
+- Skip patterns for lock files
+- Blocked commit response handling
+
+**Linked by:** security-engineer, devops-engineer
+
+---
+
 ## Topic Mapping
 
 The `get_principles(topic)` tool maps topics to files:
 
 | Topic | Files Loaded |
 |-------|--------------|
-| `security` | SECURITY.md |
+| `security` | SECURITY.md, GITIGNORE.md, PRECOMMIT.md |
 | `smart_contract` | SMART_CONTRACT.md |
 | `engineering` | TESTING.md, ERROR_HANDLING.md, TYPE_SAFETY.md |
 | `checklist` | SECURITY.md, TESTING.md, ERROR_HANDLING.md |
+| `repo_hygiene` | GITIGNORE.md, PRECOMMIT.md, COMMITS.md |
 | (default) | SECURITY.md, TESTING.md |
 
 ---

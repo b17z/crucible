@@ -1,6 +1,6 @@
 # crucible
 
-Code review MCP server. Runs static analysis tools and loads engineering knowledge.
+Claude Code customization layer. Personas for domains, knowledge for patterns, customizable at every level.
 
 ## Quick Reference
 

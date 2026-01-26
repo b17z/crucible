@@ -1,6 +1,6 @@
 # Customizing Crucible
 
-Skills and knowledge cascade for project-specific reviews.
+Personas and knowledge cascade for project-specific patterns.
 
 ## The Cascade Pattern
 

@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "crucible": {
-      "command": "crucible-mcp"
+      "command": "mcpmon",
+      "args": ["--watch", "src/", "--", "crucible-mcp"]
     },
     "sage": {
       "command": "sage-mcp"

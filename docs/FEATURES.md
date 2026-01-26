@@ -5,28 +5,13 @@ Complete reference for all Crucible capabilities.
 ## Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           CRUCIBLE ARCHITECTURE                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-     ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
-     │  Your Code   │────────▶│   Crucible   │────────▶│    Claude    │
-     │  (.sol, .py) │         │  MCP Server  │         │  Code/Agent  │
-     └──────────────┘         └──────┬───────┘         └──────┬───────┘
-                                     │                        │
-                              ┌──────┴──────┐          ┌──────┴──────┐
-                              │  Analysis   │          │   Skills    │
-                              │  Tools      │          │ (Personas)  │
-                              ├─────────────┤          ├─────────────┤
-                              │ • Semgrep   │          │ • security  │
-                              │ • Ruff      │          │ • web3      │
-                              │ • Slither   │          │ • backend   │
-                              │ • Bandit    │          │ • devops    │
-                              └─────────────┘          │ • 14 more   │
-                                                       └─────────────┘
+├── Personas:      Domain-specific thinking (how to approach problems)
+├── Knowledge:     Coding patterns and principles (what to apply)
+├── Cascade:       Project → User → Bundled (customizable at every level)
+└── Context-aware: Loads relevant skills based on what you're working on
 ```
 
-**MCP provides data. Skills provide perspective. Claude orchestrates.**
+**Personas for domains. Knowledge for patterns. All customizable.**
 
 ---
 
@@ -99,11 +84,11 @@ check_tools()
 
 ---
 
-## Skills
+## Personas
 
-Review perspectives that Claude loads based on domain detection.
+Domain-specific thinking that Claude loads based on what you're working on.
 
-### 18 Bundled Skills
+### 18 Bundled Personas
 
 | Skill | Triggers | Focus |
 |-------|----------|-------|

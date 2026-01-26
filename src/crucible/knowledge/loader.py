@@ -66,9 +66,10 @@ def load_principles(topic: str | None = None) -> Result[str, str]:
     topic_files = {
         None: ["SECURITY.md", "TESTING.md"],  # Default: security + testing basics
         "engineering": ["TESTING.md", "ERROR_HANDLING.md", "TYPE_SAFETY.md"],
-        "security": ["SECURITY.md"],
+        "security": ["SECURITY.md", "GITIGNORE.md", "PRECOMMIT.md"],
         "smart_contract": ["SMART_CONTRACT.md"],
         "checklist": ["SECURITY.md", "TESTING.md", "ERROR_HANDLING.md"],
+        "repo_hygiene": ["GITIGNORE.md", "PRECOMMIT.md", "COMMITS.md"],
     }
 
     files_to_load = topic_files.get(topic, topic_files[None])

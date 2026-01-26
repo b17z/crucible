@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crucible - Load your coding patterns into Claude Code</title>
+  <meta name="description" content="Personas for domains. Knowledge for patterns. All customizable.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0a0f;
+      --cyan: #00f5ff;
+      --magenta: #ff00aa;
+      --yellow: #ffe600;
+      --text: #e0e0e0;
+      --text-dim: #808080;
+      --border: #2a2a3f;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      line-height: 1.6;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Scanlines overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body::before {
+        display: none;
+      }
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ascii-banner {
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      line-height: 1.2;
+      color: var(--cyan);
+      white-space: pre;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px var(--cyan);
+    }
+
+    @media (max-width: 600px) {
+      .ascii-banner {
+        font-size: 8px;
+      }
+    }
+
+    .tagline {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 15px;
+    }
+
+    .subtitle {
+      font-size: 22px;
+      color: var(--text-dim);
+      margin-bottom: 40px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 10px;
+      padding: 15px 30px;
+      text-decoration: none;
+      border: 2px solid;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .btn-primary {
+      background: var(--cyan);
+      border-color: var(--cyan);
+      color: var(--bg-dark);
+    }
+
+    .btn-primary:hover {
+      background: transparent;
+      color: var(--cyan);
+      box-shadow: 0 0 20px var(--cyan);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border-color: var(--magenta);
+      color: var(--magenta);
+    }
+
+    .btn-secondary:hover {
+      background: var(--magenta);
+      color: var(--bg-dark);
+      box-shadow: 0 0 20px var(--magenta);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .btn {
+        transition: none;
+      }
+    }
+
+    .disclaimer {
+      font-size: 14px;
+      color: var(--text-dim);
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.8;
+    }
+
+    /* Section styles */
+    section {
+      padding: 60px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-header {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 12px;
+      color: var(--magenta);
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-header::before {
+      content: '>';
+      color: var(--cyan);
+    }
+
+    /* Cards grid */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(42, 42, 63, 0.3);
+      border: 1px solid var(--border);
+      padding: 25px;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card {
+        transition: none;
+      }
+      .card:hover {
+        box-shadow: none;
+      }
+    }
+
+    .card-title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 10px;
+      color: var(--cyan);
+      margin-bottom: 15px;
+    }
+
+    .card-desc {
+      font-size: 18px;
+      color: var(--text);
+      margin-bottom: 15px;
+    }
+
+    .card-meta {
+      font-size: 16px;
+      color: var(--text-dim);
+    }
+
+    .card-quote {
+      font-style: italic;
+      color: var(--yellow);
+      margin-top: 10px;
+    }
+
+    /* Persona cards - smaller */
+    .persona-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .persona-card {
+      background: rgba(42, 42, 63, 0.3);
+      border: 1px solid var(--border);
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .persona-card:hover {
+      border-color: var(--magenta);
+      box-shadow: 0 0 20px rgba(255, 0, 170, 0.1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .persona-card {
+        transition: none;
+      }
+      .persona-card:hover {
+        box-shadow: none;
+      }
+    }
+
+    .persona-name {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 8px;
+      color: var(--magenta);
+      margin-bottom: 10px;
+    }
+
+    .persona-desc {
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .persona-quote {
+      font-size: 14px;
+      color: var(--yellow);
+      font-style: italic;
+    }
+
+    /* Knowledge cards */
+    .knowledge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .knowledge-card {
+      background: rgba(42, 42, 63, 0.3);
+      border: 1px solid var(--border);
+      padding: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .knowledge-card:hover {
+      border-color: var(--yellow);
+      box-shadow: 0 0 20px rgba(255, 230, 0, 0.1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .knowledge-card {
+        transition: none;
+      }
+      .knowledge-card:hover {
+        box-shadow: none;
+      }
+    }
+
+    .knowledge-name {
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      color: var(--yellow);
+      margin-bottom: 8px;
+    }
+
+    .knowledge-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .knowledge-links {
+      font-size: 16px;
+      color: var(--text-dim);
+      line-height: 1.8;
+    }
+
+    .knowledge-links code {
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      color: var(--cyan);
+    }
+
+    /* Flow diagram */
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    .flow-box {
+      background: rgba(42, 42, 63, 0.5);
+      border: 1px solid var(--border);
+      padding: 15px 20px;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .flow-box-title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 8px;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+
+    .flow-box-content {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .flow-arrow {
+      font-family: 'Fira Code', monospace;
+      font-size: 20px;
+      color: var(--magenta);
+    }
+
+    .flow-example {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 16px;
+      color: var(--text-dim);
+    }
+
+    .flow-example code {
+      font-family: 'Fira Code', monospace;
+      color: var(--yellow);
+    }
+
+    .flow-example .arrow {
+      color: var(--magenta);
+    }
+
+    /* Code blocks */
+    .code-block {
+      background: rgba(10, 10, 15, 0.8);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      padding: 20px;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+
+    .code-block .comment {
+      color: var(--text-dim);
+    }
+
+    .code-block .key {
+      color: var(--magenta);
+    }
+
+    .code-block .string {
+      color: var(--yellow);
+    }
+
+    .code-block .cmd {
+      color: var(--cyan);
+    }
+
+    /* Cascade section */
+    .cascade-list {
+      font-size: 18px;
+      margin-bottom: 25px;
+    }
+
+    .cascade-item {
+      display: flex;
+      align-items: baseline;
+      gap: 15px;
+      margin-bottom: 10px;
+    }
+
+    .cascade-num {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 10px;
+      color: var(--magenta);
+    }
+
+    .cascade-path {
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      color: var(--cyan);
+    }
+
+    .cascade-note {
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* Footer */
+    footer {
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .footer-disclaimer {
+      font-size: 16px;
+      color: var(--text-dim);
+      max-width: 500px;
+      margin: 0 auto 30px;
+      line-height: 1.8;
+    }
+
+    .footer-version {
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .footer-family {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    .footer-family a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    .footer-family a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-note {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 30px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 30px;
+      justify-content: center;
+    }
+
+    .footer-links a {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 10px;
+      color: var(--cyan);
+      text-decoration: none;
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+
+    .footer-links a:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .footer-links a {
+        transition: none;
+      }
+    }
+
+    /* Typing animation for tagline */
+    .typing {
+      overflow: hidden;
+      white-space: nowrap;
+      animation: typing 2s steps(40, end);
+    }
+
+    @keyframes typing {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .typing {
+        animation: none;
+        width: 100%;
+      }
+    }
+
+    /* Glitch effect for ASCII */
+    .glitch {
+      animation: glitch 3s infinite;
+    }
+
+    @keyframes glitch {
+      0%, 90%, 100% {
+        text-shadow: 0 0 10px var(--cyan);
+      }
+      92% {
+        text-shadow: -2px 0 var(--magenta), 2px 0 var(--cyan);
+      }
+      94% {
+        text-shadow: 2px 0 var(--magenta), -2px 0 var(--cyan);
+      }
+      96% {
+        text-shadow: 0 0 10px var(--cyan);
+      }
+      98% {
+        text-shadow: -1px 0 var(--yellow), 1px 0 var(--magenta);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .glitch {
+        animation: none;
+        text-shadow: 0 0 10px var(--cyan);
+      }
+    }
+
+    /* Section note styling */
+    .section-note {
+      font-size: 16px;
+      color: var(--text-dim);
+      margin-top: 20px;
+    }
+
+    .section-note code {
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="container">
+      <div class="ascii-banner glitch" aria-label="CRUCIBLE">
+░█▀▀░█▀▄░█░█░█▀▀░▀█▀░█▀▄░█░░░█▀▀
+░█░░░█▀▄░█░█░█░░░░█░░█▀▄░█░░░█▀▀
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀</div>
+      <p class="tagline typing">Load your coding patterns into Claude Code.</p>
+      <p class="subtitle">Personas for domains. Knowledge for patterns. All customizable.</p>
+      <div class="cta-buttons">
+        <a href="#install" class="btn btn-primary">INSTALL</a>
+        <a href="https://github.com/b17z/crucible" class="btn btn-secondary">SOURCE</a>
+      </div>
+      <p class="disclaimer">
+        This assists your coding. It doesn't replace your judgment.<br>
+        Skills and knowledge are templates. Edit or add your own.
+      </p>
+    </div>
+  </header>
+
+  <!-- What It Does -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-header">WHAT IT DOES</h2>
+      <div class="cards">
+        <div class="card">
+          <h3 class="card-title">PERSONAS</h3>
+          <p class="card-desc">Domain-specific thinking</p>
+          <p class="card-meta">"How to approach this problem"</p>
+          <p class="card-quote">18 included. Add your own.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">KNOWLEDGE</h3>
+          <p class="card-desc">Coding patterns and principles</p>
+          <p class="card-meta">"What patterns to apply"</p>
+          <p class="card-quote">12 domains. Add your own.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">CASCADE</h3>
+          <p class="card-desc">Customize at every level</p>
+          <p class="card-meta">Project overrides User overrides Bundled</p>
+          <p class="card-quote">.crucible/skills/</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personas -->
+  <section id="personas">
+    <div class="container">
+      <h2 class="section-header">PERSONAS</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Loaded as Claude Skills when relevant.</p>
+      <div class="persona-grid">
+        <div class="persona-card">
+          <h3 class="persona-name">SECURITY-ENG</h3>
+          <p class="persona-desc">Defense in depth, threats</p>
+          <p class="persona-quote">"Add guard"</p>
+        </div>
+        <div class="persona-card">
+          <h3 class="persona-name">BACKEND-ENG</h3>
+          <p class="persona-desc">API design, data flow</p>
+          <p class="persona-quote">"Validate here"</p>
+        </div>
+        <div class="persona-card">
+          <h3 class="persona-name">PERFORMANCE-ENG</h3>
+          <p class="persona-desc">Hot paths, complexity</p>
+          <p class="persona-quote">"That's O(n²)"</p>
+        </div>
+        <div class="persona-card">
+          <h3 class="persona-name">PRAGMATIST</h3>
+          <p class="persona-desc">Ship it, iterate later</p>
+          <p class="persona-quote">"Good enough"</p>
+        </div>
+      </div>
+      <p class="section-note">18 included. Add your own as <code>SKILL.md</code> files.</p>
+    </div>
+  </section>
+
+  <!-- Knowledge -->
+  <section id="knowledge">
+    <div class="container">
+      <h2 class="section-header">KNOWLEDGE</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Coding patterns and principles, loaded by relevant personas.</p>
+      <div class="knowledge-grid">
+        <div class="knowledge-card">
+          <h3 class="knowledge-name">SECURITY.md</h3>
+          <p class="knowledge-desc">Input valid, auth patterns</p>
+        </div>
+        <div class="knowledge-card">
+          <h3 class="knowledge-name">TESTING.md</h3>
+          <p class="knowledge-desc">What to test, test pyramid</p>
+        </div>
+        <div class="knowledge-card">
+          <h3 class="knowledge-name">API_DESIGN.md</h3>
+          <p class="knowledge-desc">REST patterns, error shapes</p>
+        </div>
+        <div class="knowledge-card">
+          <h3 class="knowledge-name">FP.md</h3>
+          <p class="knowledge-desc">Pure funcs, immutability</p>
+        </div>
+      </div>
+      <p class="knowledge-links">
+        12 domains. Personas link to relevant knowledge.<br>
+        <code>security-engineer</code> → SECURITY.md<br>
+        <code>backend-engineer</code> → API_DESIGN.md, DATABASE.md, ERROR_HANDLING.md
+      </p>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section id="how">
+    <div class="container">
+      <h2 class="section-header">HOW IT WORKS</h2>
+      <div class="flow">
+        <div class="flow-box">
+          <div class="flow-box-title">CODE</div>
+          <div class="flow-box-content">Your files</div>
+        </div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">
+          <div class="flow-box-title">DETECT</div>
+          <div class="flow-box-content">Domain</div>
+        </div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">
+          <div class="flow-box-title">LOAD</div>
+          <div class="flow-box-content">Personas + Knowledge</div>
+        </div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">
+          <div class="flow-box-title">CLAUDE</div>
+          <div class="flow-box-content">With YOUR patterns</div>
+        </div>
+      </div>
+      <div class="flow-example">
+        <code>.sol file</code>
+        <span class="arrow">→</span>
+        <span>web3 domain</span>
+        <span class="arrow">→</span>
+        <span>security-engineer + SMART_CONTRACT.md</span>
+        <span class="arrow">→</span>
+        <span>Knows your security rules</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Customize -->
+  <section id="customize">
+    <div class="container">
+      <h2 class="section-header">CUSTOMIZE</h2>
+      <p class="subtitle" style="margin-bottom: 20px;">Override at any level:</p>
+      <div class="cascade-list">
+        <div class="cascade-item">
+          <span class="cascade-num">1.</span>
+          <span>Project:</span>
+          <span class="cascade-path">.crucible/skills/</span>
+          <span class="cascade-note">← Highest priority</span>
+        </div>
+        <div class="cascade-item">
+          <span class="cascade-num">2.</span>
+          <span>User:</span>
+          <span class="cascade-path">~/.claude/crucible/</span>
+        </div>
+        <div class="cascade-item">
+          <span class="cascade-num">3.</span>
+          <span>Bundled:</span>
+          <span class="cascade-note">(package defaults) ← Lowest priority</span>
+        </div>
+      </div>
+      <div class="code-block">
+<span class="comment"># Copy a skill to customize</span>
+<span class="cmd">crucible skills init security-engineer</span>
+<span class="comment"># → Creates .crucible/skills/security-engineer/SKILL.md</span>
+<span class="comment"># → Edit it for your project</span>
+
+<span class="comment"># Same for knowledge</span>
+<span class="cmd">crucible knowledge init SECURITY</span>
+<span class="comment"># → Creates .crucible/knowledge/SECURITY.md</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section id="install">
+    <div class="container">
+      <h2 class="section-header">INSTALL</h2>
+      <div class="code-block">
+<span class="cmd">pip install crucible-mcp</span>
+      </div>
+      <p class="subtitle" style="margin: 20px 0;">Add to Claude Code:</p>
+      <div class="code-block">
+{
+  <span class="key">"mcpServers"</span>: {
+    <span class="key">"crucible"</span>: {
+      <span class="key">"command"</span>: <span class="string">"crucible-mcp"</span>
+    }
+  }
+}
+      </div>
+      <p class="subtitle" style="margin: 20px 0;">With hot reload (recommended):</p>
+      <div class="code-block">
+{
+  <span class="key">"mcpServers"</span>: {
+    <span class="key">"crucible"</span>: {
+      <span class="key">"command"</span>: <span class="string">"mcpmon"</span>,
+      <span class="key">"args"</span>: [<span class="string">"--watch"</span>, <span class="string">"~/.crucible/"</span>, <span class="string">"--"</span>, <span class="string">"crucible-mcp"</span>]
+    }
+  }
+}
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p class="footer-disclaimer">
+        This assists your coding. It doesn't replace your judgment.<br>
+        Personas and knowledge are templates. Edit or add your own.
+      </p>
+      <p class="footer-version">crucible v0.1.0</p>
+      <p class="footer-family">part of: <a href="https://b17z.github.io/sage/">sage</a> | <a href="https://b17z.github.io/mcpmon/">mcpmon</a></p>
+      <p class="footer-note">Not affiliated with Atlassian's Crucible.</p>
+      <div class="footer-links">
+        <a href="https://github.com/b17z/crucible">GitHub</a>
+        <a href="https://pypi.org/project/crucible-mcp/">PyPI</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

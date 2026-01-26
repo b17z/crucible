@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crucible - Load your coding patterns into Claude Code</title>
-  <meta name="description" content="Personas for domains. Knowledge for patterns. All customizable.">
+  <title>Crucible - MCP server for Claude Code</title>
+  <meta name="description" content="Automatically loads the right thinking for what you're working on. Personas for domains, knowledge for patterns, customizable at every level.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -588,8 +588,8 @@
 ░█▀▀░█▀▄░█░█░█▀▀░▀█▀░█▀▄░█░░░█▀▀
 ░█░░░█▀▄░█░█░█░░░░█░░█▀▄░█░░░█▀▀
 ░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀</div>
-      <p class="tagline typing">Load your coding patterns into Claude Code.</p>
-      <p class="subtitle">Personas for domains. Knowledge for patterns. All customizable.</p>
+      <p class="tagline typing">An MCP server for Claude Code.</p>
+      <p class="subtitle">Automatically loads the right thinking for what you're working on.</p>
       <div class="cta-buttons">
         <a href="#install" class="btn btn-primary">INSTALL</a>
         <a href="https://github.com/b17z/crucible" class="btn btn-secondary">SOURCE</a>
@@ -601,10 +601,30 @@
     </div>
   </header>
 
+  <!-- What Happens -->
+  <section id="what-happens">
+    <div class="container">
+      <h2 class="section-header">WHAT HAPPENS</h2>
+      <div class="code-block">
+<span class="text-dim">You:</span> "Review this API endpoint"
+
+<span class="cmd">Crucible detects:</span> .py → python, backend, api
+<span class="cmd">Crucible loads:</span>  backend-engineer + API_DESIGN.md + SECURITY.md
+
+<span class="text-dim">Claude now thinks with:</span>
+  - Input validation patterns
+  - Error handling conventions
+  - N+1 query awareness
+  - Auth/authz questions
+      </div>
+      <p class="section-note">Not a template dump. An active server that detects context and loads relevant patterns.</p>
+    </div>
+  </section>
+
   <!-- What It Does -->
   <section id="features">
     <div class="container">
-      <h2 class="section-header">WHAT IT DOES</h2>
+      <h2 class="section-header">WHAT'S INSIDE</h2>
       <div class="cards">
         <div class="card">
           <h3 class="card-title">PERSONAS</h3>
@@ -655,7 +675,10 @@
           <p class="persona-quote">"Good enough"</p>
         </div>
       </div>
-      <p class="section-note">18 included. Add your own as <code>SKILL.md</code> files.</p>
+      <p class="section-note">
+        18 included as starting points. Possibly incomplete for your stack.<br>
+        Edit them or add your own as <code>SKILL.md</code> files.
+      </p>
     </div>
   </section>
 
@@ -683,9 +706,13 @@
         </div>
       </div>
       <p class="knowledge-links">
-        12 domains. Personas link to relevant knowledge.<br>
+        12 domains included. Personas link to relevant knowledge.<br>
         <code>security-engineer</code> → SECURITY.md<br>
         <code>backend-engineer</code> → API_DESIGN.md, DATABASE.md, ERROR_HANDLING.md
+      </p>
+      <p class="section-note">
+        Some knowledge is preference (FP, commit style). Some is just good practice (secure your routes).<br>
+        Override or extend for your team.
       </p>
     </div>
   </section>
@@ -716,13 +743,13 @@
         </div>
       </div>
       <div class="flow-example">
-        <code>.sol file</code>
+        <code>api/users.py</code>
         <span class="arrow">→</span>
-        <span>web3 domain</span>
+        <span>backend domain</span>
         <span class="arrow">→</span>
-        <span>security-engineer + SMART_CONTRACT.md</span>
+        <span>backend-engineer + API_DESIGN.md</span>
         <span class="arrow">→</span>
-        <span>Knows your security rules</span>
+        <span>Thinks about your API patterns</span>
       </div>
     </div>
   </section>

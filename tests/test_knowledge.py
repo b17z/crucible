@@ -8,7 +8,10 @@ import pytest
 from crucible.knowledge.loader import (
     KNOWLEDGE_BUNDLED,
     get_all_knowledge_files,
+    get_custom_knowledge_files,
     get_persona_section,
+    load_all_knowledge,
+    load_knowledge_file,
     load_principles,
     resolve_knowledge_file,
 )
@@ -200,3 +203,109 @@ Web3 content here.
         """Unknown persona should return None."""
         section = get_persona_section("unknown-persona", sample_checklist)
         assert section is None
+
+
+class TestLoadKnowledgeFile:
+    """Test single knowledge file loading."""
+
+    def test_load_existing_file(self) -> None:
+        """Should load an existing knowledge file."""
+        result = load_knowledge_file("SECURITY.md")
+        assert result.is_ok
+        assert len(result.value) > 100
+        assert "security" in result.value.lower()
+
+    def test_load_nonexistent_file_error(self) -> None:
+        """Should error for nonexistent file."""
+        result = load_knowledge_file("nonexistent-file-xyz.md")
+        assert result.is_err
+        assert "not found" in result.error
+
+
+class TestGetCustomKnowledgeFiles:
+    """Test custom knowledge file discovery."""
+
+    def test_returns_empty_when_no_custom(self, tmp_path: Path) -> None:
+        """Should return empty set when no project/user knowledge."""
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", tmp_path / "nonexistent-user"),
+        ):
+            files = get_custom_knowledge_files()
+            assert files == set()
+
+    def test_returns_project_files(self, tmp_path: Path) -> None:
+        """Should return files from project knowledge directory."""
+        project_knowledge = tmp_path / ".crucible" / "knowledge"
+        project_knowledge.mkdir(parents=True)
+        (project_knowledge / "MY_PATTERNS.md").write_text("# My Patterns\n")
+        (project_knowledge / "TEAM_RULES.md").write_text("# Team Rules\n")
+
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", project_knowledge),
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", tmp_path / "nonexistent-user"),
+        ):
+            files = get_custom_knowledge_files()
+            assert "MY_PATTERNS.md" in files
+            assert "TEAM_RULES.md" in files
+
+    def test_returns_user_files(self, tmp_path: Path) -> None:
+        """Should return files from user knowledge directory."""
+        user_knowledge = tmp_path / "user-knowledge"
+        user_knowledge.mkdir(parents=True)
+        (user_knowledge / "MY_PREFS.md").write_text("# My Preferences\n")
+
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", user_knowledge),
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", tmp_path / "nonexistent-project"),
+        ):
+            files = get_custom_knowledge_files()
+            assert "MY_PREFS.md" in files
+
+    def test_does_not_include_bundled(self, tmp_path: Path) -> None:
+        """Should NOT include bundled knowledge files."""
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", tmp_path / "nonexistent-user"),
+        ):
+            files = get_custom_knowledge_files()
+            # Bundled files like SECURITY.md should not be in custom
+            assert "SECURITY.md" not in files
+
+
+class TestLoadAllKnowledge:
+    """Test bulk knowledge loading."""
+
+    def test_load_specific_files(self) -> None:
+        """Should load specific files by name."""
+        loaded, content = load_all_knowledge(filenames={"SECURITY.md", "TESTING.md"})
+        assert "SECURITY.md" in loaded
+        assert "TESTING.md" in loaded
+        assert "security" in content.lower()
+
+    def test_load_bundled_includes_all(self) -> None:
+        """Should load all bundled files when include_bundled=True."""
+        loaded, content = load_all_knowledge(include_bundled=True)
+        assert "SECURITY.md" in loaded
+        assert len(loaded) >= 5  # Should have multiple bundled files
+        assert len(content) > 1000  # Should have substantial content
+
+    def test_load_custom_only(self, tmp_path: Path) -> None:
+        """Should only load custom files when include_bundled=False."""
+        project_knowledge = tmp_path / ".crucible" / "knowledge"
+        project_knowledge.mkdir(parents=True)
+        (project_knowledge / "CUSTOM.md").write_text("# Custom Knowledge\n")
+
+        with (
+            patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", project_knowledge),
+            patch("crucible.knowledge.loader.KNOWLEDGE_USER", tmp_path / "nonexistent-user"),
+        ):
+            loaded, content = load_all_knowledge(include_bundled=False)
+            assert loaded == ["CUSTOM.md"]
+            assert "Custom Knowledge" in content
+
+    def test_empty_when_no_matches(self) -> None:
+        """Should return empty when no files match."""
+        loaded, content = load_all_knowledge(filenames={"nonexistent.md"})
+        assert loaded == []
+        assert content == ""

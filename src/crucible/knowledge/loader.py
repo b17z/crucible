@@ -16,6 +16,25 @@ KNOWLEDGE_USER = Path.home() / ".claude" / "crucible" / "knowledge"
 KNOWLEDGE_PROJECT = Path(".crucible") / "knowledge"
 
 
+def load_knowledge_file(filename: str) -> Result[str, str]:
+    """Load a single knowledge file by name.
+
+    Args:
+        filename: Knowledge file name (e.g., "SECURITY.md")
+
+    Returns:
+        Result containing file content or error message
+    """
+    path, source = resolve_knowledge_file(filename)
+    if path is None:
+        return err(f"Knowledge file '{filename}' not found")
+
+    try:
+        return ok(path.read_text())
+    except OSError as e:
+        return err(f"Failed to read '{filename}': {e}")
+
+
 def resolve_knowledge_file(filename: str) -> tuple[Path | None, str]:
     """Find knowledge file with cascade priority.
 
@@ -50,6 +69,55 @@ def get_all_knowledge_files() -> set[str]:
                     files.add(file_path.name)
 
     return files
+
+
+def get_custom_knowledge_files() -> set[str]:
+    """Get knowledge files from project and user directories only.
+
+    These are custom/team knowledge files that should always be included
+    in full_review, regardless of skill references.
+
+    Returns:
+        Set of filenames from project and user knowledge directories
+    """
+    files: set[str] = set()
+
+    for source_dir in [KNOWLEDGE_USER, KNOWLEDGE_PROJECT]:
+        if source_dir.exists():
+            for file_path in source_dir.iterdir():
+                if file_path.is_file() and file_path.suffix == ".md":
+                    files.add(file_path.name)
+
+    return files
+
+
+def load_all_knowledge(
+    include_bundled: bool = False,
+    filenames: set[str] | None = None,
+) -> tuple[list[str], str]:
+    """Load multiple knowledge files.
+
+    Args:
+        include_bundled: If True, include bundled knowledge files
+        filenames: Specific files to load (if None, loads based on include_bundled)
+
+    Returns:
+        Tuple of (list of loaded filenames, combined content)
+    """
+    if filenames is None:
+        filenames = get_all_knowledge_files() if include_bundled else get_custom_knowledge_files()
+
+    loaded: list[str] = []
+    parts: list[str] = []
+
+    for filename in sorted(filenames):
+        result = load_knowledge_file(filename)
+        if result.is_ok:
+            loaded.append(filename)
+            parts.append(f"# {filename}\n\n{result.value}")
+
+    content = "\n\n---\n\n".join(parts) if parts else ""
+    return loaded, content
 
 
 def load_principles(topic: str | None = None) -> Result[str, str]:

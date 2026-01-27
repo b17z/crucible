@@ -57,19 +57,28 @@ Code → Detect Domain → Load Personas + Knowledge → Claude with YOUR patter
 | Tool | Purpose |
 |------|---------|
 | `quick_review(path)` | Run analysis, return findings + domains |
+| `full_review(path)` | Analysis + skill matching + knowledge loading |
+| `review_changes(mode)` | Analyze git changes (staged/branch/commits) |
 | `get_principles(topic)` | Load engineering knowledge |
-| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit) |
+| `load_knowledge(files)` | Load specific knowledge files |
+| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit, gitleaks) |
 | `check_tools()` | Show installed analysis tools |
 
 ## CLI
 
 ```bash
+crucible init                     # Initialize .crucible/ for your project
+crucible review                   # Review staged changes
+crucible review --mode branch     # Review current branch vs main
+crucible ci generate              # Generate GitHub Actions workflow
+
 crucible skills list              # List all skills
-crucible skills show <skill>      # Show which version is active
 crucible skills init <skill>      # Copy to .crucible/ for customization
 
 crucible knowledge list           # List all knowledge files
 crucible knowledge init <file>    # Copy for customization
+
+crucible hooks install            # Install pre-commit hook
 ```
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full flow.
@@ -118,6 +127,6 @@ See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered.
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # Run tests (494 tests)
+pytest                    # Run tests (502 tests)
 ruff check src/ --fix     # Lint
 ```

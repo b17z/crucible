@@ -57,3 +57,7 @@ Security-related questions that need answers before approval.
 - APPROVE: No security concerns
 - REQUEST CHANGES: Security issues must be addressed
 - COMMENT: Minor suggestions, not blocking
+
+---
+
+*Template. Adapt to your needs.*

@@ -86,3 +86,7 @@ Questions about design decisions or trade-offs.
 - APPROVE: Good engineering decision
 - REQUEST CHANGES: Architectural issues to address
 - COMMENT: Suggestions or alternative approaches
+
+---
+
+*Template. Adapt to your needs.*

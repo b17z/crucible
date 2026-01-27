@@ -64,3 +64,7 @@ Questions about data requirements or migration strategy.
 - APPROVE: Schema and data handling are sound
 - REQUEST CHANGES: Data issues must be addressed
 - COMMENT: Suggestions for improvement
+
+---
+
+*Template. Adapt to your needs.*

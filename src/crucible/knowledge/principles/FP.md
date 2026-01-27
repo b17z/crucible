@@ -1,46 +1,38 @@
 # Functional Programming Principles
 
-> **Note:** This is an opinionated template favoring FP patterns.
-> OOP has its place, but it's not the default.
-
 ---
 
-## Core Philosophy
+## Core Concepts
 
 ```
-Default to FP. OOP when it genuinely simplifies.
+FP characteristics:
+├── Pure functions (same input → same output)
+├── Immutable data structures
+├── Functions as first-class values
+├── Composition over inheritance
+└── Side effects isolated to boundaries
 
-Why FP:
-├── Pure functions are testable
-├── No hidden state to debug at 3am
-├── Compose small things into big things
-├── Easier to reason about
-└── Parallelizes naturally
-
-OOP when:
-├── Genuinely modeling stateful entities
+Use OOP when:
+├── Modeling stateful entities
 ├── Complex state machines
 ├── Framework requires it
-└── Actually makes the code simpler (rare)
 ```
-
-**The Test:** "Could this just be a function?" — usually yes.
 
 ---
 
 ## Pure Functions
 
-Same input → same output. No side effects.
+Same input produces same output. No side effects.
 
 ```typescript
-// ✅ Pure: No state access, no external calls
+// Pure: No state access, no external calls
 function calculateFee(amount: Cents): Cents {
   return Math.round(amount * 0.01) as Cents;
 }
 
-// ❌ Impure: Reads external state
+// Impure: Reads external state
 function calculateFee(amount: Cents): Cents {
-  return Math.round(amount * config.feeRate) as Cents; // Depends on external state
+  return Math.round(amount * config.feeRate) as Cents;
 }
 ```
 
@@ -49,13 +41,13 @@ function calculateFee(amount: Cents): Cents {
 ## Immutability
 
 ```typescript
-// ❌ Mutation
+// Mutation (avoid)
 const addItem = (items: Item[], newItem: Item) => {
   items.push(newItem); // Mutates original
   return items;
 }
 
-// ✅ Immutable
+// Immutable (prefer)
 const addItem = (items: Item[], newItem: Item): Item[] => {
   return [...items, newItem]; // New array
 }
@@ -63,7 +55,6 @@ const addItem = (items: Item[], newItem: Item): Item[] => {
 
 **In Python:**
 ```python
-# ✅ Frozen dataclasses
 @dataclass(frozen=True)
 class User:
     id: str
@@ -75,12 +66,12 @@ class User:
 ## Composition Over Inheritance
 
 ```typescript
-// ❌ Inheritance (rigid)
+// Inheritance (rigid hierarchy)
 class Animal { }
 class Dog extends Animal { }
 class ServiceDog extends Dog { }
 
-// ✅ Composition (flexible)
+// Composition (flexible)
 const withLogging = (fn) => (...args) => {
   console.log('Called with:', args);
   return fn(...args);
@@ -102,17 +93,17 @@ const resilientFetch = withRetry(withLogging(fetch));
 ## Functions vs Classes
 
 ```typescript
-// ❌ OOP as default (verbose, tightly coupled)
+// Class-based
 class TipService {
   private db: Database;
   constructor(db: Database) { this.db = db; }
   async createTip(data: TipData) { ... }
 }
 
-// ✅ FP style (simple, composable, testable)
+// Function-based
 const createTip = (db: Database, data: TipData): Promise<Result<Tip, TipError>> => { ... }
 
-// ✅ Factory for grouping related functions (when needed)
+// Factory for grouping related functions
 const createTipService = (db: Database) => ({
   create: (data: TipData) => createTip(db, data),
   getByPage: (pageId: PageId) => getTipsByPage(db, pageId),
@@ -126,7 +117,7 @@ const createTipService = (db: Database) => ({
 Pipelines over loops:
 
 ```typescript
-// ❌ Imperative
+// Imperative
 const results = [];
 for (const user of users) {
   if (user.isActive) {
@@ -134,7 +125,7 @@ for (const user of users) {
   }
 }
 
-// ✅ Declarative
+// Declarative
 const activeEmails = users
   .filter(user => user.isActive)
   .map(user => user.email);
@@ -148,7 +139,7 @@ Push side effects to the boundaries:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  EDGES (side effects OK)                                 │
+│  EDGES (side effects)                                    │
 │  HTTP handlers, database calls, external APIs           │
 └───────────────────────────┬─────────────────────────────┘
                             │
@@ -156,10 +147,9 @@ Push side effects to the boundaries:
 ┌─────────────────────────────────────────────────────────┐
 │  CORE (pure)                                             │
 │  Business logic, calculations, transformations          │
-│  No side effects. Easy to test.                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-*Opinionated template. Adjust for team preferences.*
+*Template. Adapt to your needs.*

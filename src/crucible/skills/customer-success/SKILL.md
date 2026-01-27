@@ -63,3 +63,7 @@ Questions about support scenarios or user communication.
 - APPROVE: Support-ready
 - REQUEST CHANGES: Supportability issues must be fixed
 - COMMENT: Suggestions for better user communication
+
+---
+
+*Template. Adapt to your needs.*

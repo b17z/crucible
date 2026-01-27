@@ -19,14 +19,14 @@ What to test, how to structure tests, and patterns that work.
 ## What to Test
 
 ```
-✅ Test:
+Test:
 ├── Business logic (core package)
 ├── Edge cases
 ├── Regression bugs (write test, then fix)
 ├── Complex calculations
 └── State machines
 
-❌ Don't test:
+Don't test:
 ├── Framework behavior
 ├── Third-party libraries
 ├── Implementation details
@@ -57,10 +57,10 @@ test('calculates 1% fee', () => {
 ## Test Naming
 
 ```typescript
-// ❌ Vague
+// Vague
 test('it works', () => { ... });
 
-// ✅ Descriptive
+// Descriptive
 test('calculateFee rounds up for fractional cents', () => { ... });
 test('returns NOT_FOUND when user does not exist', () => { ... });
 ```
@@ -72,12 +72,12 @@ test('returns NOT_FOUND when user does not exist', () => { ... });
 Test real behavior, not mocks.
 
 ```typescript
-// ❌ Mocking everything
+// Mocking everything
 jest.mock('../database');
 jest.mock('../stripe');
 // What are you even testing?
 
-// ✅ Test real behavior with test database
+// Test real behavior with test database
 beforeEach(() => db.reset());
 test('creates user in database', async () => {
   await createUser({ email: 'test@example.com' });
@@ -119,4 +119,4 @@ If you find a bug:
 
 ---
 
-*Template. Customize based on your testing stack.*
+*Template. Adapt to your needs.*

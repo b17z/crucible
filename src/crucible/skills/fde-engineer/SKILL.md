@@ -63,3 +63,7 @@ Questions about customer use cases or deployment scenarios.
 - APPROVE: Ready for customer deployment
 - REQUEST CHANGES: Integration issues must be fixed
 - COMMENT: Suggestions for better customer experience
+
+---
+
+*Template. Adapt to your needs.*

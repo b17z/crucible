@@ -4,21 +4,21 @@ Quick reference for secure code patterns.
 
 ---
 
-## Quick Checklist
+## Review Checklist
 
 ```
-☐ Dependencies updated (npm audit, pip audit)
-☐ No secrets in code or logs
-☐ Input validation on all endpoints
-☐ Rate limiting on sensitive routes
-☐ HTTPS everywhere
-☐ Auth on protected routes
-☐ CORS configured correctly
-☐ CSP headers set
-☐ SQL injection impossible (ORM/parameterized)
-☐ XSS prevented (escaped output)
-☐ CSRF tokens on forms
-☐ Audit logging for sensitive operations
+[ ] Dependencies updated (npm audit, pip audit)
+[ ] No secrets in code or logs
+[ ] Input validation on all endpoints
+[ ] Rate limiting on sensitive routes
+[ ] HTTPS everywhere
+[ ] Auth on protected routes
+[ ] CORS configured correctly
+[ ] CSP headers set
+[ ] SQL injection impossible (ORM/parameterized)
+[ ] XSS prevented (escaped output)
+[ ] CSRF tokens on forms
+[ ] Audit logging for sensitive operations
 ```
 
 ---
@@ -42,10 +42,10 @@ const handler = (req: Request) => {
 ## Query Safety
 
 ```typescript
-// ❌ SQL injection
+// SQL injection risk
 const query = `SELECT * FROM users WHERE id = '${userId}'`;
 
-// ✅ Parameterized (ORMs do this automatically)
+// Parameterized (ORMs do this automatically)
 const user = await prisma.user.findUnique({ where: { id: userId } });
 ```
 
@@ -54,9 +54,9 @@ const user = await prisma.user.findUnique({ where: { id: userId } });
 ## Secrets Management
 
 ```
-├── Env vars, never in code
+├── Env vars, not in code
 ├── Rotate on any suspected leak
-├── Never log secrets (mask in logs)
+├── Mask secrets in logs
 ├── Different secrets per environment
 └── Use secret managers in production
 ```
@@ -94,7 +94,7 @@ const user = await prisma.user.findUnique({ where: { id: userId } });
 
 ## Deserialization Safety
 
-Never deserialize untrusted data into objects that can execute code.
+Do not deserialize untrusted data into objects that can execute code.
 
 | Library | Dangerous | Safe Alternative |
 |---------|-----------|------------------|
@@ -125,4 +125,4 @@ Step 2: Categorize Risks
 
 ---
 
-*Template. Customize for your threat model.*
+*Template. Adapt to your needs.*

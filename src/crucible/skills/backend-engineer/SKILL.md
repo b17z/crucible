@@ -63,3 +63,7 @@ Questions about design decisions or operational concerns.
 - APPROVE: Ready for production
 - REQUEST CHANGES: Issues must be addressed
 - COMMENT: Suggestions for improvement
+
+---
+
+*Template. Adapt to your needs.*

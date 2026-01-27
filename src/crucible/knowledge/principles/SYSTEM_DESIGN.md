@@ -1,32 +1,25 @@
 # System Design Principles
 
-Start simple. Earn complexity.
-
 ---
 
-## Start Monolith, Earn Microservices
+## Monolith to Microservices
 
 ```
-Day 1 instinct:  "Let's use microservices!"
-Reality:         You have 1 user and 3 endpoints.
+Progression:
+├── Monolith: One deployable, one database
+├── Modular monolith: Clear boundaries, could split
+├── Microservices: Multiple deployables, distributed
 
-The Path:
-├── Start: Monolith (one deployable, one database)
-├── Scale: Modular monolith (clear boundaries, could split)
-├── Split: Microservices (only when you MUST)
-
-When to split:
-├── Teams stepping on each other
-├── Genuinely different scaling needs
-├── Regulatory isolation requirements
-└── NOT because "Netflix does it"
+Indicators to split:
+├── Teams blocked by shared codebase
+├── Components have different scaling requirements
+├── Regulatory isolation required
+└── Deployment coupling causes issues
 ```
 
 ---
 
-## The Boring Architecture
-
-For most apps, this is all you need:
+## Reference Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -48,110 +41,101 @@ For most apps, this is all you need:
 └─────────────┘ └───────────┘ └───────────────┘
 ```
 
-Add complexity only when you hit real limits.
-
 ---
 
-## Stateless by Default
+## Stateless Servers
 
 App servers should hold no state.
 
 ```
-❌ Stateful:
+Stateful patterns (avoid):
 ├── Session stored in server memory
 ├── Uploaded files on local disk
 ├── In-memory cache per instance
-└── Breaks when you add a second server
+└── Breaks on horizontal scaling
 
-✅ Stateless:
+Stateless patterns:
 ├── Session in database or JWT
 ├── Files in S3/object storage
 ├── Cache in Redis (shared)
 └── Any server can handle any request
 ```
 
-**Why:** Servers die. Deploys replace them. State should survive.
-
 ---
 
-## Horizontal vs Vertical Scaling
+## Scaling
 
 ```
 Vertical (scale up):
-├── Bigger server
-├── Simple, no code changes
-└── START HERE
+├── Larger server instance
+├── No code changes required
+└── Simpler to operate
 
 Horizontal (scale out):
-├── More servers
-├── Needs stateless design
-└── DO THIS LATER (if ever)
+├── Multiple server instances
+├── Requires stateless design
+└── More complex to operate
 ```
-
-**Reality:** A single Postgres handles millions of rows. You're not Google.
 
 ---
 
-## Queue Everything That Can Wait
+## Async Processing
 
 ```
-Synchronous: User waits for result
-Asynchronous: User doesn't wait, can retry
-
 Queue candidates:
 ├── Emails / notifications
 ├── Image processing
 ├── Report generation
 ├── Third-party API calls
-└── Anything that can fail
+└── Any operation that can fail and retry
 ```
 
 ---
 
-## Cache Strategically
+## Caching
 
 ```
-Cache when:
-├── Read-heavy, write-light
+Good candidates:
+├── Read-heavy, write-light data
 ├── Expensive to compute
-├── Doesn't change often
-├── Stale data is acceptable
+├── Infrequent changes
+├── Stale data acceptable
 
-Don't cache when:
-├── Data changes constantly
-├── Consistency is critical
-├── It's already fast enough
+Poor candidates:
+├── Frequently changing data
+├── Strong consistency required
+├── Already fast enough
 ```
 
-**Invalidation is hard.** Start simple: time-based expiry.
+Invalidation strategies: time-based expiry, event-based invalidation, cache-aside pattern.
 
 ---
 
 ## Idempotency
 
-If it can be retried, it should be safe to retry.
+Operations that can be retried should produce the same result.
 
 ```typescript
-// ❌ Dangerous: double-charge if retried
+// Non-idempotent: double-charge on retry
 stripe.charge(userId, amount);
 
-// ✅ Idempotent: same result if called twice
+// Idempotent: same result on retry
 stripe.charge(userId, amount, { idempotencyKey });
 ```
 
 ---
 
-## Fail Gracefully
+## Failure Handling
 
 ```
-Design for failure:
-├── External APIs will go down
-├── Database will be slow sometimes
-├── Your code has bugs
+Design assumptions:
+├── External APIs will fail
+├── Database latency will spike
+├── Code has bugs
 
 Strategies:
-├── Timeouts on everything
-├── Retries with backoff
+├── Timeouts on all external calls
+├── Retries with exponential backoff
 ├── Circuit breakers
 ├── Graceful degradation
 └── Health checks
@@ -159,4 +143,4 @@ Strategies:
 
 ---
 
-*Template. Adapt to your scale.*
+*Template. Adapt to your needs.*

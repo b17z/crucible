@@ -1,13 +1,11 @@
 # Database Principles
 
-The database is usually the bottleneck. Design accordingly.
-
 ---
 
 ## Core Rules
 
-| Rule | Why |
-|------|-----|
+| Rule | Reason |
+|------|--------|
 | UUIDs for primary keys | No enumeration attacks, no auto-increment collisions |
 | Timestamps on everything | `created_at`, `updated_at` for debugging |
 | Soft delete when data matters | `deleted_at` instead of hard delete |
@@ -42,7 +40,7 @@ CREATE INDEX idx_tips_page_status ON tips(page_id, status);
 3. Connection pooling
 4. Read replicas
 5. Caching layer
-6. Sharding (you'll probably never need this)
+6. Sharding (rarely needed)
 ```
 
 ---
@@ -50,13 +48,13 @@ CREATE INDEX idx_tips_page_status ON tips(page_id, status);
 ## N+1 Queries
 
 ```typescript
-// ❌ N+1 (1 query for pages + N queries for tips)
+// N+1 (1 query for pages + N queries for tips)
 const pages = await db.page.findMany();
 for (const page of pages) {
   const tips = await db.tip.findMany({ where: { pageId: page.id } });
 }
 
-// ✅ Include (1 query with join)
+// Include (1 query with join)
 const pages = await db.page.findMany({
   include: { tips: true }
 });
@@ -78,9 +76,9 @@ Indexes: descriptive            → idx_tips_page_id
 
 ```
 ├── One migration per change
-├── Migrations must be reversible
+├── Migrations should be reversible
 ├── Test migrations on production data (copy)
-├── Never edit deployed migrations
+├── Do not edit deployed migrations
 └── Separate schema changes from data migrations
 ```
 
@@ -89,7 +87,7 @@ Indexes: descriptive            → idx_tips_page_id
 ## Transactions
 
 ```typescript
-// ✅ Atomic operations
+// Atomic operations
 await db.$transaction(async (tx) => {
   await tx.account.update({
     where: { id: fromAccount },
@@ -118,16 +116,16 @@ await db.$transaction(async (tx) => {
 
 ## Query Safety
 
-Always use parameterized queries:
+Use parameterized queries:
 
 ```typescript
-// ❌ SQL injection
+// SQL injection risk
 const query = `SELECT * FROM users WHERE id = '${userId}'`;
 
-// ✅ Parameterized (ORMs do this)
+// Parameterized (ORMs do this)
 const user = await db.user.findUnique({ where: { id: userId } });
 ```
 
 ---
 
-*Template. Adapt to your database stack.*
+*Template. Adapt to your needs.*

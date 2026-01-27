@@ -80,3 +80,7 @@ Questions about intended behavior or edge cases.
 - APPROVE: Correctness properties are clear and maintained
 - REQUEST CHANGES: Invariant violations or missing critical specs
 - COMMENT: Suggestions for formal verification candidates
+
+---
+
+*Template. Adapt to your needs.*

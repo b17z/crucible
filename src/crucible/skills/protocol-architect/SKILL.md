@@ -77,3 +77,7 @@ Questions about trust assumptions or protocol interactions.
 - APPROVE: Protocol design is sound
 - REQUEST CHANGES: Design risks must be addressed
 - COMMENT: Suggestions for protocol robustness
+
+---
+
+*Template. Adapt to your needs.*

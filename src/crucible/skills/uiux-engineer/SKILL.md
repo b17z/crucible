@@ -64,3 +64,7 @@ Questions about design decisions or edge cases.
 - APPROVE: Matches design standards
 - REQUEST CHANGES: Design issues must be fixed
 - COMMENT: Suggestions for polish
+
+---
+
+*Template. Adapt to your needs.*

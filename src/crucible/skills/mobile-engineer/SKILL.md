@@ -64,3 +64,7 @@ Questions about device support or edge cases.
 - APPROVE: Ready for app release
 - REQUEST CHANGES: Issues must be fixed
 - COMMENT: Suggestions for improvement
+
+---
+
+*Template. Adapt to your needs.*

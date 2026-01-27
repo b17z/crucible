@@ -1,22 +1,20 @@
 # Error Handling Principles
 
-Errors as values, not exceptions.
-
 ---
 
-## Core Philosophy
+## Result Types
 
-Don't throw. Return.
+Return errors as values instead of throwing exceptions.
 
 ```typescript
-// ❌ Throwing (invisible control flow)
+// Throwing (invisible control flow)
 const getUser = (id: UserId): User => {
   const user = db.find(id);
   if (!user) throw new Error('Not found');
   return user;
 }
 
-// ✅ Result type (explicit, type-safe)
+// Result type (explicit, type-safe)
 type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
 const getUser = (id: UserId): Result<User, 'NOT_FOUND' | 'DB_ERROR'> => {
@@ -32,12 +30,12 @@ const getUser = (id: UserId): Result<User, 'NOT_FOUND' | 'DB_ERROR'> => {
 
 ---
 
-## Caller Must Handle
+## Caller Handles Errors
 
 ```typescript
 const result = await getUser(id);
 if (!result.ok) {
-  // Handle error - can't forget!
+  // Handle error
   return;
 }
 // result.value is typed as User
@@ -48,10 +46,10 @@ if (!result.ok) {
 ## Typed Errors
 
 ```typescript
-// ❌ String errors (no structure, no exhaustiveness checking)
+// String errors (no structure, no exhaustiveness checking)
 throw new Error('Something went wrong');
 
-// ✅ Typed errors (structured, exhaustive)
+// Typed errors (structured, exhaustive)
 type TipError =
   | { type: 'PAGE_NOT_FOUND' }
   | { type: 'AMOUNT_TOO_SMALL'; minimum: Cents }
@@ -73,7 +71,7 @@ const handleError = (error: TipError) => {
 
 ## When to Throw
 
-Exceptions are for **truly exceptional** things:
+Exceptions are for truly exceptional cases:
 
 ```
 Throw for:
@@ -82,7 +80,7 @@ Throw for:
 ├── Programmer errors (assertions, invariant violations)
 ├── API boundaries (convert Result → HTTP status)
 
-Don't throw for:
+Return Result for:
 ├── Business logic ("user not found" is expected)
 ├── Validation errors
 ├── Anything the caller should handle
@@ -118,26 +116,26 @@ def get_user(user_id: str) -> Result[User, str]:
 ## Error Messages
 
 ```typescript
-// ❌ Vague
+// Vague
 throw new Error('Failed');
 
-// ✅ Actionable
+// Actionable
 throw new Error(`Failed to fetch user ${userId}: connection timeout after 5000ms`);
 ```
 
 ---
 
-## Never Swallow Errors
+## Logging Errors
 
 ```typescript
-// ❌ Silent failure
+// Silent failure (avoid)
 try {
   await riskyOperation();
 } catch (e) {
   // nothing
 }
 
-// ✅ At minimum, log
+// Log at minimum
 try {
   await riskyOperation();
 } catch (e) {
@@ -148,4 +146,4 @@ try {
 
 ---
 
-*Template. Adapt Result type to your language/framework.*
+*Template. Adapt to your needs.*

@@ -62,3 +62,7 @@ Questions about user needs or product decisions.
 - APPROVE: Feature is complete and user-ready
 - REQUEST CHANGES: UX issues must be addressed
 - COMMENT: Suggestions for improvement
+
+---
+
+*Template. Adapt to your needs.*

@@ -46,14 +46,12 @@ Nouns, not verbs:
 409 Conflict     ← State conflict
 422 Unprocessable← Validation failed
 429 Too Many     ← Rate limited
-500 Server Error ← Our fault
+500 Server Error ← Server fault
 ```
 
 ---
 
 ## Rate Limiting
-
-Protect your endpoints:
 
 ```
 Headers to return:
@@ -67,7 +65,7 @@ Headers to return:
 
 ## Pagination
 
-Never return unbounded lists:
+Use bounded lists:
 
 ```typescript
 // Request
@@ -91,9 +89,9 @@ GET /tips?page=2&pageSize=20
 
 ```
 For internal APIs (tRPC, same team):
-├── Don't version
-├── Just change it
-└── Type system catches breakage
+├── No explicit versioning
+├── Type system catches breakage
+└── Change and deploy together
 
 For public APIs (external consumers):
 ├── Version in URL: /v1/tips
@@ -109,12 +107,12 @@ For public APIs (external consumers):
 For operations that can be retried:
 
 ```typescript
-// ❌ Not idempotent
+// Not idempotent
 POST /payments
 { amount: 100 }
 // Called twice = charged twice
 
-// ✅ Idempotent
+// Idempotent
 POST /payments
 {
   amount: 100,
@@ -128,10 +126,10 @@ POST /payments
 ## Error Responses
 
 ```typescript
-// ❌ Vague
+// Vague
 { error: "Something went wrong" }
 
-// ✅ Actionable
+// Actionable
 {
   error: {
     code: "VALIDATION_ERROR",
@@ -168,4 +166,4 @@ export const tipRouter = router({
 
 ---
 
-*Template. Adapt to your API style guide.*
+*Template. Adapt to your needs.*

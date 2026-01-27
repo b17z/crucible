@@ -81,3 +81,7 @@ Questions about acceptable MEV exposure or design trade-offs.
 - APPROVE: MEV risks are acceptable/mitigated
 - REQUEST CHANGES: Critical MEV vulnerabilities
 - COMMENT: MEV considerations for awareness
+
+---
+
+*Template. Adapt to your needs.*

@@ -62,3 +62,7 @@ Questions about performance requirements or constraints.
 - APPROVE: Performance is acceptable
 - REQUEST CHANGES: Performance issues must be addressed
 - COMMENT: Optional optimizations
+
+---
+
+*Template. Adapt to your needs.*

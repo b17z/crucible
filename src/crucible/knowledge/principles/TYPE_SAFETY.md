@@ -7,10 +7,10 @@ Patterns for making invalid states unrepresentable.
 ## No `any`
 
 ```typescript
-// ❌ any (defeats the purpose of TypeScript)
+// any (defeats the purpose of TypeScript)
 const process = (data: any) => { ... }
 
-// ✅ unknown + narrowing
+// unknown + narrowing
 const process = (data: unknown) => {
   if (typeof data === 'string') {
     // TypeScript knows it's a string here
@@ -25,11 +25,11 @@ const process = (data: unknown) => {
 Prevent mixing up similar primitives:
 
 ```typescript
-// ❌ Easy to mix up
+// Easy to mix up
 const createTip = (pageId: string, amount: number) => { ... }
 // createTip(tipId, pageId) compiles but is wrong!
 
-// ✅ Branded types
+// Branded types
 type PageId = string & { readonly _brand: 'PageId' };
 type TipId = string & { readonly _brand: 'TipId' };
 type Cents = number & { readonly _brand: 'Cents' };
@@ -45,7 +45,7 @@ const createTip = (pageId: PageId, amount: Cents) => { ... }
 Make invalid states unrepresentable:
 
 ```typescript
-// ❌ Boolean flags (invalid states possible)
+// Boolean flags (invalid states possible)
 type Response = {
   loading: boolean;
   error: Error | null;
@@ -53,7 +53,7 @@ type Response = {
 }
 // What if loading=true AND error is set?
 
-// ✅ Discriminated union (only valid states)
+// Discriminated union (only valid states)
 type Response =
   | { status: 'loading' }
   | { status: 'error'; error: Error }
@@ -143,14 +143,14 @@ Always enable:
 Be explicit:
 
 ```typescript
-// ❌ Ambiguous
+// Ambiguous
 interface User {
   name: string;
   email: string;
   phone: string; // Required? Or just always present?
 }
 
-// ✅ Explicit
+// Explicit
 interface User {
   name: string;
   email: string;
@@ -160,4 +160,4 @@ interface User {
 
 ---
 
-*Template. Adapt patterns to your language.*
+*Template. Adapt to your needs.*

@@ -85,3 +85,7 @@ Questions about failure modes or recovery procedures.
 - APPROVE: Incident-ready
 - REQUEST CHANGES: Critical recoverability gaps
 - COMMENT: Suggestions for operational resilience
+
+---
+
+*Template. Adapt to your needs.*

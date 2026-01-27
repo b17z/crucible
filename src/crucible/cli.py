@@ -393,6 +393,512 @@ def cmd_knowledge_install(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Review command ---
+
+
+def _load_review_config(repo_path: str | None = None) -> dict:
+    """Load review config with cascade priority.
+
+    Config file: .crucible/review.yaml or ~/.claude/crucible/review.yaml
+
+    Example config:
+        fail_on: high                    # default threshold
+        fail_on_domain:                  # per-domain overrides
+          smart_contract: critical       # stricter for smart contracts
+          backend: high
+        include_context: false
+        skip_tools: []
+    """
+    import yaml
+
+    config_data: dict = {}
+    config_project = Path(".crucible/review.yaml")
+    config_user = Path.home() / ".claude" / "crucible" / "review.yaml"
+
+    if repo_path:
+        config_project = Path(repo_path) / ".crucible" / "review.yaml"
+
+    # Try project-level first
+    if config_project.exists():
+        try:
+            with open(config_project) as f:
+                config_data = yaml.safe_load(f) or {}
+        except Exception:
+            pass
+
+    # Fall back to user-level
+    if not config_data and config_user.exists():
+        try:
+            with open(config_user) as f:
+                config_data = yaml.safe_load(f) or {}
+        except Exception:
+            pass
+
+    return config_data
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    """Run code review on git changes."""
+    import json as json_mod
+
+    from crucible.models import Domain, Severity, ToolFinding
+    from crucible.tools.delegation import (
+        delegate_bandit,
+        delegate_ruff,
+        delegate_semgrep,
+        delegate_slither,
+    )
+    from crucible.tools.git import (
+        get_branch_diff,
+        get_recent_commits,
+        get_repo_root,
+        get_staged_changes,
+        get_unstaged_changes,
+        is_git_repo,
+    )
+
+    # Helper functions (inline to avoid circular imports)
+    def get_semgrep_config(domain: Domain) -> str:
+        if domain == Domain.SMART_CONTRACT:
+            return "p/smart-contracts"
+        elif domain == Domain.BACKEND:
+            return "p/python"
+        elif domain == Domain.FRONTEND:
+            return "p/typescript"
+        return "auto"
+
+    def detect_domain(filename: str) -> tuple[Domain, list[str]]:
+        """Detect domain from file extension."""
+        ext = Path(filename).suffix.lower()
+        if ext == ".sol":
+            return Domain.SMART_CONTRACT, ["solidity", "smart_contract", "web3"]
+        elif ext in (".py", ".pyw"):
+            return Domain.BACKEND, ["python", "backend"]
+        elif ext in (".ts", ".tsx", ".js", ".jsx"):
+            return Domain.FRONTEND, ["typescript", "frontend", "javascript"]
+        elif ext == ".rs":
+            return Domain.BACKEND, ["rust", "backend"]
+        elif ext == ".go":
+            return Domain.BACKEND, ["go", "backend"]
+        return Domain.UNKNOWN, []
+
+    def get_changed_files(changes: list) -> list[str]:
+        """Get list of changed files (excluding deleted)."""
+        return [c.path for c in changes if c.status != "D"]
+
+    def parse_location_line(location: str) -> int | None:
+        """Extract line number from location string like 'file.py:10'."""
+        if ":" in location:
+            try:
+                return int(location.split(":")[1].split(":")[0])
+            except (ValueError, IndexError):
+                return None
+        return None
+
+    def filter_findings_to_changes(
+        findings: list[ToolFinding],
+        changes: list,
+        include_context: bool = False,
+    ) -> list[ToolFinding]:
+        """Filter findings to only those in changed lines."""
+        # Build a lookup of file -> changed line ranges
+        changed_ranges: dict[str, list[tuple[int, int]]] = {}
+        for change in changes:
+            if change.status == "D":
+                continue  # Skip deleted files
+            ranges = [(r.start, r.end) for r in change.added_lines]
+            changed_ranges[change.path] = ranges
+
+        context_lines = 5 if include_context else 0
+        filtered: list[ToolFinding] = []
+
+        for finding in findings:
+            # Parse location: "path:line" or "path:line:col"
+            parts = finding.location.split(":")
+            if len(parts) < 2:
+                continue
+
+            file_path = parts[0]
+            try:
+                line_num = int(parts[1])
+            except ValueError:
+                continue
+
+            # Check if file is in changes
+            # Handle both absolute and relative paths
+            matching_file = None
+            for changed_file in changed_ranges:
+                if file_path.endswith(changed_file) or changed_file.endswith(file_path):
+                    matching_file = changed_file
+                    break
+
+            if not matching_file:
+                continue
+
+            # Check if line is in changed ranges (with context)
+            for start, end in changed_ranges[matching_file]:
+                if start - context_lines <= line_num <= end + context_lines:
+                    filtered.append(finding)
+                    break
+
+        return filtered
+
+    path = args.path or "."
+    mode = args.mode
+
+    # Validate git repo
+    if not is_git_repo(path):
+        print(f"Error: {path} is not a git repository")
+        return 1
+
+    root_result = get_repo_root(path)
+    if root_result.is_err:
+        print(f"Error: {root_result.error}")
+        return 1
+
+    repo_path = root_result.value
+
+    # Load config
+    config = _load_review_config(repo_path)
+
+    # Parse severity threshold (CLI overrides config)
+    severity_order = ["critical", "high", "medium", "low", "info"]
+    severity_map = {
+        "critical": Severity.CRITICAL,
+        "high": Severity.HIGH,
+        "medium": Severity.MEDIUM,
+        "low": Severity.LOW,
+        "info": Severity.INFO,
+    }
+
+    # Default threshold from CLI or config
+    default_threshold_str = args.fail_on or config.get("fail_on")
+    default_threshold: Severity | None = None
+    if default_threshold_str:
+        default_threshold = severity_map.get(default_threshold_str.lower())
+
+    # Per-domain thresholds from config
+    domain_thresholds: dict[Domain, Severity] = {}
+    for domain_str, sev_str in config.get("fail_on_domain", {}).items():
+        try:
+            domain = Domain(domain_str)
+        except ValueError:
+            # Try common aliases
+            domain_aliases = {
+                "solidity": Domain.SMART_CONTRACT,
+                "python": Domain.BACKEND,
+                "typescript": Domain.FRONTEND,
+                "javascript": Domain.FRONTEND,
+            }
+            domain = domain_aliases.get(domain_str.lower())
+        if domain and sev_str:
+            sev = severity_map.get(sev_str.lower())
+            if sev:
+                domain_thresholds[domain] = sev
+
+    # Include context from config if not specified on CLI
+    if not args.include_context and config.get("include_context"):
+        args.include_context = True
+
+    # Skip tools from config
+    skip_tools = set(config.get("skip_tools", []))
+
+    # Get changes based on mode
+    if mode == "staged":
+        context_result = get_staged_changes(repo_path)
+    elif mode == "unstaged":
+        context_result = get_unstaged_changes(repo_path)
+    elif mode == "branch":
+        base_branch = args.base if args.base else "main"
+        context_result = get_branch_diff(repo_path, base_branch)
+    elif mode == "commits":
+        try:
+            count = int(args.base) if args.base else 1
+        except ValueError:
+            print(f"Error: Invalid commit count '{args.base}'")
+            return 1
+        context_result = get_recent_commits(repo_path, count)
+    else:
+        print(f"Error: Unknown mode '{mode}'")
+        return 1
+
+    if context_result.is_err:
+        print(f"Error: {context_result.error}")
+        return 1
+
+    context = context_result.value
+
+    # Check for changes
+    if not context.changes:
+        if mode == "staged":
+            print("No changes to review. Stage files with `git add` first.")
+        elif mode == "unstaged":
+            print("No unstaged changes to review.")
+        else:
+            print("No changes found.")
+        return 0
+
+    changed_files = get_changed_files(context.changes)
+    if not changed_files:
+        print("No files to analyze (only deletions).")
+        return 0
+
+    # Run analysis
+    all_findings: list[ToolFinding] = []
+    tool_errors: list[str] = []
+
+    if not args.quiet and not args.json:
+        print(f"Reviewing {len(changed_files)} file(s)...")
+
+    # Track domains detected for per-domain threshold checking
+    domains_detected: set[Domain] = set()
+
+    for file_path in changed_files:
+        full_path = f"{repo_path}/{file_path}"
+        domain, domain_tags = detect_domain(file_path)
+        domains_detected.add(domain)
+
+        # Select tools based on domain
+        if domain == Domain.SMART_CONTRACT:
+            tools = ["slither", "semgrep"]
+        elif domain == Domain.BACKEND and "python" in domain_tags:
+            tools = ["ruff", "bandit", "semgrep"]
+        elif domain == Domain.FRONTEND:
+            tools = ["semgrep"]
+        else:
+            tools = ["semgrep"]
+
+        # Apply skip_tools from config
+        tools = [t for t in tools if t not in skip_tools]
+
+        # Run tools
+        if "semgrep" in tools:
+            semgrep_config = get_semgrep_config(domain)
+            result = delegate_semgrep(full_path, semgrep_config)
+            if result.is_ok:
+                all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"semgrep ({file_path}): {result.error}")
+
+        if "ruff" in tools:
+            result = delegate_ruff(full_path)
+            if result.is_ok:
+                all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"ruff ({file_path}): {result.error}")
+
+        if "slither" in tools:
+            result = delegate_slither(full_path)
+            if result.is_ok:
+                all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"slither ({file_path}): {result.error}")
+
+        if "bandit" in tools:
+            result = delegate_bandit(full_path)
+            if result.is_ok:
+                all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"bandit ({file_path}): {result.error}")
+
+    # Filter findings to changed lines
+    filtered_findings = filter_findings_to_changes(
+        all_findings, context.changes, args.include_context
+    )
+
+    # Deduplicate findings
+    def deduplicate_findings(findings: list[ToolFinding]) -> list[ToolFinding]:
+        """Deduplicate findings by location and message."""
+        seen: dict[tuple[str, str], ToolFinding] = {}
+        severity_order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
+
+        for f in findings:
+            norm_msg = f.message.lower().strip()
+            key = (f.location, norm_msg)
+
+            if key not in seen:
+                seen[key] = f
+            else:
+                existing = seen[key]
+                if severity_order.index(f.severity) < severity_order.index(existing.severity):
+                    seen[key] = f
+
+        return list(seen.values())
+
+    filtered_findings = deduplicate_findings(filtered_findings)
+
+    # Compute severity summary
+    severity_counts: dict[str, int] = {}
+    for f in filtered_findings:
+        sev = f.severity.value
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+    # Determine pass/fail using per-domain thresholds
+    # Use the strictest applicable threshold
+    passed = True
+    effective_threshold: Severity | None = default_threshold
+
+    # Check for per-domain thresholds (use strictest)
+    for domain in domains_detected:
+        if domain in domain_thresholds:
+            domain_thresh = domain_thresholds[domain]
+            if effective_threshold is None:
+                effective_threshold = domain_thresh
+            else:
+                # Use the stricter threshold (higher in severity_order = stricter)
+                if severity_order.index(domain_thresh.value) < severity_order.index(
+                    effective_threshold.value
+                ):
+                    effective_threshold = domain_thresh
+
+    if effective_threshold:
+        threshold_idx = severity_order.index(effective_threshold.value)
+        for sev in severity_order[: threshold_idx + 1]:
+            if severity_counts.get(sev, 0) > 0:
+                passed = False
+                break
+
+    # Track which threshold was used for output
+    threshold_used = effective_threshold.value if effective_threshold else None
+
+    # Output
+    if args.json:
+        output = {
+            "mode": mode,
+            "files_changed": len(changed_files),
+            "domains_detected": [d.value for d in domains_detected],
+            "findings": [
+                {
+                    "tool": f.tool,
+                    "rule": f.rule,
+                    "severity": f.severity.value,
+                    "message": f.message,
+                    "location": f.location,
+                    "suggestion": f.suggestion,
+                }
+                for f in filtered_findings
+            ],
+            "severity_counts": severity_counts,
+            "threshold": threshold_used,
+            "errors": tool_errors,
+            "passed": passed,
+        }
+        print(json_mod.dumps(output, indent=2))
+    elif getattr(args, "format", "text") == "report":
+        # Markdown report format
+        from datetime import datetime
+
+        print("# Code Review Report\n")
+        print(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        print(f"**Mode:** {mode} changes")
+        print(f"**Files reviewed:** {len(changed_files)}")
+        print(f"**Domains detected:** {', '.join(d.value for d in domains_detected)}")
+        if threshold_used:
+            print(f"**Threshold:** {threshold_used}")
+        print()
+
+        # Summary
+        print("## Summary\n")
+        if filtered_findings:
+            total = len(filtered_findings)
+            print(f"**{total} finding(s)** detected:\n")
+            for sev in ["critical", "high", "medium", "low", "info"]:
+                count = severity_counts.get(sev, 0)
+                if count > 0:
+                    print(f"- {sev.upper()}: {count}")
+            print()
+        else:
+            print("No issues found in changed code.\n")
+
+        # Files changed
+        print("## Files Changed\n")
+        for c in context.changes:
+            status_char = {"A": "Added", "M": "Modified", "D": "Deleted", "R": "Renamed"}.get(c.status, "?")
+            print(f"- `{c.path}` ({status_char})")
+        print()
+
+        # Findings by severity
+        if filtered_findings:
+            print("## Findings\n")
+
+            # Group by severity
+            by_severity: dict[str, list] = {}
+            for f in filtered_findings:
+                sev = f.severity.value
+                if sev not in by_severity:
+                    by_severity[sev] = []
+                by_severity[sev].append(f)
+
+            for sev in ["critical", "high", "medium", "low", "info"]:
+                if sev not in by_severity:
+                    continue
+                print(f"### {sev.upper()}\n")
+                for f in by_severity[sev]:
+                    print(f"#### `{f.location}`\n")
+                    print(f"**Tool:** {f.tool}  ")
+                    print(f"**Rule:** {f.rule}  ")
+                    print(f"**Message:** {f.message}")
+                    if f.suggestion:
+                        print(f"\n**Suggestion:** {f.suggestion}")
+                    print()
+
+        # Tool errors
+        if tool_errors:
+            print("## Tool Errors\n")
+            for error in tool_errors:
+                print(f"- {error}")
+            print()
+
+        # Result
+        print("## Result\n")
+        if effective_threshold:
+            status = "PASSED" if passed else "FAILED"
+            status_emoji = "PASS" if passed else "FAIL"
+            print(f"**Status:** {status_emoji} ({threshold_used} threshold)")
+        else:
+            print("**Status:** Complete (no threshold set)")
+        print()
+        print("---")
+        print("*Generated by Crucible*")
+    else:
+        # Text output
+        print(f"\n{'='*60}")
+        print(f"Review: {mode} changes")
+        print(f"{'='*60}")
+
+        print(f"\nFiles changed: {len(changed_files)}")
+        for c in context.changes:
+            status_char = {"A": "+", "M": "~", "D": "-", "R": "R"}.get(c.status, "?")
+            print(f"  [{status_char}] {c.path}")
+
+        if tool_errors:
+            print(f"\nTool Errors ({len(tool_errors)}):")
+            for error in tool_errors:
+                print(f"  - {error}")
+
+        if filtered_findings:
+            print(f"\nFindings ({len(filtered_findings)}):")
+            print(f"  Summary: {severity_counts}")
+            print()
+            for f in filtered_findings:
+                sev_upper = f.severity.value.upper()
+                print(f"  [{sev_upper}] {f.location}")
+                print(f"    {f.tool}/{f.rule}: {f.message}")
+                if f.suggestion:
+                    print(f"    Suggestion: {f.suggestion}")
+                print()
+        else:
+            print("\nNo issues found in changed code.")
+
+        if effective_threshold:
+            status = "PASSED" if passed else "FAILED"
+            print(f"\n{'='*60}")
+            print(f"Result: {status} (threshold: {threshold_used})")
+            print(f"{'='*60}")
+
+    return 0 if passed else 1
+
+
 # --- Hooks commands ---
 
 PRECOMMIT_HOOK_SCRIPT = """\
@@ -538,14 +1044,14 @@ def cmd_hooks_status(args: argparse.Namespace) -> int:
 def cmd_precommit(args: argparse.Namespace) -> int:
     """Run pre-commit checks (can be called directly or from hook)."""
     from crucible.hooks.precommit import (
+        EXIT_ERROR,
+        EXIT_FAIL,
+        EXIT_PASS,
         PrecommitConfig,
+        _parse_severity,
         format_precommit_output,
         load_precommit_config,
         run_precommit,
-        _parse_severity,
-        EXIT_PASS,
-        EXIT_FAIL,
-        EXIT_ERROR,
     )
 
     path = args.path or "."
@@ -592,6 +1098,174 @@ def cmd_precommit(args: argparse.Namespace) -> int:
     if result.error:
         return EXIT_ERROR
     return EXIT_PASS if result.passed else EXIT_FAIL
+
+
+# --- Init command ---
+
+
+def _detect_project_stack(path: Path) -> list[str]:
+    """Detect the project's tech stack based on files present."""
+    stack: list[str] = []
+
+    indicators = {
+        "python": ["pyproject.toml", "setup.py", "requirements.txt", "Pipfile"],
+        "typescript": ["tsconfig.json", "package.json"],
+        "javascript": ["package.json"],
+        "solidity": ["foundry.toml", "hardhat.config.js", "hardhat.config.ts", "truffle-config.js"],
+        "rust": ["Cargo.toml"],
+        "go": ["go.mod"],
+    }
+
+    for tech, files in indicators.items():
+        for file in files:
+            if (path / file).exists():
+                if tech not in stack:
+                    stack.append(tech)
+                break
+
+    # Check for .sol files directly
+    if not any(t in stack for t in ["solidity"]):
+        sol_files = list(path.glob("**/*.sol"))
+        if sol_files and len(sol_files) < 1000:  # Sanity limit
+            stack.append("solidity")
+
+    return stack
+
+
+def _get_recommended_skills(stack: list[str]) -> list[str]:
+    """Get recommended skills based on detected stack."""
+    skills: list[str] = ["security-engineer"]  # Always recommend
+
+    stack_skills = {
+        "python": ["backend-engineer"],
+        "typescript": ["backend-engineer", "uiux-engineer"],
+        "javascript": ["backend-engineer", "uiux-engineer"],
+        "solidity": ["web3-engineer", "gas-optimizer", "protocol-architect"],
+        "rust": ["backend-engineer", "performance-engineer"],
+        "go": ["backend-engineer", "performance-engineer"],
+    }
+
+    for tech in stack:
+        if tech in stack_skills:
+            for skill in stack_skills[tech]:
+                if skill not in skills:
+                    skills.append(skill)
+
+    return skills
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Initialize .crucible/ directory for project customization."""
+    project_path = Path(args.path).resolve()
+    crucible_dir = project_path / ".crucible"
+
+    if crucible_dir.exists() and not args.force:
+        print(f"Error: {crucible_dir} already exists. Use --force to overwrite.")
+        return 1
+
+    # Detect stack
+    stack = _detect_project_stack(project_path)
+    if stack:
+        print(f"Detected stack: {', '.join(stack)}")
+    else:
+        print("No specific stack detected")
+
+    # Create directory structure
+    (crucible_dir / "skills").mkdir(parents=True, exist_ok=True)
+    (crucible_dir / "knowledge").mkdir(parents=True, exist_ok=True)
+
+    # Create default review.yaml
+    review_config = """# Crucible review configuration
+# See: https://github.com/be-nvy/crucible
+
+# Fail on findings at or above this severity
+fail_on: high
+
+# Per-domain overrides (uncomment to customize)
+# fail_on_domain:
+#   smart_contract: critical
+#   backend: high
+
+# Skip specific tools (uncomment to customize)
+# skip_tools:
+#   - slither
+
+# Include findings near (within 5 lines of) changes
+include_context: false
+"""
+    (crucible_dir / "review.yaml").write_text(review_config)
+    print(f"Created {crucible_dir / 'review.yaml'}")
+
+    if not args.minimal:
+        # Get recommended skills
+        recommended = _get_recommended_skills(stack)
+        print(f"\nRecommended skills for your stack: {', '.join(recommended)}")
+        print("\nTo customize a skill, run:")
+        for skill in recommended:
+            print(f"  crucible skills init {skill}")
+
+    # Create .gitignore if not exists
+    gitignore_path = crucible_dir / ".gitignore"
+    if not gitignore_path.exists():
+        gitignore_path.write_text("# Local overrides (optional)\n*.local.md\n")
+
+    print(f"\nInitialized {crucible_dir}")
+    print("\nNext steps:")
+    print("  1. Customize skills:     crucible skills init <skill>")
+    print("  2. Customize knowledge:  crucible knowledge init <file>")
+    print("  3. Install git hooks:    crucible hooks install")
+    return 0
+
+
+# --- CI command ---
+
+
+GITHUB_WORKFLOW_TEMPLATE = '''name: Crucible Code Review
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for branch comparison
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install crucible
+        run: pip install crucible-mcp
+
+      - name: Review changes
+        run: |
+          if [ "${{{{ github.event_name }}}}" = "pull_request" ]; then
+            crucible review --mode branch --base ${{{{ github.base_ref }}}} --fail-on {fail_on}
+          else
+            crucible review --mode commits --base 1 --fail-on {fail_on}
+          fi
+'''
+
+
+def cmd_ci_generate(args: argparse.Namespace) -> int:
+    """Generate GitHub Actions workflow for crucible."""
+    workflow = GITHUB_WORKFLOW_TEMPLATE.format(fail_on=args.fail_on)
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(workflow)
+        print(f"Generated {output_path}")
+    else:
+        print(workflow)
+
+    return 0
 
 
 # --- Main ---
@@ -705,6 +1379,48 @@ def main() -> int:
         "path", nargs="?", default=".", help="Repository path"
     )
 
+    # === review command ===
+    review_parser = subparsers.add_parser(
+        "review",
+        help="Review git changes (staged, unstaged, branch, commits)"
+    )
+    review_parser.add_argument(
+        "--mode", "-m",
+        choices=["staged", "unstaged", "branch", "commits"],
+        default="staged",
+        help="What changes to review (default: staged)"
+    )
+    review_parser.add_argument(
+        "--base", "-b",
+        help="Base branch for 'branch' mode or commit count for 'commits' mode"
+    )
+    review_parser.add_argument(
+        "--fail-on",
+        choices=["critical", "high", "medium", "low", "info"],
+        help="Fail on findings at or above this severity"
+    )
+    review_parser.add_argument(
+        "--include-context", "-c", action="store_true",
+        help="Include findings near changed lines (within 5 lines)"
+    )
+    review_parser.add_argument(
+        "--json", action="store_true",
+        help="Output as JSON"
+    )
+    review_parser.add_argument(
+        "--format", "-f",
+        choices=["text", "report"],
+        default="text",
+        help="Output format: text (default) or report (markdown audit report)"
+    )
+    review_parser.add_argument(
+        "--quiet", "-q", action="store_true",
+        help="Suppress progress messages"
+    )
+    review_parser.add_argument(
+        "path", nargs="?", default=".", help="Repository path"
+    )
+
     # === pre-commit command (direct invocation) ===
     precommit_parser = subparsers.add_parser(
         "pre-commit",
@@ -727,9 +1443,58 @@ def main() -> int:
         "path", nargs="?", default=".", help="Repository path"
     )
 
+    # === init command ===
+    init_proj_parser = subparsers.add_parser(
+        "init",
+        help="Initialize .crucible/ directory for project customization"
+    )
+    init_proj_parser.add_argument(
+        "--force", "-f", action="store_true",
+        help="Overwrite existing .crucible/ directory"
+    )
+    init_proj_parser.add_argument(
+        "--minimal", action="store_true",
+        help="Create minimal config without copying skills"
+    )
+    init_proj_parser.add_argument(
+        "path", nargs="?", default=".",
+        help="Project path (default: current directory)"
+    )
+
+    # === ci command ===
+    ci_parser = subparsers.add_parser(
+        "ci",
+        help="Generate CI configuration"
+    )
+    ci_sub = ci_parser.add_subparsers(dest="ci_command")
+
+    # ci generate
+    ci_generate_parser = ci_sub.add_parser(
+        "generate",
+        help="Generate GitHub Actions workflow"
+    )
+    ci_generate_parser.add_argument(
+        "--output", "-o",
+        help="Output file path (default: stdout)"
+    )
+    ci_generate_parser.add_argument(
+        "--fail-on",
+        choices=["critical", "high", "medium", "low"],
+        default="high",
+        help="Fail threshold for CI (default: high)"
+    )
+
     args = parser.parse_args()
 
-    if args.command == "skills":
+    if args.command == "init":
+        return cmd_init(args)
+    elif args.command == "ci":
+        if args.ci_command == "generate":
+            return cmd_ci_generate(args)
+        else:
+            ci_parser.print_help()
+            return 0
+    elif args.command == "skills":
         if args.skills_command == "install":
             return cmd_skills_install(args)
         elif args.skills_command == "list":
@@ -763,11 +1528,17 @@ def main() -> int:
         else:
             hooks_parser.print_help()
             return 0
+    elif args.command == "review":
+        return cmd_review(args)
     elif args.command == "pre-commit":
         return cmd_precommit(args)
     else:
         # Default help
         print("crucible - Code review orchestration\n")
+        print("Getting Started:")
+        print("  crucible init                   Initialize .crucible/ for project customization")
+        print("  crucible ci generate            Generate GitHub Actions workflow")
+        print()
         print("Commands:")
         print("  crucible skills list            List skills from all sources")
         print("  crucible skills install         Install skills to ~/.claude/crucible/")
@@ -783,18 +1554,15 @@ def main() -> int:
         print("  crucible hooks uninstall        Remove pre-commit hook")
         print("  crucible hooks status           Show hook installation status")
         print()
-        print("  crucible pre-commit             Run pre-commit checks on staged changes")
-        print("    --fail-on <severity>          Fail threshold (critical/high/medium/low)")
-        print("    --verbose                     Show all findings")
-        print("    --json                        Output as JSON")
+        print("  crucible review                 Review git changes")
+        print("    --mode <mode>                 staged/unstaged/branch/commits (default: staged)")
+        print("    --base <ref>                  Base branch or commit count")
+        print("    --fail-on <severity>          Fail threshold (critical/high/medium/low/info)")
+        print("    --format <format>             Output format: text (default) or report (markdown)")
         print()
-        print("  crucible-mcp                    Run as MCP server\n")
-        print("MCP Tools:")
-        print("  quick_review    Run static analysis, returns findings + domains")
-        print("  get_principles  Load engineering checklists")
-        print("  review_changes  Analyze git changes (staged/unstaged/branch/commits)")
-        print("  delegate_*      Direct tool access (semgrep, ruff, slither, bandit)")
-        print("  check_tools     Show installed analysis tools")
+        print("  crucible pre-commit             Run pre-commit checks on staged changes")
+        print()
+        print("  crucible-mcp                    Run as MCP server")
         return 0
 
 

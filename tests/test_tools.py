@@ -4,6 +4,7 @@ from crucible.models import Domain, Severity
 from crucible.tools.delegation import (
     _severity_from_ruff,
     _severity_from_semgrep,
+    check_all_tools,
     check_tool,
     get_semgrep_config,
 )
@@ -75,3 +76,20 @@ class TestSeverityMapping:
         assert _severity_from_ruff("E501") == Severity.LOW
         assert _severity_from_ruff("W291") == Severity.LOW
         assert _severity_from_ruff("I001") == Severity.LOW
+
+
+class TestCheckAllTools:
+    """Test checking all supported tools."""
+
+    def test_returns_all_tools(self) -> None:
+        statuses = check_all_tools()
+        assert "semgrep" in statuses
+        assert "ruff" in statuses
+        assert "slither" in statuses
+        assert "bandit" in statuses
+        assert "gitleaks" in statuses
+
+    def test_each_status_has_name(self) -> None:
+        statuses = check_all_tools()
+        for name, status in statuses.items():
+            assert status.name == name

@@ -41,7 +41,7 @@ def check_tool(name: str) -> ToolStatus:
         if name == "semgrep":
             result = subprocess.run([name, "--version"], capture_output=True, text=True, timeout=5)
             version = result.stdout.strip().split("\n")[0] if result.returncode == 0 else None
-        elif name == "ruff" or name == "slither":
+        elif name in ("ruff", "slither", "gitleaks"):
             result = subprocess.run([name, "--version"], capture_output=True, text=True, timeout=5)
             version = result.stdout.strip() if result.returncode == 0 else None
     except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -52,7 +52,7 @@ def check_tool(name: str) -> ToolStatus:
 
 def check_all_tools() -> dict[str, ToolStatus]:
     """Check status of all supported tools."""
-    tools = ["semgrep", "ruff", "slither", "bandit"]
+    tools = ["semgrep", "ruff", "slither", "bandit", "gitleaks"]
     return {name: check_tool(name) for name in tools}
 
 
@@ -320,6 +320,69 @@ def delegate_slither(
             message=d.get("description", ""),
             location=location,
             suggestion=None,
+        )
+        findings.append(finding)
+
+    return ok(findings)
+
+
+def delegate_gitleaks(
+    path: str,
+    staged_only: bool = False,
+    timeout: int = 60,
+) -> Result[list[ToolFinding], str]:
+    """
+    Run gitleaks to detect secrets in code.
+
+    Args:
+        path: Repository path to scan
+        staged_only: Only scan staged changes (for pre-commit)
+        timeout: Timeout in seconds
+
+    Returns:
+        Result containing list of findings or error message
+    """
+    if not Path(path).exists():
+        return err(f"Path does not exist: {path}")
+
+    # Build command
+    if staged_only:
+        cmd = ["gitleaks", "protect", "--staged", "--report-format", "json", "--report-path", "/dev/stdout"]
+    else:
+        cmd = ["gitleaks", "detect", "--source", path, "--report-format", "json", "--report-path", "/dev/stdout"]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=path if staged_only else None,
+        )
+    except FileNotFoundError:
+        return err("gitleaks not found. Install from: https://github.com/gitleaks/gitleaks")
+    except subprocess.TimeoutExpired:
+        return err(f"gitleaks timed out after {timeout}s")
+
+    # Exit code 1 means leaks found, 0 means clean
+    if result.returncode not in (0, 1):
+        return err(f"gitleaks failed: {result.stderr}")
+
+    try:
+        output = json.loads(result.stdout) if result.stdout.strip() else []
+    except json.JSONDecodeError as e:
+        return err(f"Failed to parse gitleaks output: {e}")
+
+    findings: list[ToolFinding] = []
+    for leak in output:
+        # Gitleaks output format
+        finding = ToolFinding(
+            tool="gitleaks",
+            rule=leak.get("RuleID", "unknown"),
+            severity=Severity.CRITICAL,  # All secrets are critical
+            message=f"Secret detected: {leak.get('Description', 'potential secret')}",
+            location=f"{leak.get('File', '?')}:{leak.get('StartLine', '?')}",
+            suggestion="Remove secret and rotate credentials",
         )
         findings.append(finding)
 

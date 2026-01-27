@@ -58,6 +58,30 @@ get_principles(topic="smart_contract")
 - `engineering` - TESTING.md, ERROR_HANDLING.md, TYPE_SAFETY.md
 - `checklist` - Combined security + testing + error handling
 
+### review_changes(mode, base?, path?)
+
+Analyze git changes with domain-aware static analysis. Filters findings to only changed lines.
+
+```
+review_changes(mode="staged")
+→ Analyze staged changes before commit
+
+review_changes(mode="branch", base="main")
+→ Analyze all changes on current branch vs main
+
+review_changes(mode="commits", base="3")
+→ Analyze last 3 commits
+```
+
+**Modes:**
+
+| Mode | Description |
+|------|-------------|
+| `staged` | Changes ready to commit |
+| `unstaged` | Working directory changes |
+| `branch` | Current branch vs base (default: main) |
+| `commits` | Recent N commits (default: 1) |
+
 ### delegate_* Tools
 
 Direct access to individual analysis tools:
@@ -68,6 +92,7 @@ Direct access to individual analysis tools:
 | `delegate_ruff(path)` | Python linting |
 | `delegate_slither(path, detectors?)` | Solidity analysis |
 | `delegate_bandit(path)` | Python security |
+| `delegate_gitleaks(path, staged_only?)` | Secrets detection |
 
 ### check_tools()
 
@@ -191,6 +216,24 @@ crucible knowledge init <file>    # Copy to .crucible/knowledge/
 crucible knowledge show <file>    # Show resolution cascade
 ```
 
+### Git Hooks
+
+```bash
+crucible hooks install [path]     # Install pre-commit hook
+crucible hooks install --force    # Replace existing hook
+crucible hooks uninstall [path]   # Remove pre-commit hook
+crucible hooks status [path]      # Show hook installation status
+```
+
+### Pre-commit Check
+
+```bash
+crucible pre-commit [path]        # Run checks on staged changes
+crucible pre-commit --fail-on medium  # Set severity threshold
+crucible pre-commit --verbose     # Show all findings
+crucible pre-commit --json        # Output as JSON
+```
+
 ### MCP Server
 
 ```bash
@@ -258,6 +301,60 @@ Review focus and key questions...
 
 ---
 
+## Pre-commit Hooks
+
+Crucible can install a git pre-commit hook that runs before each commit.
+
+### What It Checks
+
+1. **Secrets detection** - Blocks commits containing sensitive files
+2. **Static analysis** - Domain-aware tool selection on staged changes
+
+### Installation
+
+```bash
+crucible hooks install
+```
+
+### Configuration
+
+Create `.crucible/precommit.yaml`:
+
+```yaml
+# Fail on findings at or above this severity
+fail_on: high  # critical, high, medium, low, info
+
+# Secrets detection tool
+secrets_tool: auto  # auto, gitleaks, builtin, none
+
+# File patterns to exclude from static analysis
+exclude:
+  - "*.md"
+  - "tests/**"
+
+# Skip specific tools
+skip_tools:
+  - slither  # Skip if too slow
+
+# Per-domain tool overrides
+tools:
+  smart_contract: [semgrep]  # Skip slither
+  python: [ruff, semgrep]    # Skip bandit
+```
+
+### Secrets Detection Options
+
+| Value | Behavior |
+|-------|----------|
+| `auto` | Use gitleaks if installed, else builtin (default) |
+| `gitleaks` | Use gitleaks only |
+| `builtin` | Use crucible's pattern matching |
+| `none` | Disable secrets detection |
+
+The builtin detector catches: `.env` files, private keys (`.pem`, `.key`), SSH keys, keystores, credentials JSON, and more.
+
+---
+
 ## External Tools
 
 Crucible shells out to these (install separately):
@@ -267,6 +364,16 @@ pip install semgrep           # Multi-language patterns (required)
 pip install ruff              # Python linting (required for Python)
 pip install slither-analyzer  # Solidity analysis (for .sol files)
 pip install bandit            # Python security (optional, enhances Python review)
+```
+
+For secrets detection:
+
+```bash
+# macOS
+brew install gitleaks
+
+# or from releases
+# https://github.com/gitleaks/gitleaks/releases
 ```
 
 Use `check_tools()` to verify installation status.

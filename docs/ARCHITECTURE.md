@@ -48,7 +48,7 @@ Claude uses the domain detection to load relevant personas and knowledge.
 
 ## MCP Server Entry Points
 
-The server exposes 7 tools via `server.py`:
+The server exposes 8 tools via `server.py`:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -57,13 +57,15 @@ The server exposes 7 tools via `server.py`:
 │                                                                     │
 │  Main tools:                                                        │
 │  ├── quick_review(path)       Run analysis, return findings + domains │
+│  ├── review_changes(mode)     Analyze git changes (staged/branch/etc) │
 │  └── get_principles(topic)    Load engineering knowledge            │
 │                                                                     │
 │  Direct tool access:                                                │
 │  ├── delegate_semgrep(path)   Multi-language patterns               │
 │  ├── delegate_ruff(path)      Python linting                        │
 │  ├── delegate_slither(path)   Solidity analysis                     │
-│  └── delegate_bandit(path)    Python security                       │
+│  ├── delegate_bandit(path)    Python security                       │
+│  └── delegate_gitleaks(path)  Secrets detection                     │
 │                                                                     │
 │  Utility:                                                           │
 │  └── check_tools()            Show installed analysis tools         │
@@ -98,6 +100,10 @@ The server exposes 7 tools via `server.py`:
 │                                                                     │
 │  delegate_bandit(path)                                              │
 │    └─→ subprocess: bandit -f json {path}                            │
+│        └─→ parse JSON, map to ToolFinding[]                         │
+│                                                                     │
+│  delegate_gitleaks(path, staged_only?)                              │
+│    └─→ subprocess: gitleaks detect/protect --json                   │
 │        └─→ parse JSON, map to ToolFinding[]                         │
 │                                                                     │
 │  Output: Result[list[ToolFinding], str]                             │
@@ -224,8 +230,8 @@ Knowledge follows the same cascade, linked via skill frontmatter:
 
 ```
 src/crucible/
-├── server.py              # MCP server (7 tools)
-├── cli.py                 # crucible skills/knowledge commands
+├── server.py              # MCP server (8 tools)
+├── cli.py                 # crucible commands (skills/knowledge/hooks)
 ├── models.py              # Domain, Severity, ToolFinding
 ├── errors.py              # Result types (Ok/Err)
 │
@@ -233,7 +239,11 @@ src/crucible/
 │   └── detection.py       # Classify code by extension/content
 │
 ├── tools/
-│   └── delegation.py      # Shell out to analysis tools
+│   ├── delegation.py      # Shell out to analysis tools
+│   └── git.py             # Git operations (staged/branch/commits)
+│
+├── hooks/
+│   └── precommit.py       # Pre-commit hook implementation
 │
 ├── knowledge/
 │   ├── loader.py          # Load principles with cascade
@@ -286,6 +296,65 @@ class ToolFinding:
     message: str        # Human-readable description
     location: str       # file:line
     suggestion: str | None
+```
+
+---
+
+## Git Integration
+
+`tools/git.py` extracts change context for targeted analysis:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      GIT OPERATIONS                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  get_staged_changes(repo)     → Changes ready to commit             │
+│  get_unstaged_changes(repo)   → Working directory changes           │
+│  get_branch_diff(repo, base)  → Branch vs base (three-dot diff)     │
+│  get_recent_commits(repo, n)  → Last N commits                      │
+│                                                                     │
+│  Returns: GitContext                                                │
+│    ├── mode: staged | unstaged | branch | commits                   │
+│    ├── base_ref: branch name or HEAD~N                              │
+│    ├── changes: list[GitChange]                                     │
+│    │     ├── path: file path                                        │
+│    │     ├── status: A (added) | M (modified) | D (deleted)         │
+│    │     └── added_lines: list[LineRange]  ← for filtering findings │
+│    └── commit_messages: for branch/commits mode                     │
+│                                                                     │
+│  Findings are filtered to only changed lines via added_lines.       │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Pre-commit Hooks
+
+`hooks/precommit.py` implements git hooks with the same patterns:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      PRE-COMMIT FLOW                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. Secrets detection (first, fails fast):                          │
+│     ├── gitleaks (if installed and configured)                      │
+│     └── builtin patterns (fallback)                                 │
+│                                                                     │
+│  2. Static analysis (domain-aware):                                 │
+│     ├── .sol → slither, semgrep                                     │
+│     ├── .py  → ruff, bandit, semgrep                                │
+│     └── other → semgrep                                             │
+│                                                                     │
+│  3. Filter to staged lines only                                     │
+│                                                                     │
+│  4. Check severity threshold                                        │
+│                                                                     │
+│  Config cascade: .crucible/precommit.yaml > ~/.claude/crucible/     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

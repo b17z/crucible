@@ -175,9 +175,9 @@ class TestDomainDetection:
     def test_solidity_domain_tags(self) -> None:
         """Solidity files should return web3 domain tags."""
         from crucible.models import Domain
-        from crucible.server import _detect_domain
+        from crucible.server import _detect_domain_for_file
 
-        domain, tags = _detect_domain("Contract.sol")
+        domain, tags = _detect_domain_for_file("Contract.sol")
         assert domain == Domain.SMART_CONTRACT
         assert "solidity" in tags
         assert "web3" in tags
@@ -185,9 +185,9 @@ class TestDomainDetection:
     def test_python_domain_tags(self) -> None:
         """Python files should return backend domain tags."""
         from crucible.models import Domain
-        from crucible.server import _detect_domain
+        from crucible.server import _detect_domain_for_file
 
-        domain, tags = _detect_domain("main.py")
+        domain, tags = _detect_domain_for_file("main.py")
         assert domain == Domain.BACKEND
         assert "python" in tags
 

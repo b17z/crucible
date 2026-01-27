@@ -73,6 +73,24 @@ def _severity_from_semgrep(level: str) -> Severity:
     return mapping.get(level.upper(), Severity.INFO)
 
 
+def _validate_path(path: str) -> Result[None, str]:
+    """Validate path argument to prevent argument injection.
+
+    Args:
+        path: Path to validate
+
+    Returns:
+        Result with None on success, error message on failure
+    """
+    if not path:
+        return err("Path cannot be empty")
+    if path.startswith("-"):
+        return err(f"Path cannot start with '-': {path}")
+    if not Path(path).exists():
+        return err(f"Path does not exist: {path}")
+    return ok(None)
+
+
 def delegate_semgrep(
     path: str,
     config: str = "auto",
@@ -89,8 +107,9 @@ def delegate_semgrep(
     Returns:
         Result containing list of findings or error message
     """
-    if not Path(path).exists():
-        return err(f"Path does not exist: {path}")
+    validation = _validate_path(path)
+    if validation.is_err:
+        return err(validation.error)
 
     try:
         result = subprocess.run(
@@ -141,8 +160,9 @@ def delegate_ruff(
     Returns:
         Result containing list of findings or error message
     """
-    if not Path(path).exists():
-        return err(f"Path does not exist: {path}")
+    validation = _validate_path(path)
+    if validation.is_err:
+        return err(validation.error)
 
     try:
         result = subprocess.run(
@@ -215,8 +235,9 @@ def delegate_bandit(
     Returns:
         Result containing list of findings or error message
     """
-    if not Path(path).exists():
-        return err(f"Path does not exist: {path}")
+    validation = _validate_path(path)
+    if validation.is_err:
+        return err(validation.error)
 
     try:
         result = subprocess.run(
@@ -273,8 +294,9 @@ def delegate_slither(
     Returns:
         Result containing list of findings or error message
     """
-    if not Path(path).exists():
-        return err(f"Path does not exist: {path}")
+    validation = _validate_path(path)
+    if validation.is_err:
+        return err(validation.error)
 
     cmd = ["slither", path, "--json", "-"]
     if detectors:
@@ -342,8 +364,9 @@ def delegate_gitleaks(
     Returns:
         Result containing list of findings or error message
     """
-    if not Path(path).exists():
-        return err(f"Path does not exist: {path}")
+    validation = _validate_path(path)
+    if validation.is_err:
+        return err(validation.error)
 
     # Build command
     if staged_only:

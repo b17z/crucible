@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from crucible.errors import Result, err, ok
+from crucible.errors import Result
 from crucible.models import Domain, Severity, ToolFinding
 from crucible.tools.delegation import (
     check_tool,
@@ -143,10 +143,7 @@ def load_precommit_config(repo_path: str | None = None) -> PrecommitConfig:
     config_data: dict = {}
 
     # Try project-level first
-    if repo_path:
-        project_config = Path(repo_path) / CONFIG_PROJECT
-    else:
-        project_config = CONFIG_PROJECT
+    project_config = Path(repo_path) / CONFIG_PROJECT if repo_path else CONFIG_PROJECT
 
     if project_config.exists():
         try:
@@ -271,10 +268,7 @@ def _get_tools_for_file(file_path: str, config: PrecommitConfig) -> list[str]:
 
 def _should_exclude(file_path: str, exclude_patterns: tuple[str, ...]) -> bool:
     """Check if a file should be excluded based on patterns."""
-    for pattern in exclude_patterns:
-        if fnmatch(file_path, pattern):
-            return True
-    return False
+    return any(fnmatch(file_path, pattern) for pattern in exclude_patterns)
 
 
 def _severity_meets_threshold(severity: Severity, threshold: Severity) -> bool:

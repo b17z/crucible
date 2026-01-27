@@ -7,8 +7,13 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from crucible.knowledge.loader import load_principles
-from crucible.models import Domain, Severity, ToolFinding
+from crucible.knowledge.loader import (
+    get_custom_knowledge_files,
+    load_all_knowledge,
+    load_principles,
+)
+from crucible.models import Domain, FullReviewResult, Severity, ToolFinding
+from crucible.skills import get_knowledge_for_skills, load_skill, match_skills_for_domain
 from crucible.tools.delegation import (
     check_all_tools,
     delegate_bandit,
@@ -54,6 +59,38 @@ def _format_findings(findings: list[ToolFinding]) -> str:
                 parts.append(f"  - Suggestion: {f.suggestion}")
 
     return "\n".join(parts) if parts else "No findings."
+
+
+def _deduplicate_findings(findings: list[ToolFinding]) -> list[ToolFinding]:
+    """Deduplicate findings by location and message.
+
+    When multiple tools report the same issue at the same location,
+    keep only the highest severity finding.
+    """
+    # Group by (location, normalized_message)
+    seen: dict[tuple[str, str], ToolFinding] = {}
+
+    for f in findings:
+        # Normalize the message for comparison (lowercase, strip whitespace)
+        norm_msg = f.message.lower().strip()
+        key = (f.location, norm_msg)
+
+        if key not in seen:
+            seen[key] = f
+        else:
+            # Keep the higher severity finding
+            existing = seen[key]
+            severity_order = [
+                Severity.CRITICAL,
+                Severity.HIGH,
+                Severity.MEDIUM,
+                Severity.LOW,
+                Severity.INFO,
+            ]
+            if severity_order.index(f.severity) < severity_order.index(existing.severity):
+                seen[key] = f
+
+    return list(seen.values())
 
 
 @server.list_tools()  # type: ignore[misc]
@@ -193,6 +230,53 @@ async def list_tools() -> list[Tool]:
                 "required": ["mode"],
             },
         ),
+        Tool(
+            name="full_review",
+            description="Comprehensive code review: runs static analysis, matches applicable skills based on domain, loads linked knowledge. Returns unified report for synthesis.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "File or directory path to review",
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Override skill selection (default: auto-detect based on domain)",
+                    },
+                    "include_sage": {
+                        "type": "boolean",
+                        "description": "Include Sage knowledge recall (not yet implemented)",
+                        "default": True,
+                    },
+                },
+                "required": ["path"],
+            },
+        ),
+        Tool(
+            name="load_knowledge",
+            description="Load knowledge/principles files without running static analysis. Useful for getting guidance on patterns, best practices, or domain-specific knowledge. Automatically includes project and user knowledge files.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific knowledge files to load (e.g., ['SECURITY.md', 'SMART_CONTRACT.md']). If not specified, loads all project/user knowledge files.",
+                    },
+                    "include_bundled": {
+                        "type": "boolean",
+                        "description": "Include bundled knowledge files in addition to project/user files (default: false)",
+                        "default": False,
+                    },
+                    "topic": {
+                        "type": "string",
+                        "description": "Load by topic instead of files: 'security', 'engineering', 'smart_contract', 'checklist', 'repo_hygiene'",
+                    },
+                },
+            },
+        ),
     ]
 
 
@@ -204,6 +288,41 @@ def _handle_get_principles(arguments: dict[str, Any]) -> list[TextContent]:
     if result.is_ok:
         return [TextContent(type="text", text=result.value)]
     return [TextContent(type="text", text=f"Error: {result.error}")]
+
+
+def _handle_load_knowledge(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle load_knowledge tool."""
+    files = arguments.get("files")
+    include_bundled = arguments.get("include_bundled", False)
+    topic = arguments.get("topic")
+
+    # If topic specified, use load_principles
+    if topic:
+        result = load_principles(topic)
+        if result.is_ok:
+            return [TextContent(type="text", text=result.value)]
+        return [TextContent(type="text", text=f"Error: {result.error}")]
+
+    # Otherwise load by files
+    filenames = set(files) if files else None
+    loaded, content = load_all_knowledge(
+        include_bundled=include_bundled,
+        filenames=filenames,
+    )
+
+    if not loaded:
+        if filenames:
+            return [TextContent(type="text", text=f"No knowledge files found matching: {', '.join(sorted(filenames))}")]
+        return [TextContent(type="text", text="No knowledge files found. Add files to .crucible/knowledge/ or ~/.claude/crucible/knowledge/")]
+
+    output_parts = [
+        "# Knowledge Loaded\n",
+        f"**Files:** {', '.join(loaded)}\n",
+        "---\n",
+        content,
+    ]
+
+    return [TextContent(type="text", text="\n".join(output_parts))]
 
 
 def _handle_delegate_semgrep(arguments: dict[str, Any]) -> list[TextContent]:
@@ -277,8 +396,8 @@ def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text="\n".join(parts))]
 
 
-def _detect_domain(path: str) -> tuple[Domain, list[str]]:
-    """Internal domain detection from file path.
+def _detect_domain_for_file(path: str) -> tuple[Domain, list[str]]:
+    """Detect domain from a single file path.
 
     Returns (domain, list of domain tags for skill matching).
     """
@@ -299,7 +418,58 @@ def _detect_domain(path: str) -> tuple[Domain, list[str]]:
     elif path.endswith((".tf", ".yaml", ".yml")):
         return Domain.INFRASTRUCTURE, ["infrastructure", "devops"]
     else:
+        return Domain.UNKNOWN, []
+
+
+def _detect_domain(path: str) -> tuple[Domain, list[str]]:
+    """Detect domain from file or directory path.
+
+    For directories, scans contained files and aggregates domains.
+    Returns (primary_domain, list of all domain tags).
+    """
+    from collections import Counter
+    from pathlib import Path
+
+    p = Path(path)
+
+    # Single file - use direct detection
+    if p.is_file():
+        return _detect_domain_for_file(path)
+
+    # Directory - scan and aggregate
+    if not p.is_dir():
         return Domain.UNKNOWN, ["unknown"]
+
+    domain_counts: Counter[Domain] = Counter()
+    all_tags: set[str] = set()
+
+    # Scan files in directory (up to 1000 to avoid huge repos)
+    file_count = 0
+    max_files = 1000
+
+    for file_path in p.rglob("*"):
+        if file_count >= max_files:
+            break
+        if not file_path.is_file():
+            continue
+        # Skip hidden files and common non-code directories
+        if any(part.startswith(".") for part in file_path.parts):
+            continue
+        if any(part in ("node_modules", "__pycache__", "venv", ".venv", "dist", "build") for part in file_path.parts):
+            continue
+
+        domain, tags = _detect_domain_for_file(str(file_path))
+        if domain != Domain.UNKNOWN:
+            domain_counts[domain] += 1
+            all_tags.update(tags)
+        file_count += 1
+
+    # Return most common domain, or UNKNOWN if none found
+    if not domain_counts:
+        return Domain.UNKNOWN, ["unknown"]
+
+    primary_domain = domain_counts.most_common(1)[0][0]
+    return primary_domain, sorted(all_tags) if all_tags else ["unknown"]
 
 
 def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
@@ -359,6 +529,9 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
             tool_results.append(f"## Bandit\n{_format_findings(result.value)}")
         else:
             tool_results.append(f"## Bandit\nError: {result.error}")
+
+    # Deduplicate findings
+    all_findings = _deduplicate_findings(all_findings)
 
     # Compute severity summary
     severity_counts: dict[str, int] = {}
@@ -435,6 +608,7 @@ def _format_change_review(
     context: GitContext,
     findings: list[ToolFinding],
     severity_counts: dict[str, int],
+    tool_errors: list[str] | None = None,
 ) -> str:
     """Format change review output."""
     parts: list[str] = ["# Change Review\n"]
@@ -466,6 +640,13 @@ def _format_change_review(
         parts.append("## Commits")
         for msg in context.commit_messages:
             parts.append(f"- {msg}")
+        parts.append("")
+
+    # Tool errors (if any)
+    if tool_errors:
+        parts.append("## Tool Errors\n")
+        for error in tool_errors:
+            parts.append(f"- {error}")
         parts.append("")
 
     # Findings
@@ -534,6 +715,8 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
 
     # Run analysis on changed files
     all_findings: list[ToolFinding] = []
+    tool_errors: list[str] = []
+
     for file_path in changed_files:
         full_path = f"{repo_path}/{file_path}"
 
@@ -556,24 +739,35 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
             result = delegate_semgrep(full_path, config)
             if result.is_ok:
                 all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"semgrep ({file_path}): {result.error}")
 
         if "ruff" in tools:
             result = delegate_ruff(full_path)
             if result.is_ok:
                 all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"ruff ({file_path}): {result.error}")
 
         if "slither" in tools:
             result = delegate_slither(full_path)
             if result.is_ok:
                 all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"slither ({file_path}): {result.error}")
 
         if "bandit" in tools:
             result = delegate_bandit(full_path)
             if result.is_ok:
                 all_findings.extend(result.value)
+            elif result.is_err:
+                tool_errors.append(f"bandit ({file_path}): {result.error}")
 
     # Filter findings to changed lines
     filtered_findings = _filter_findings_to_changes(all_findings, context, include_context)
+
+    # Deduplicate findings
+    filtered_findings = _deduplicate_findings(filtered_findings)
 
     # Compute severity summary
     severity_counts: dict[str, int] = {}
@@ -582,8 +776,161 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
         severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
     # Format output
-    output = _format_change_review(context, filtered_findings, severity_counts)
+    output = _format_change_review(context, filtered_findings, severity_counts, tool_errors)
     return [TextContent(type="text", text=output)]
+
+
+def _handle_full_review(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle full_review tool - comprehensive code review."""
+    path = arguments.get("path", "")
+    skills_override = arguments.get("skills")
+    # include_sage is accepted but not yet implemented
+    # _ = arguments.get("include_sage", True)
+
+    # 1. Detect domain
+    domain, domain_tags = _detect_domain(path)
+
+    # 2. Run static analysis (reuse quick_review logic)
+    if domain == Domain.SMART_CONTRACT:
+        default_tools = ["slither", "semgrep"]
+    elif domain == Domain.BACKEND and "python" in domain_tags:
+        default_tools = ["ruff", "bandit", "semgrep"]
+    elif domain == Domain.FRONTEND:
+        default_tools = ["semgrep"]
+    else:
+        default_tools = ["semgrep"]
+
+    all_findings: list[ToolFinding] = []
+    tool_errors: list[str] = []
+
+    if "semgrep" in default_tools:
+        config = get_semgrep_config(domain)
+        result = delegate_semgrep(path, config)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"semgrep: {result.error}")
+
+    if "ruff" in default_tools:
+        result = delegate_ruff(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"ruff: {result.error}")
+
+    if "slither" in default_tools:
+        result = delegate_slither(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"slither: {result.error}")
+
+    if "bandit" in default_tools:
+        result = delegate_bandit(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"bandit: {result.error}")
+
+    # 3. Match applicable skills
+    matched_skills = match_skills_for_domain(domain, domain_tags, skills_override)
+    skill_names = [name for name, _ in matched_skills]
+    skill_triggers: dict[str, tuple[str, ...]] = {
+        name: tuple(triggers) for name, triggers in matched_skills
+    }
+
+    # 4. Load skill content (checklists/prompts)
+    skill_contents: dict[str, str] = {}
+    for skill_name in skill_names:
+        result = load_skill(skill_name)
+        if result.is_ok:
+            _, content = result.value
+            # Extract content after frontmatter
+            if "\n---\n" in content:
+                skill_contents[skill_name] = content.split("\n---\n", 1)[1].strip()
+            else:
+                skill_contents[skill_name] = content
+
+    # 5. Collect knowledge files from matched skills + custom project/user knowledge
+    skill_knowledge = get_knowledge_for_skills(skill_names)
+    custom_knowledge = get_custom_knowledge_files()
+    # Merge: custom knowledge always included, plus skill-referenced files
+    knowledge_files = skill_knowledge | custom_knowledge
+
+    # 6. Load knowledge content
+    loaded_files, principles_content = load_all_knowledge(
+        include_bundled=False,
+        filenames=knowledge_files,
+    )
+
+    # 7. Deduplicate findings
+    all_findings = _deduplicate_findings(all_findings)
+
+    # 8. Compute severity summary
+    severity_counts: dict[str, int] = {}
+    for f in all_findings:
+        sev = f.severity.value
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+    # 8. Build result
+    review_result = FullReviewResult(
+        domains_detected=tuple(domain_tags),
+        severity_summary=severity_counts,
+        findings=tuple(all_findings),
+        applicable_skills=tuple(skill_names),
+        skill_triggers_matched=skill_triggers,
+        principles_loaded=tuple(loaded_files),
+        principles_content=principles_content,
+        sage_knowledge=None,  # Not implemented yet
+        sage_query_used=None,  # Not implemented yet
+    )
+
+    # 8. Format output
+    output_parts = [
+        "# Full Review Results\n",
+        f"**Path:** `{path}`",
+        f"**Domains detected:** {', '.join(review_result.domains_detected)}",
+        f"**Severity summary:** {review_result.severity_summary or 'No findings'}\n",
+    ]
+
+    if tool_errors:
+        output_parts.append("## Tool Errors\n")
+        for error in tool_errors:
+            output_parts.append(f"- {error}")
+        output_parts.append("")
+
+    output_parts.append("## Applicable Skills\n")
+    if review_result.applicable_skills:
+        for skill in review_result.applicable_skills:
+            triggers = review_result.skill_triggers_matched.get(skill, ())
+            output_parts.append(f"- **{skill}**: matched on {', '.join(triggers)}")
+    else:
+        output_parts.append("- No skills matched")
+    output_parts.append("")
+
+    # Include skill checklists
+    if skill_contents:
+        output_parts.append("## Review Checklists\n")
+        for skill_name, content in skill_contents.items():
+            output_parts.append(f"### {skill_name}\n")
+            output_parts.append(content)
+            output_parts.append("")
+
+    output_parts.append("## Knowledge Loaded\n")
+    if review_result.principles_loaded:
+        output_parts.append(f"Files: {', '.join(review_result.principles_loaded)}\n")
+    else:
+        output_parts.append("No knowledge files loaded.\n")
+
+    output_parts.append("## Static Analysis Findings\n")
+    output_parts.append(_format_findings(list(review_result.findings)))
+
+    if review_result.principles_content:
+        output_parts.append("\n---\n")
+        output_parts.append("## Principles Reference\n")
+        output_parts.append(review_result.principles_content)
+
+    return [TextContent(type="text", text="\n".join(output_parts))]
 
 
 @server.call_tool()  # type: ignore[misc]
@@ -591,6 +938,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     """Handle tool calls."""
     handlers = {
         "get_principles": _handle_get_principles,
+        "load_knowledge": _handle_load_knowledge,
         "delegate_semgrep": _handle_delegate_semgrep,
         "delegate_ruff": _handle_delegate_ruff,
         "delegate_slither": _handle_delegate_slither,
@@ -598,6 +946,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         "quick_review": _handle_quick_review,
         "check_tools": _handle_check_tools,
         "review_changes": _handle_review_changes,
+        "full_review": _handle_full_review,
     }
 
     handler = handlers.get(name)

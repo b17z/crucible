@@ -48,26 +48,24 @@ All planned personas have been implemented (18 skills). Potential future additio
 
 ---
 
-## Project-Level Skill Overrides
+## ~~Project-Level Skill Overrides~~ ✓ IMPLEMENTED
 
-Support config cascade for skills:
+Cascade resolution is now implemented:
 
 ```
-<project>/.claude/skills/crucible/security-engineer/SKILL.md  # Project override
-~/.claude/skills/crucible/security-engineer/SKILL.md          # User default
-<crucible>/src/crucible/skills/security-engineer/SKILL.md     # Package default
+.crucible/skills/<skill>/SKILL.md       # Project override
+~/.claude/crucible/skills/<skill>/       # User default
+<package>/skills/<skill>/                # Bundled
 ```
 
-CLI could support: `crucible skills override security-engineer`
+Use `crucible skills init <skill>` to copy bundled skill for customization.
 
 ---
 
-## CI Integration
+## ~~CI Integration~~ ✓ IMPLEMENTED
 
-`quick_review` returns structured data suitable for CI:
-
-```bash
-crucible-mcp quick_review src/ --format json | jq '.severity_summary.critical'
-```
-
-Could add exit codes based on severity thresholds.
+CLI now supports:
+- `crucible review --fail-on <severity>` — Exit non-zero on findings
+- `crucible review --json` — JSON output for CI parsing
+- `crucible review --format report` — Markdown audit reports
+- Config-based per-domain thresholds in `.crucible/review.yaml`

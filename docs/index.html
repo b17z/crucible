@@ -608,8 +608,11 @@
       <div class="code-block">
 <span class="text-dim">You:</span> "Review this API endpoint"
 
-<span class="cmd">Crucible detects:</span> .py → python, backend, api
-<span class="cmd">Crucible loads:</span>  backend-engineer + API_DESIGN.md + SECURITY.md
+<span class="cmd">Crucible runs:</span>  full_review(path="api/")
+<span class="cmd">→ Detects:</span>     python, backend, api
+<span class="cmd">→ Matches:</span>     backend-engineer, security-engineer
+<span class="cmd">→ Loads:</span>       API_DESIGN.md, SECURITY.md, DATABASE.md
+<span class="cmd">→ Analysis:</span>    ruff, semgrep (deduplicated findings)
 
 <span class="text-dim">Claude now thinks with:</span>
   - Input validation patterns
@@ -619,7 +622,7 @@
       </div>
       <p class="section-note">
         Not a template dump. An active server that detects context and loads relevant patterns.<br>
-        Optionally runs static analysis (semgrep, ruff, slither, bandit) and includes findings.
+        Runs static analysis (semgrep, ruff, slither, bandit) and deduplicates findings.
       </p>
     </div>
   </section>
@@ -781,10 +784,13 @@
         </div>
       </div>
       <div class="code-block">
+<span class="comment"># Review staged changes before commit</span>
+<span class="cmd">crucible review</span>
+<span class="cmd">crucible review --mode branch --fail-on high</span>
+
 <span class="comment"># Copy a skill to customize</span>
 <span class="cmd">crucible skills init security-engineer</span>
 <span class="comment"># → Creates .crucible/skills/security-engineer/SKILL.md</span>
-<span class="comment"># → Edit it for your project</span>
 
 <span class="comment"># Same for knowledge</span>
 <span class="cmd">crucible knowledge init SECURITY</span>

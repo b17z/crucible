@@ -118,6 +118,6 @@ See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered.
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # Run tests (263 tests)
+pytest                    # Run tests (494 tests)
 ruff check src/ --fix     # Lint
 ```

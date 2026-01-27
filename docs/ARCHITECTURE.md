@@ -48,7 +48,7 @@ Claude uses the domain detection to load relevant personas and knowledge.
 
 ## MCP Server Entry Points
 
-The server exposes 8 tools via `server.py`:
+The server exposes 10 tools via `server.py`:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -57,15 +57,16 @@ The server exposes 8 tools via `server.py`:
 │                                                                     │
 │  Main tools:                                                        │
 │  ├── quick_review(path)       Run analysis, return findings + domains │
+│  ├── full_review(path)        Analysis + skills + knowledge (unified)│
 │  ├── review_changes(mode)     Analyze git changes (staged/branch/etc) │
-│  └── get_principles(topic)    Load engineering knowledge            │
+│  ├── get_principles(topic)    Load engineering knowledge            │
+│  └── load_knowledge(files)    Load specific knowledge files         │
 │                                                                     │
 │  Direct tool access:                                                │
 │  ├── delegate_semgrep(path)   Multi-language patterns               │
 │  ├── delegate_ruff(path)      Python linting                        │
 │  ├── delegate_slither(path)   Solidity analysis                     │
-│  ├── delegate_bandit(path)    Python security                       │
-│  └── delegate_gitleaks(path)  Secrets detection                     │
+│  └── delegate_bandit(path)    Python security                       │
 │                                                                     │
 │  Utility:                                                           │
 │  └── check_tools()            Show installed analysis tools         │
@@ -191,6 +192,41 @@ Skills are loaded from multiple sources with priority:
 
 ---
 
+## Skill Matching (full_review)
+
+`full_review` matches skills based on domain and triggers:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      SKILL MATCHING                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Skill frontmatter options:                                         │
+│                                                                     │
+│  always_run: true              # Include for all domains            │
+│  always_run_for_domains: [X]   # Include if domain matches          │
+│  triggers: [keyword1, ...]     # Match against domain_tags          │
+│                                                                     │
+│  Matching algorithm:                                                │
+│                                                                     │
+│  1. always_run: true → always include                               │
+│     security-engineer runs on all code                              │
+│                                                                     │
+│  2. always_run_for_domains matches domain → include                 │
+│     web3-engineer: always_run_for_domains: [smart_contract]         │
+│     gas-optimizer: always_run_for_domains: [smart_contract]         │
+│                                                                     │
+│  3. triggers intersect domain_tags → include                        │
+│     backend-engineer triggers: [api, database, server]              │
+│     domain_tags: [python, backend, api] → matches "api"             │
+│                                                                     │
+│  Returns: skill name + matching triggers for each skill             │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Knowledge Loading + Linking
 
 Knowledge follows the same cascade, linked via skill frontmatter:
@@ -230,7 +266,7 @@ Knowledge follows the same cascade, linked via skill frontmatter:
 
 ```
 src/crucible/
-├── server.py              # MCP server (8 tools)
+├── server.py              # MCP server (10 tools)
 ├── cli.py                 # crucible commands (skills/knowledge/hooks)
 ├── models.py              # Domain, Severity, ToolFinding
 ├── errors.py              # Result types (Ok/Err)
@@ -253,10 +289,12 @@ src/crucible/
 │       ├── SMART_CONTRACT.md
 │       └── ...
 │
-└── skills/                # 18 bundled persona skills
-    ├── security-engineer/SKILL.md
-    ├── web3-engineer/SKILL.md
-    └── ...
+├── skills/
+│   ├── loader.py          # Skill parsing and matching
+│   └── <skill>/SKILL.md   # 18 bundled persona skills
+│       ├── security-engineer/
+│       ├── web3-engineer/
+│       └── ...
 
 docs/
 ├── README.md              # Quick start

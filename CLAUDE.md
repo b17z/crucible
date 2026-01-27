@@ -6,7 +6,7 @@ Claude Code customization layer. Personas for domains, knowledge for patterns, c
 
 ```bash
 pip install -e ".[dev]"    # Install
-pytest                     # Test (263 tests)
+pytest                     # Test (494 tests)
 ruff check src/ --fix      # Lint
 ```
 
@@ -15,8 +15,11 @@ ruff check src/ --fix      # Lint
 | Tool | Purpose |
 |------|---------|
 | `quick_review(path)` | Run analysis, return findings + domains |
+| `full_review(path)` | Analysis + skill matching + knowledge loading |
+| `review_changes(mode)` | Analyze git changes (staged/branch/commits) |
 | `get_principles(topic)` | Load engineering knowledge |
-| `delegate_semgrep/ruff/slither/bandit` | Direct tool access |
+| `load_knowledge(files)` | Load specific knowledge files |
+| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit, gitleaks) |
 | `check_tools()` | Show installed tools |
 
 ## CLI Commands
@@ -34,7 +37,7 @@ crucible knowledge list/install/init/show  # Same for knowledge
 
 ```
 src/crucible/
-├── server.py           # MCP server (7 tools)
+├── server.py           # MCP server (10 tools)
 ├── cli.py              # Skills/knowledge management
 ├── models.py           # Domain, Severity, ToolFinding
 ├── errors.py           # Result types (Ok/Err)

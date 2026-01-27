@@ -58,7 +58,38 @@ get_principles(topic="smart_contract")
 - `engineering` - TESTING.md, ERROR_HANDLING.md, TYPE_SAFETY.md
 - `checklist` - Combined security + testing + error handling
 
-### review_changes(mode, base?, path?)
+### full_review(path, skills?, include_sage?)
+
+Comprehensive code review that orchestrates analysis, skill matching, and knowledge loading.
+
+```
+full_review(path="src/")
+
+→ domains_detected: python, backend
+→ severity_summary: {critical: 0, high: 2, medium: 5}
+→ applicable_skills: [security-engineer, backend-engineer]
+→ skill_triggers_matched: {security-engineer: [always_run], backend-engineer: [api, database]}
+→ principles_loaded: [SECURITY.md, API_DESIGN.md, DATABASE.md]
+→ principles_content: <merged knowledge from linked files>
+→ findings: <deduplicated static analysis results>
+```
+
+**What it does:**
+1. Runs domain-appropriate static analysis tools
+2. Matches skills based on triggers, `always_run`, and `always_run_for_domains`
+3. Loads knowledge files linked by matched skills
+4. Deduplicates findings across tools
+5. Returns unified report for Claude to synthesize
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `path` | File or directory to review |
+| `skills` | Override auto-detection with specific skills |
+| `include_sage` | Include Sage knowledge (not yet implemented) |
+
+### review_changes(mode, base?, path?, include_context?)
 
 Analyze git changes with domain-aware static analysis. Filters findings to only changed lines.
 
@@ -81,6 +112,35 @@ review_changes(mode="commits", base="3")
 | `unstaged` | Working directory changes |
 | `branch` | Current branch vs base (default: main) |
 | `commits` | Recent N commits (default: 1) |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `include_context` | Include findings within 5 lines of changes (default: false) |
+
+### load_knowledge(files?, topic?, include_bundled?)
+
+Load knowledge/principles files without running static analysis.
+
+```
+load_knowledge(topic="security")
+→ SECURITY.md content
+
+load_knowledge(files=["API_DESIGN.md", "DATABASE.md"])
+→ Combined content from specified files
+
+load_knowledge(include_bundled=true)
+→ All bundled knowledge files
+```
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `files` | Specific files to load (e.g., `["SECURITY.md"]`) |
+| `topic` | Load by topic: security, engineering, smart_contract, checklist, repo_hygiene |
+| `include_bundled` | Include bundled files (default: project/user only) |
 
 ### delegate_* Tools
 
@@ -224,6 +284,56 @@ crucible hooks install --force    # Replace existing hook
 crucible hooks uninstall [path]   # Remove pre-commit hook
 crucible hooks status [path]      # Show hook installation status
 ```
+
+### Code Review
+
+```bash
+crucible review                   # Review staged changes (default)
+crucible review --mode unstaged   # Review working directory changes
+crucible review --mode branch     # Review current branch vs main
+crucible review --mode commits    # Review last commit
+crucible review --base develop    # Use different base branch
+crucible review --fail-on medium  # Exit non-zero if findings >= severity
+crucible review --include-context # Include findings near changes
+crucible review --json            # Output as JSON
+crucible review --format report   # Output as markdown audit report
+crucible review --quiet           # Suppress progress output
+
+# Generate a markdown report file
+crucible review --format report > review-report.md
+```
+
+**Modes:**
+
+| Mode | Description |
+|------|-------------|
+| `staged` | Changes ready to commit (default) |
+| `unstaged` | Working directory changes |
+| `branch` | Current branch vs base |
+| `commits` | Recent N commits |
+
+**Configuration:**
+
+Create `.crucible/review.yaml` or `~/.claude/crucible/review.yaml`:
+
+```yaml
+# Default fail threshold
+fail_on: high
+
+# Per-domain overrides (stricter for smart contracts)
+fail_on_domain:
+  smart_contract: critical
+  backend: high
+
+# Skip specific tools
+skip_tools:
+  - slither  # Skip if slow
+
+# Include findings near changes
+include_context: false
+```
+
+CLI arguments override config file values.
 
 ### Pre-commit Check
 

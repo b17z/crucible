@@ -56,13 +56,17 @@ Code → Detect Domain → Load Personas + Knowledge → Claude with YOUR patter
 
 | Tool | Purpose |
 |------|---------|
-| `quick_review(path)` | Run analysis, return findings + domains |
-| `full_review(path)` | Analysis + skill matching + knowledge loading |
-| `review_changes(mode)` | Analyze git changes (staged/branch/commits) |
-| `get_principles(topic)` | Load engineering knowledge |
+| `review(path)` | Full review: analysis + skills + knowledge |
+| `review(mode='staged')` | Review git changes with skills + knowledge |
 | `load_knowledge(files)` | Load specific knowledge files |
-| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit, gitleaks) |
+| `get_principles(topic)` | Load engineering knowledge by topic |
+| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit) |
 | `check_tools()` | Show installed analysis tools |
+
+The unified `review` tool supports:
+- **Path-based**: `review(path="src/")` - analyze files/directories
+- **Git-aware**: `review(mode="staged")` - analyze changes (staged, unstaged, branch, commits)
+- **Quick mode**: `review(path, include_skills=false)` - analysis only, no skills/knowledge
 
 ## CLI
 
@@ -127,6 +131,6 @@ See [KNOWLEDGE.md](docs/KNOWLEDGE.md) for topics covered.
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # Run tests (502 tests)
+pytest                    # Run tests (509 tests)
 ruff check src/ --fix     # Lint
 ```

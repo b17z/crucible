@@ -652,11 +652,13 @@ def cmd_review(args: argparse.Namespace) -> int:
 
     # Track domains detected for per-domain threshold checking
     domains_detected: set[Domain] = set()
+    all_domain_tags: set[str] = set()
 
     for file_path in changed_files:
         full_path = f"{repo_path}/{file_path}"
         domain, domain_tags = detect_domain(file_path)
         domains_detected.add(domain)
+        all_domain_tags.update(domain_tags)
 
         # Select tools based on domain
         if domain == Domain.SMART_CONTRACT:
@@ -727,6 +729,37 @@ def cmd_review(args: argparse.Namespace) -> int:
 
     filtered_findings = deduplicate_findings(filtered_findings)
 
+    # Match skills and load knowledge based on detected domains
+    from crucible.knowledge.loader import load_knowledge_file
+    from crucible.skills.loader import (
+        get_knowledge_for_skills,
+        load_skill,
+        match_skills_for_domain,
+    )
+
+    # Use first domain for primary matching (most files determine this)
+    primary_domain = next(iter(domains_detected)) if domains_detected else Domain.UNKNOWN
+    matched_skills = match_skills_for_domain(
+        primary_domain, list(all_domain_tags), override=None
+    )
+
+    # Load skill content
+    skill_names = [name for name, _ in matched_skills]
+    skill_content: dict[str, str] = {}
+    for skill_name, _triggers in matched_skills:
+        result = load_skill(skill_name)
+        if result.is_ok:
+            _, content = result.value
+            skill_content[skill_name] = content
+
+    # Load linked knowledge
+    knowledge_files = get_knowledge_for_skills(skill_names)
+    knowledge_content: dict[str, str] = {}
+    for filename in knowledge_files:
+        result = load_knowledge_file(filename)
+        if result.is_ok:
+            knowledge_content[filename] = result.value
+
     # Compute severity summary
     severity_counts: dict[str, int] = {}
     for f in filtered_findings:
@@ -767,6 +800,8 @@ def cmd_review(args: argparse.Namespace) -> int:
             "mode": mode,
             "files_changed": len(changed_files),
             "domains_detected": [d.value for d in domains_detected],
+            "skills_matched": dict(matched_skills),
+            "knowledge_loaded": list(knowledge_files),
             "findings": [
                 {
                     "tool": f.tool,
@@ -817,6 +852,19 @@ def cmd_review(args: argparse.Namespace) -> int:
             print(f"- `{c.path}` ({status_char})")
         print()
 
+        # Skills matched
+        if matched_skills:
+            print("## Applicable Skills\n")
+            for skill_name, triggers in matched_skills:
+                print(f"- **{skill_name}**: matched on {', '.join(triggers)}")
+            print()
+
+        # Knowledge loaded
+        if knowledge_files:
+            print("## Knowledge Loaded\n")
+            print(f"Files: {', '.join(sorted(knowledge_files))}")
+            print()
+
         # Findings by severity
         if filtered_findings:
             print("## Findings\n")
@@ -848,6 +896,23 @@ def cmd_review(args: argparse.Namespace) -> int:
             for error in tool_errors:
                 print(f"- {error}")
             print()
+
+        # Review checklists from skills
+        if skill_content:
+            print("## Review Checklists\n")
+            for skill_name, content in skill_content.items():
+                print(f"### {skill_name}\n")
+                # Print the skill content (already markdown)
+                print(content)
+                print()
+
+        # Knowledge reference
+        if knowledge_content:
+            print("## Principles Reference\n")
+            for filename, content in sorted(knowledge_content.items()):
+                print(f"### {filename}\n")
+                print(content)
+                print()
 
         # Result
         print("## Result\n")

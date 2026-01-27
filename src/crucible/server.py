@@ -98,8 +98,49 @@ async def list_tools() -> list[Tool]:
     """List available tools."""
     return [
         Tool(
+            name="review",
+            description="Unified code review tool. Supports path-based review OR git-aware review. Runs static analysis, matches skills, loads knowledge.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "File or directory path to review. If not provided, uses git mode.",
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["staged", "unstaged", "branch", "commits"],
+                        "description": "Git mode: staged (about to commit), unstaged (working dir), branch (PR diff), commits (recent N)",
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "Base branch for 'branch' mode (default: main) or commit count for 'commits' mode (default: 1)",
+                    },
+                    "include_context": {
+                        "type": "boolean",
+                        "description": "For git modes: include findings near (within 5 lines of) changes (default: false)",
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Override skill selection (default: auto-detect based on domain)",
+                    },
+                    "include_skills": {
+                        "type": "boolean",
+                        "description": "Load skills and checklists (default: true). Set false for quick analysis only.",
+                        "default": True,
+                    },
+                    "include_knowledge": {
+                        "type": "boolean",
+                        "description": "Load knowledge files (default: true). Set false for quick analysis only.",
+                        "default": True,
+                    },
+                },
+            },
+        ),
+        Tool(
             name="quick_review",
-            description="Run static analysis tools on code. Returns findings with domain metadata for skill selection.",
+            description="[DEPRECATED: use review(path, include_skills=false)] Run static analysis only.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -114,6 +155,57 @@ async def list_tools() -> list[Tool]:
                     },
                 },
                 "required": ["path"],
+            },
+        ),
+        Tool(
+            name="full_review",
+            description="[DEPRECATED: use review(path)] Comprehensive code review with skills and knowledge.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "File or directory path to review",
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Override skill selection (default: auto-detect based on domain)",
+                    },
+                    "include_sage": {
+                        "type": "boolean",
+                        "description": "Include Sage knowledge recall (not yet implemented)",
+                        "default": True,
+                    },
+                },
+                "required": ["path"],
+            },
+        ),
+        Tool(
+            name="review_changes",
+            description="[DEPRECATED: use review(mode='staged')] Review git changes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "type": "string",
+                        "enum": ["staged", "unstaged", "branch", "commits"],
+                        "description": "What changes to review",
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "Base branch for 'branch' mode or commit count for 'commits' mode",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Repository path (default: current directory)",
+                    },
+                    "include_context": {
+                        "type": "boolean",
+                        "description": "Include findings near changes (default: false)",
+                    },
+                },
+                "required": ["mode"],
             },
         ),
         Tool(
@@ -204,57 +296,6 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
-            name="review_changes",
-            description="Review git changes (staged, unstaged, branch diff, commits). Runs analysis on changed files and filters findings to changed lines only.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["staged", "unstaged", "branch", "commits"],
-                        "description": "What changes to review: staged (about to commit), unstaged (working dir), branch (PR diff vs base), commits (recent N commits)",
-                    },
-                    "base": {
-                        "type": "string",
-                        "description": "Base branch for 'branch' mode (default: main) or commit count for 'commits' mode (default: 1)",
-                    },
-                    "path": {
-                        "type": "string",
-                        "description": "Repository path (default: current directory)",
-                    },
-                    "include_context": {
-                        "type": "boolean",
-                        "description": "Include findings near (within 5 lines of) changes, not just in changed lines (default: false)",
-                    },
-                },
-                "required": ["mode"],
-            },
-        ),
-        Tool(
-            name="full_review",
-            description="Comprehensive code review: runs static analysis, matches applicable skills based on domain, loads linked knowledge. Returns unified report for synthesis.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "File or directory path to review",
-                    },
-                    "skills": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Override skill selection (default: auto-detect based on domain)",
-                    },
-                    "include_sage": {
-                        "type": "boolean",
-                        "description": "Include Sage knowledge recall (not yet implemented)",
-                        "default": True,
-                    },
-                },
-                "required": ["path"],
-            },
-        ),
-        Tool(
             name="load_knowledge",
             description="Load knowledge/principles files without running static analysis. Useful for getting guidance on patterns, best practices, or domain-specific knowledge. Automatically includes project and user knowledge files.",
             inputSchema={
@@ -278,6 +319,342 @@ async def list_tools() -> list[Tool]:
             },
         ),
     ]
+
+
+def _run_static_analysis(
+    path: str,
+    domain: Domain,
+    domain_tags: list[str],
+) -> tuple[list[ToolFinding], list[str]]:
+    """Run static analysis tools based on domain.
+
+    Returns (findings, tool_errors).
+    """
+    # Select tools based on domain
+    if domain == Domain.SMART_CONTRACT:
+        tools = ["slither", "semgrep"]
+    elif domain == Domain.BACKEND and "python" in domain_tags:
+        tools = ["ruff", "bandit", "semgrep"]
+    elif domain == Domain.FRONTEND:
+        tools = ["semgrep"]
+    else:
+        tools = ["semgrep"]
+
+    all_findings: list[ToolFinding] = []
+    tool_errors: list[str] = []
+
+    if "semgrep" in tools:
+        config = get_semgrep_config(domain)
+        result = delegate_semgrep(path, config)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"semgrep: {result.error}")
+
+    if "ruff" in tools:
+        result = delegate_ruff(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"ruff: {result.error}")
+
+    if "slither" in tools:
+        result = delegate_slither(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"slither: {result.error}")
+
+    if "bandit" in tools:
+        result = delegate_bandit(path)
+        if result.is_ok:
+            all_findings.extend(result.value)
+        elif result.is_err:
+            tool_errors.append(f"bandit: {result.error}")
+
+    return all_findings, tool_errors
+
+
+def _load_skills_and_knowledge(
+    domain: Domain,
+    domain_tags: list[str],
+    skills_override: list[str] | None = None,
+) -> tuple[list[tuple[str, list[str]]], dict[str, str], set[str], dict[str, str]]:
+    """Load matched skills and linked knowledge.
+
+    Returns (matched_skills, skill_content, knowledge_files, knowledge_content).
+    """
+    from crucible.knowledge.loader import load_knowledge_file
+    from crucible.skills.loader import (
+        get_knowledge_for_skills,
+        load_skill,
+        match_skills_for_domain,
+    )
+
+    matched_skills = match_skills_for_domain(domain, domain_tags, skills_override)
+    skill_names = [name for name, _ in matched_skills]
+
+    # Load skill content
+    skill_content: dict[str, str] = {}
+    for skill_name, _ in matched_skills:
+        result = load_skill(skill_name)
+        if result.is_ok:
+            _, content = result.value
+            # Extract content after frontmatter
+            if "\n---\n" in content:
+                skill_content[skill_name] = content.split("\n---\n", 1)[1].strip()
+            else:
+                skill_content[skill_name] = content
+
+    # Load knowledge from skills + custom project/user knowledge
+    knowledge_files = get_knowledge_for_skills(skill_names)
+    custom_knowledge = get_custom_knowledge_files()
+    knowledge_files = knowledge_files | custom_knowledge
+
+    knowledge_content: dict[str, str] = {}
+    for filename in knowledge_files:
+        result = load_knowledge_file(filename)
+        if result.is_ok:
+            knowledge_content[filename] = result.value
+
+    return matched_skills, skill_content, knowledge_files, knowledge_content
+
+
+def _format_review_output(
+    path: str | None,
+    git_context: GitContext | None,
+    domains: list[str],
+    severity_counts: dict[str, int],
+    findings: list[ToolFinding],
+    tool_errors: list[str],
+    matched_skills: list[tuple[str, list[str]]] | None,
+    skill_content: dict[str, str] | None,
+    knowledge_files: set[str] | None,
+    knowledge_content: dict[str, str] | None,
+) -> str:
+    """Format unified review output."""
+    parts: list[str] = ["# Code Review\n"]
+
+    # Header based on mode
+    if git_context:
+        parts.append(f"**Mode:** {git_context.mode}")
+        if git_context.base_ref:
+            parts.append(f"**Base:** {git_context.base_ref}")
+    elif path:
+        parts.append(f"**Path:** `{path}`")
+
+    parts.append(f"**Domains:** {', '.join(domains)}")
+    parts.append(f"**Severity summary:** {severity_counts or 'No findings'}\n")
+
+    # Files changed (git mode)
+    if git_context and git_context.changes:
+        added = [c for c in git_context.changes if c.status == "A"]
+        modified = [c for c in git_context.changes if c.status == "M"]
+        deleted = [c for c in git_context.changes if c.status == "D"]
+        renamed = [c for c in git_context.changes if c.status == "R"]
+
+        total = len(git_context.changes)
+        parts.append(f"## Files Changed ({total})")
+        for c in added:
+            parts.append(f"- `+` {c.path}")
+        for c in modified:
+            parts.append(f"- `~` {c.path}")
+        for c in renamed:
+            parts.append(f"- `R` {c.old_path} -> {c.path}")
+        for c in deleted:
+            parts.append(f"- `-` {c.path}")
+        parts.append("")
+
+        # Commit messages
+        if git_context.commit_messages:
+            parts.append("## Commits")
+            for msg in git_context.commit_messages:
+                parts.append(f"- {msg}")
+            parts.append("")
+
+    # Tool errors
+    if tool_errors:
+        parts.append("## Tool Errors\n")
+        for error in tool_errors:
+            parts.append(f"- {error}")
+        parts.append("")
+
+    # Applicable skills
+    if matched_skills:
+        parts.append("## Applicable Skills\n")
+        for skill_name, triggers in matched_skills:
+            parts.append(f"- **{skill_name}**: matched on {', '.join(triggers)}")
+        parts.append("")
+
+    # Knowledge loaded
+    if knowledge_files:
+        parts.append("## Knowledge Loaded\n")
+        parts.append(f"Files: {', '.join(sorted(knowledge_files))}")
+        parts.append("")
+
+    # Findings
+    parts.append("## Static Analysis Findings\n")
+    if findings:
+        parts.append(_format_findings(findings))
+    else:
+        parts.append("No issues found.")
+    parts.append("")
+
+    # Review checklists from skills
+    if skill_content:
+        parts.append("---\n")
+        parts.append("## Review Checklists\n")
+        for skill_name, content in skill_content.items():
+            parts.append(f"### {skill_name}\n")
+            parts.append(content)
+            parts.append("")
+
+    # Knowledge reference
+    if knowledge_content:
+        parts.append("---\n")
+        parts.append("## Principles Reference\n")
+        for filename, content in sorted(knowledge_content.items()):
+            parts.append(f"### {filename}\n")
+            parts.append(content)
+            parts.append("")
+
+    return "\n".join(parts)
+
+
+def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle unified review tool."""
+    import os
+
+    path = arguments.get("path")
+    mode = arguments.get("mode")
+    base = arguments.get("base")
+    include_context = arguments.get("include_context", False)
+    skills_override = arguments.get("skills")
+    include_skills = arguments.get("include_skills", True)
+    include_knowledge = arguments.get("include_knowledge", True)
+
+    # Determine if this is path-based or git-based review
+    git_context: GitContext | None = None
+    changed_files: list[str] = []
+
+    if mode:
+        # Git-based review
+        repo_path = path if path else os.getcwd()
+        root_result = get_repo_root(repo_path)
+        if root_result.is_err:
+            return [TextContent(type="text", text=f"Error: {root_result.error}")]
+        repo_path = root_result.value
+
+        # Get git context based on mode
+        if mode == "staged":
+            context_result = get_staged_changes(repo_path)
+        elif mode == "unstaged":
+            context_result = get_unstaged_changes(repo_path)
+        elif mode == "branch":
+            base_branch = base if base else "main"
+            context_result = get_branch_diff(repo_path, base_branch)
+        elif mode == "commits":
+            try:
+                count = int(base) if base else 1
+            except ValueError:
+                return [TextContent(type="text", text=f"Error: Invalid commit count '{base}'")]
+            context_result = get_recent_commits(repo_path, count)
+        else:
+            return [TextContent(type="text", text=f"Error: Unknown mode '{mode}'")]
+
+        if context_result.is_err:
+            return [TextContent(type="text", text=f"Error: {context_result.error}")]
+
+        git_context = context_result.value
+
+        if not git_context.changes:
+            if mode == "staged":
+                return [TextContent(type="text", text="No changes to review. Stage files with `git add` first.")]
+            elif mode == "unstaged":
+                return [TextContent(type="text", text="No unstaged changes to review.")]
+            else:
+                return [TextContent(type="text", text="No changes found.")]
+
+        changed_files = get_changed_files(git_context)
+        if not changed_files:
+            return [TextContent(type="text", text="No files to analyze (only deletions).")]
+
+    elif not path:
+        return [TextContent(type="text", text="Error: Either 'path' or 'mode' is required.")]
+
+    # Detect domains and run analysis
+    all_findings: list[ToolFinding] = []
+    tool_errors: list[str] = []
+    domains_detected: set[Domain] = set()
+    all_domain_tags: set[str] = set()
+
+    if git_context:
+        # Git mode: analyze each changed file
+        repo_path = get_repo_root(path if path else os.getcwd()).value
+        for file_path in changed_files:
+            full_path = f"{repo_path}/{file_path}"
+            domain, domain_tags = _detect_domain(file_path)
+            domains_detected.add(domain)
+            all_domain_tags.update(domain_tags)
+
+            findings, errors = _run_static_analysis(full_path, domain, domain_tags)
+            all_findings.extend(findings)
+            tool_errors.extend([f"{e} ({file_path})" for e in errors])
+
+        # Filter findings to changed lines
+        all_findings = _filter_findings_to_changes(all_findings, git_context, include_context)
+    else:
+        # Path mode: analyze the path directly
+        domain, domain_tags = _detect_domain(path)
+        domains_detected.add(domain)
+        all_domain_tags.update(domain_tags)
+
+        findings, errors = _run_static_analysis(path, domain, domain_tags)
+        all_findings.extend(findings)
+        tool_errors.extend(errors)
+
+    # Deduplicate findings
+    all_findings = _deduplicate_findings(all_findings)
+
+    # Compute severity summary
+    severity_counts: dict[str, int] = {}
+    for f in all_findings:
+        sev = f.severity.value
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+    # Load skills and knowledge
+    matched_skills: list[tuple[str, list[str]]] | None = None
+    skill_content: dict[str, str] | None = None
+    knowledge_files: set[str] | None = None
+    knowledge_content: dict[str, str] | None = None
+
+    if include_skills or include_knowledge:
+        primary_domain = next(iter(domains_detected)) if domains_detected else Domain.UNKNOWN
+        matched, s_content, k_files, k_content = _load_skills_and_knowledge(
+            primary_domain, list(all_domain_tags), skills_override
+        )
+        if include_skills:
+            matched_skills = matched
+            skill_content = s_content
+        if include_knowledge:
+            knowledge_files = k_files
+            knowledge_content = k_content
+
+    # Format output
+    output = _format_review_output(
+        path,
+        git_context,
+        list(all_domain_tags) if all_domain_tags else ["unknown"],
+        severity_counts,
+        all_findings,
+        tool_errors,
+        matched_skills,
+        skill_content,
+        knowledge_files,
+        knowledge_content,
+    )
+
+    return [TextContent(type="text", text=output)]
 
 
 def _handle_get_principles(arguments: dict[str, Any]) -> list[TextContent]:
@@ -609,6 +986,10 @@ def _format_change_review(
     findings: list[ToolFinding],
     severity_counts: dict[str, int],
     tool_errors: list[str] | None = None,
+    matched_skills: list[tuple[str, list[str]]] | None = None,
+    skill_content: dict[str, str] | None = None,
+    knowledge_files: set[str] | None = None,
+    knowledge_content: dict[str, str] | None = None,
 ) -> str:
     """Format change review output."""
     parts: list[str] = ["# Change Review\n"]
@@ -642,6 +1023,19 @@ def _format_change_review(
             parts.append(f"- {msg}")
         parts.append("")
 
+    # Applicable skills
+    if matched_skills:
+        parts.append("## Applicable Skills\n")
+        for skill_name, triggers in matched_skills:
+            parts.append(f"- **{skill_name}**: matched on {', '.join(triggers)}")
+        parts.append("")
+
+    # Knowledge loaded
+    if knowledge_files:
+        parts.append("## Knowledge Loaded\n")
+        parts.append(f"Files: {', '.join(sorted(knowledge_files))}")
+        parts.append("")
+
     # Tool errors (if any)
     if tool_errors:
         parts.append("## Tool Errors\n")
@@ -657,6 +1051,25 @@ def _format_change_review(
     else:
         parts.append("## Findings in Changed Code\n")
         parts.append("No issues found in changed code.")
+    parts.append("")
+
+    # Review checklists from skills
+    if skill_content:
+        parts.append("---\n")
+        parts.append("## Review Checklists\n")
+        for skill_name, content in skill_content.items():
+            parts.append(f"### {skill_name}\n")
+            parts.append(content)
+            parts.append("")
+
+    # Knowledge reference
+    if knowledge_content:
+        parts.append("---\n")
+        parts.append("## Principles Reference\n")
+        for filename, content in sorted(knowledge_content.items()):
+            parts.append(f"### {filename}\n")
+            parts.append(content)
+            parts.append("")
 
     return "\n".join(parts)
 
@@ -716,12 +1129,16 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
     # Run analysis on changed files
     all_findings: list[ToolFinding] = []
     tool_errors: list[str] = []
+    domains_detected: set[Domain] = set()
+    all_domain_tags: set[str] = set()
 
     for file_path in changed_files:
         full_path = f"{repo_path}/{file_path}"
 
         # Detect domain for this file
         domain, domain_tags = _detect_domain(file_path)
+        domains_detected.add(domain)
+        all_domain_tags.update(domain_tags)
 
         # Select tools based on domain
         if domain == Domain.SMART_CONTRACT:
@@ -775,8 +1192,45 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
         sev = f.severity.value
         severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
+    # Match skills and load knowledge based on detected domains
+    from crucible.knowledge.loader import load_knowledge_file
+    from crucible.skills.loader import (
+        get_knowledge_for_skills,
+        load_skill,
+        match_skills_for_domain,
+    )
+
+    primary_domain = next(iter(domains_detected)) if domains_detected else Domain.UNKNOWN
+    matched_skills = match_skills_for_domain(
+        primary_domain, list(all_domain_tags), override=None
+    )
+
+    skill_names = [name for name, _ in matched_skills]
+    skill_content: dict[str, str] = {}
+    for skill_name, _triggers in matched_skills:
+        result = load_skill(skill_name)
+        if result.is_ok:
+            _, content = result.value
+            skill_content[skill_name] = content
+
+    knowledge_files = get_knowledge_for_skills(skill_names)
+    knowledge_content: dict[str, str] = {}
+    for filename in knowledge_files:
+        result = load_knowledge_file(filename)
+        if result.is_ok:
+            knowledge_content[filename] = result.value
+
     # Format output
-    output = _format_change_review(context, filtered_findings, severity_counts, tool_errors)
+    output = _format_change_review(
+        context,
+        filtered_findings,
+        severity_counts,
+        tool_errors,
+        matched_skills,
+        skill_content,
+        knowledge_files,
+        knowledge_content,
+    )
     return [TextContent(type="text", text=output)]
 
 
@@ -937,16 +1391,20 @@ def _handle_full_review(arguments: dict[str, Any]) -> list[TextContent]:
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     """Handle tool calls."""
     handlers = {
+        # Unified review tool
+        "review": _handle_review,
+        # Deprecated tools (kept for backwards compatibility)
+        "quick_review": _handle_quick_review,
+        "full_review": _handle_full_review,
+        "review_changes": _handle_review_changes,
+        # Other tools
         "get_principles": _handle_get_principles,
         "load_knowledge": _handle_load_knowledge,
         "delegate_semgrep": _handle_delegate_semgrep,
         "delegate_ruff": _handle_delegate_ruff,
         "delegate_slither": _handle_delegate_slither,
         "delegate_bandit": _handle_delegate_bandit,
-        "quick_review": _handle_quick_review,
         "check_tools": _handle_check_tools,
-        "review_changes": _handle_review_changes,
-        "full_review": _handle_full_review,
     }
 
     handler = handlers.get(name)

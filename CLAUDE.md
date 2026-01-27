@@ -6,7 +6,7 @@ Claude Code customization layer. Personas for domains, knowledge for patterns, c
 
 ```bash
 pip install -e ".[dev]"    # Install
-pytest                     # Test (494 tests)
+pytest                     # Test (509 tests)
 ruff check src/ --fix      # Lint
 ```
 
@@ -14,31 +14,36 @@ ruff check src/ --fix      # Lint
 
 | Tool | Purpose |
 |------|---------|
-| `quick_review(path)` | Run analysis, return findings + domains |
-| `full_review(path)` | Analysis + skill matching + knowledge loading |
-| `review_changes(mode)` | Analyze git changes (staged/branch/commits) |
-| `get_principles(topic)` | Load engineering knowledge |
+| `review(path)` | Unified review: analysis + skills + knowledge |
+| `review(mode='staged')` | Git-aware review with skills + knowledge |
 | `load_knowledge(files)` | Load specific knowledge files |
-| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit, gitleaks) |
+| `get_principles(topic)` | Load engineering knowledge by topic |
+| `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit) |
 | `check_tools()` | Show installed tools |
 
 ## CLI Commands
 
 ```bash
-crucible skills list              # List all skills
-crucible skills install           # Install to ~/.claude/crucible/
-crucible skills init <skill>      # Copy for project customization
-crucible skills show <skill>      # Show resolution cascade
+crucible init                     # Initialize .crucible/ for project
+crucible review                   # Review staged changes
+crucible review --mode branch     # Review branch vs main
+crucible ci generate              # Generate GitHub Actions workflow
 
-crucible knowledge list/install/init/show  # Same for knowledge
+crucible skills list              # List all skills
+crucible skills init <skill>      # Copy for project customization
+
+crucible knowledge list           # List all knowledge files
+crucible knowledge init <file>    # Copy for customization
+
+crucible hooks install            # Install pre-commit hook
 ```
 
 ## Project Structure
 
 ```
 src/crucible/
-├── server.py           # MCP server (10 tools)
-├── cli.py              # Skills/knowledge management
+├── server.py           # MCP server (unified review tool)
+├── cli.py              # CLI commands
 ├── models.py           # Domain, Severity, ToolFinding
 ├── errors.py           # Result types (Ok/Err)
 ├── domain/detection.py # Classify code by extension/content

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crucible - MCP server for Claude Code</title>
-  <meta name="description" content="Automatically loads the right thinking for what you're working on. Personas for domains, knowledge for patterns, customizable at every level.">
+  <title>Crucible - Code review orchestrator for Claude Code</title>
+  <meta name="description" content="Code review orchestrator that chains static analysis, custom rules, and your team's knowledge into Claude Code. Plug in your patterns, Claude gets them automatically.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -588,15 +588,15 @@
 ░█▀▀░█▀▄░█░█░█▀▀░▀█▀░█▀▄░█░░░█▀▀
 ░█░░░█▀▄░█░█░█░░░░█░░█▀▄░█░░░█▀▀
 ░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀</div>
-      <p class="tagline typing">An MCP server for Claude Code.</p>
-      <p class="subtitle">Automatically loads the right thinking for what you're working on.</p>
+      <p class="tagline typing">Code review orchestrator.</p>
+      <p class="subtitle">Your patterns. Your rules. Loaded when relevant.</p>
       <div class="cta-buttons">
         <a href="#install" class="btn btn-primary">INSTALL</a>
         <a href="https://github.com/b17z/crucible" class="btn btn-secondary">SOURCE</a>
       </div>
       <p class="disclaimer">
-        This assists your coding. It doesn't replace your judgment.<br>
-        Skills and knowledge are templates. Edit or add your own.
+        Augments human review, doesn't replace it.<br>
+        Chains static analysis + assertions + skills + knowledge.
       </p>
     </div>
   </header>
@@ -606,23 +606,23 @@
     <div class="container">
       <h2 class="section-header">WHAT HAPPENS</h2>
       <div class="code-block">
-<span class="text-dim">You:</span> "Review this API endpoint"
+<span class="cmd">crucible review --mode staged</span>
 
-<span class="cmd">Crucible runs:</span>  full_review(path="api/")
-<span class="cmd">→ Detects:</span>     python, backend, api
-<span class="cmd">→ Matches:</span>     backend-engineer, security-engineer
-<span class="cmd">→ Loads:</span>       API_DESIGN.md, SECURITY.md, DATABASE.md
-<span class="cmd">→ Analysis:</span>    ruff, semgrep (deduplicated findings)
+<span class="cmd">→ Static analysis:</span>  semgrep, ruff, bandit (or slither for Solidity)
+<span class="cmd">→ Custom assertions:</span> your pattern rules from .crucible/assertions/
+<span class="cmd">→ Domain detection:</span>  python, backend, api
+<span class="cmd">→ Skills loaded:</span>     backend-engineer, security-engineer
+<span class="cmd">→ Knowledge loaded:</span>  API_DESIGN.md, SECURITY.md, DATABASE.md
 
-<span class="text-dim">Claude now thinks with:</span>
-  - Input validation patterns
-  - Error handling conventions
-  - N+1 query awareness
-  - Auth/authz questions
+<span class="text-dim">Claude receives:</span>
+  - Deduplicated findings from all tools
+  - Your team's review checklists
+  - Domain-specific patterns
+  - Institutional knowledge
       </div>
       <p class="section-note">
-        Not a template dump. An active server that detects context and loads relevant patterns.<br>
-        Runs static analysis (semgrep, ruff, slither, bandit) and deduplicates findings.
+        Git-aware: review staged changes, branch diffs, or recent commits.<br>
+        CI-ready: <code>crucible ci generate</code> creates GitHub Actions workflows.
       </p>
     </div>
   </section>
@@ -630,171 +630,136 @@
   <!-- What It Does -->
   <section id="features">
     <div class="container">
-      <h2 class="section-header">WHAT'S INSIDE</h2>
+      <h2 class="section-header">THE PIPELINE</h2>
       <div class="cards">
         <div class="card">
-          <h3 class="card-title">PERSONAS</h3>
-          <p class="card-desc">Domain-specific thinking</p>
-          <p class="card-meta">"How to approach this problem"</p>
-          <p class="card-quote">18 included. Add your own.</p>
+          <h3 class="card-title">STATIC ANALYSIS</h3>
+          <p class="card-desc">semgrep, ruff, bandit, slither</p>
+          <p class="card-meta">Auto-selected by domain</p>
+          <p class="card-quote">Findings deduplicated</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">ASSERTIONS</h3>
+          <p class="card-desc">Custom pattern rules</p>
+          <p class="card-meta">"Enforce your conventions"</p>
+          <p class="card-quote">.crucible/assertions/</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">SKILLS</h3>
+          <p class="card-desc">Review personas</p>
+          <p class="card-meta">"How to think about this"</p>
+          <p class="card-quote">18 templates. Add yours.</p>
         </div>
         <div class="card">
           <h3 class="card-title">KNOWLEDGE</h3>
-          <p class="card-desc">Coding patterns and principles</p>
-          <p class="card-meta">"What patterns to apply"</p>
-          <p class="card-quote">12 domains. Add your own.</p>
+          <p class="card-desc">Patterns and principles</p>
+          <p class="card-meta">"What to look for"</p>
+          <p class="card-quote">12 templates. Add yours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plug Your Own -->
+  <section id="plug-your-own">
+    <div class="container">
+      <h2 class="section-header">PLUG YOUR OWN</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Encode your team's knowledge. Claude gets it automatically.</p>
+      <div class="cards">
+        <div class="card">
+          <h3 class="card-title">TEAM CONVENTIONS</h3>
+          <p class="card-desc">API patterns, error handling, naming</p>
+          <p class="card-meta">→ .crucible/knowledge/</p>
         </div>
         <div class="card">
-          <h3 class="card-title">CASCADE</h3>
-          <p class="card-desc">Customize at every level</p>
-          <p class="card-meta">Project overrides User overrides Bundled</p>
-          <p class="card-quote">.crucible/skills/</p>
+          <h3 class="card-title">DOMAIN EXPERTISE</h3>
+          <p class="card-desc">Crypto, fintech, healthcare, etc.</p>
+          <p class="card-meta">→ .crucible/skills/</p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Personas -->
-  <section id="personas">
-    <div class="container">
-      <h2 class="section-header">PERSONAS</h2>
-      <p class="subtitle" style="margin-bottom: 30px;">Loaded as Claude Skills when relevant.</p>
-      <div class="persona-grid">
-        <div class="persona-card">
-          <h3 class="persona-name">SECURITY-ENG</h3>
-          <p class="persona-desc">Defense in depth, threats</p>
-          <p class="persona-quote">"Add guard"</p>
-        </div>
-        <div class="persona-card">
-          <h3 class="persona-name">BACKEND-ENG</h3>
-          <p class="persona-desc">API design, data flow</p>
-          <p class="persona-quote">"Validate here"</p>
-        </div>
-        <div class="persona-card">
-          <h3 class="persona-name">PERFORMANCE-ENG</h3>
-          <p class="persona-desc">Hot paths, complexity</p>
-          <p class="persona-quote">"That's O(n²)"</p>
-        </div>
-        <div class="persona-card">
-          <h3 class="persona-name">PRAGMATIST</h3>
-          <p class="persona-desc">Ship it, iterate later</p>
-          <p class="persona-quote">"Good enough"</p>
+        <div class="card">
+          <h3 class="card-title">CUSTOM RULES</h3>
+          <p class="card-desc">Pattern assertions, lint rules</p>
+          <p class="card-meta">→ .crucible/assertions/</p>
         </div>
       </div>
       <p class="section-note">
-        18 included as starting points. Possibly incomplete for your stack.<br>
-        Edit them or add your own as <code>SKILL.md</code> files.
+        Bundled templates (18 skills, 12 knowledge files) are starting points.<br>
+        The value is YOUR patterns, loaded when relevant.
       </p>
     </div>
   </section>
 
-  <!-- Knowledge -->
-  <section id="knowledge">
+  <!-- Cascade -->
+  <section id="cascade">
     <div class="container">
-      <h2 class="section-header">KNOWLEDGE</h2>
-      <p class="subtitle" style="margin-bottom: 30px;">Coding patterns and principles, loaded by relevant personas.</p>
-      <div class="knowledge-grid">
-        <div class="knowledge-card">
-          <h3 class="knowledge-name">SECURITY.md</h3>
-          <p class="knowledge-desc">Input valid, auth patterns</p>
-        </div>
-        <div class="knowledge-card">
-          <h3 class="knowledge-name">TESTING.md</h3>
-          <p class="knowledge-desc">What to test, test pyramid</p>
-        </div>
-        <div class="knowledge-card">
-          <h3 class="knowledge-name">API_DESIGN.md</h3>
-          <p class="knowledge-desc">REST patterns, error shapes</p>
-        </div>
-        <div class="knowledge-card">
-          <h3 class="knowledge-name">FP.md</h3>
-          <p class="knowledge-desc">Pure funcs, immutability</p>
-        </div>
-      </div>
-      <p class="knowledge-links">
-        12 domains included. Personas link to relevant knowledge.<br>
-        <code>security-engineer</code> → SECURITY.md<br>
-        <code>backend-engineer</code> → API_DESIGN.md, DATABASE.md, ERROR_HANDLING.md
-      </p>
-      <p class="section-note">
-        Some knowledge is preference (FP, commit style). Some is just good practice (secure your routes).<br>
-        Override or extend for your team.
-      </p>
-    </div>
-  </section>
-
-  <!-- How It Works -->
-  <section id="how">
-    <div class="container">
-      <h2 class="section-header">HOW IT WORKS</h2>
-      <div class="flow">
-        <div class="flow-box">
-          <div class="flow-box-title">CODE</div>
-          <div class="flow-box-content">Your files</div>
-        </div>
-        <span class="flow-arrow">→</span>
-        <div class="flow-box">
-          <div class="flow-box-title">DETECT</div>
-          <div class="flow-box-content">Domain</div>
-        </div>
-        <span class="flow-arrow">→</span>
-        <div class="flow-box">
-          <div class="flow-box-title">LOAD</div>
-          <div class="flow-box-content">Personas + Knowledge</div>
-        </div>
-        <span class="flow-arrow">→</span>
-        <div class="flow-box">
-          <div class="flow-box-title">CLAUDE</div>
-          <div class="flow-box-content">With YOUR patterns</div>
-        </div>
-      </div>
-      <div class="flow-example">
-        <code>api/users.py</code>
-        <span class="arrow">→</span>
-        <span>backend domain</span>
-        <span class="arrow">→</span>
-        <span>backend-engineer + API_DESIGN.md</span>
-        <span class="arrow">→</span>
-        <span>Thinks about your API patterns</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Customize -->
-  <section id="customize">
-    <div class="container">
-      <h2 class="section-header">CUSTOMIZE</h2>
-      <p class="subtitle" style="margin-bottom: 20px;">Override at any level:</p>
+      <h2 class="section-header">CASCADE RESOLUTION</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Project overrides user overrides bundled. First found wins.</p>
       <div class="cascade-list">
         <div class="cascade-item">
           <span class="cascade-num">1.</span>
           <span>Project:</span>
-          <span class="cascade-path">.crucible/skills/</span>
-          <span class="cascade-note">← Highest priority</span>
+          <span class="cascade-path">.crucible/</span>
+          <span class="cascade-note">← Team patterns, checked into repo</span>
         </div>
         <div class="cascade-item">
           <span class="cascade-num">2.</span>
           <span>User:</span>
           <span class="cascade-path">~/.claude/crucible/</span>
+          <span class="cascade-note">← Personal preferences</span>
         </div>
         <div class="cascade-item">
           <span class="cascade-num">3.</span>
           <span>Bundled:</span>
-          <span class="cascade-note">(package defaults) ← Lowest priority</span>
+          <span class="cascade-note">← Starter templates (package defaults)</span>
         </div>
       </div>
+      <p class="section-note">
+        Skills link to knowledge files. <code>security-engineer</code> auto-loads SECURITY.md.<br>
+        Override any bundled file by creating your own with the same name.
+      </p>
+    </div>
+  </section>
+
+  <!-- MCP Native -->
+  <section id="mcp">
+    <div class="container">
+      <h2 class="section-header">MCP NATIVE</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Designed to chain with other MCPs.</p>
       <div class="code-block">
-<span class="comment"># Review staged changes before commit</span>
-<span class="cmd">crucible review</span>
-<span class="cmd">crucible review --mode branch --fail-on high</span>
+<span class="comment"># Claude calls Crucible's MCP tools</span>
+<span class="cmd">review(path="src/")</span>                    <span class="comment"># Full review with skills + knowledge</span>
+<span class="cmd">review(mode="staged")</span>                   <span class="comment"># Git-aware: staged changes</span>
+<span class="cmd">review(mode="branch", base="main")</span>      <span class="comment"># PR diff review</span>
 
-<span class="comment"># Copy a skill to customize</span>
-<span class="cmd">crucible skills init security-engineer</span>
-<span class="comment"># → Creates .crucible/skills/security-engineer/SKILL.md</span>
+<span class="comment"># Chain with other MCPs via mcpmon</span>
+<span class="cmd">mcpmon --watch ~/.crucible/ -- crucible-mcp</span>   <span class="comment"># Hot reload on changes</span>
+      </div>
+      <p class="section-note">
+        <a href="https://b17z.github.io/mcpmon/" style="color: var(--cyan);">mcpmon</a> enables hot reload - edit skills/knowledge, changes load without restarting Claude Code.
+      </p>
+    </div>
+  </section>
 
-<span class="comment"># Same for knowledge</span>
-<span class="cmd">crucible knowledge init SECURITY</span>
-<span class="comment"># → Creates .crucible/knowledge/SECURITY.md</span>
+  <!-- CLI -->
+  <section id="cli">
+    <div class="container">
+      <h2 class="section-header">CLI</h2>
+      <div class="code-block">
+<span class="comment"># Review</span>
+<span class="cmd">crucible review</span>                         <span class="comment"># Staged changes (default)</span>
+<span class="cmd">crucible review --mode branch</span>           <span class="comment"># Branch vs main</span>
+<span class="cmd">crucible review --mode commits --base 3</span> <span class="comment"># Last 3 commits</span>
+<span class="cmd">crucible review --fail-on high</span>          <span class="comment"># Exit 1 if high+ findings</span>
+
+<span class="comment"># Initialize project</span>
+<span class="cmd">crucible init</span>                           <span class="comment"># Creates .crucible/ structure</span>
+
+<span class="comment"># Customize templates</span>
+<span class="cmd">crucible skills init security-engineer</span>  <span class="comment"># Copy skill to .crucible/skills/</span>
+<span class="cmd">crucible knowledge init SECURITY</span>        <span class="comment"># Copy knowledge to .crucible/knowledge/</span>
+
+<span class="comment"># CI</span>
+<span class="cmd">crucible ci generate</span>                    <span class="comment"># Generate GitHub Actions workflow</span>
       </div>
     </div>
   </section>
@@ -834,10 +799,10 @@
   <footer>
     <div class="container">
       <p class="footer-disclaimer">
-        This assists your coding. It doesn't replace your judgment.<br>
-        Personas and knowledge are templates. Edit or add your own.
+        This augments human review. It doesn't replace it.<br>
+        Bundled templates are starting points. Plug in your own.
       </p>
-      <p class="footer-version">crucible v0.1.0</p>
+      <p class="footer-version">crucible v0.4.0</p>
       <p class="footer-family">part of: <a href="https://b17z.github.io/sage/">sage</a> | <a href="https://b17z.github.io/mcpmon/">mcpmon</a></p>
       <p class="footer-note">Not affiliated with Atlassian's Crucible.</p>
       <div class="footer-links">

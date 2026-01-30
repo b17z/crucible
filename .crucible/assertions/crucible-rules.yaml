@@ -1,0 +1,38 @@
+version: "0.4"
+name: crucible-rules
+description: Pattern assertions for the crucible codebase
+
+assertions:
+  - id: no-bare-except
+    type: pattern
+    pattern: "except\\s*:"
+    message: "Avoid bare except - catch specific exceptions"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  - id: no-type-ignore
+    type: pattern
+    pattern: "#\\s*type:\\s*ignore(?!\\[)"
+    message: "Prefer specific type ignore with error code: # type: ignore[code]"
+    severity: info
+    priority: low
+    languages: [python]
+
+  - id: no-todo-without-issue
+    type: pattern
+    pattern: "(?i)\\bTODO\\b(?!.*#\\d+)"
+    message: "TODO comments should reference an issue number"
+    severity: info
+    priority: low
+
+  - id: no-hardcoded-paths
+    type: pattern
+    pattern: '"/Users/|"/home/'
+    message: "Avoid hardcoded user paths"
+    severity: warning
+    priority: high
+    applicability:
+      exclude:
+        - "**/test_*.py"
+        - "**/*_test.py"

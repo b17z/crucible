@@ -964,6 +964,281 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0 if passed else 1
 
 
+# --- Assertions commands ---
+
+# Assertions directories
+ASSERTIONS_BUNDLED = Path(__file__).parent / "enforcement" / "bundled"
+ASSERTIONS_USER = Path.home() / ".claude" / "crucible" / "assertions"
+ASSERTIONS_PROJECT = Path(".crucible") / "assertions"
+
+
+def cmd_assertions_validate(args: argparse.Namespace) -> int:
+    """Validate assertion files."""
+    from crucible.enforcement.assertions import (
+        clear_assertion_cache,
+        get_all_assertion_files,
+        load_assertion_file,
+    )
+
+    clear_assertion_cache()
+
+    files = get_all_assertion_files()
+    if not files:
+        print("No assertion files found.")
+        print("\nCreate assertion files in:")
+        print(f"  Project: {ASSERTIONS_PROJECT}/")
+        print(f"  User:    {ASSERTIONS_USER}/")
+        return 0
+
+    valid_count = 0
+    error_count = 0
+
+    for filename in sorted(files):
+        result = load_assertion_file(filename)
+        if result.is_ok:
+            assertion_count = len(result.value.assertions)
+            print(f"  ✓ {filename}: {assertion_count} assertion(s) valid")
+            valid_count += 1
+        else:
+            print(f"  ✗ {filename}: {result.error}")
+            error_count += 1
+
+    print()
+    if error_count == 0:
+        print(f"All {valid_count} file(s) valid.")
+        return 0
+    else:
+        print(f"{error_count} file(s) with errors, {valid_count} valid.")
+        return 1
+
+
+def cmd_assertions_list(args: argparse.Namespace) -> int:
+    """List available assertion files."""
+    print("Bundled assertions:")
+    if ASSERTIONS_BUNDLED.exists():
+        found = False
+        for file_path in sorted(ASSERTIONS_BUNDLED.iterdir()):
+            if file_path.is_file() and file_path.suffix in (".yaml", ".yml"):
+                print(f"  - {file_path.name}")
+                found = True
+        if not found:
+            print("  (none)")
+    else:
+        print("  (none)")
+
+    print("\nUser assertions (~/.claude/crucible/assertions/):")
+    if ASSERTIONS_USER.exists():
+        found = False
+        for file_path in sorted(ASSERTIONS_USER.iterdir()):
+            if file_path.is_file() and file_path.suffix in (".yaml", ".yml"):
+                print(f"  - {file_path.name}")
+                found = True
+        if not found:
+            print("  (none)")
+    else:
+        print("  (none)")
+
+    print("\nProject assertions (.crucible/assertions/):")
+    if ASSERTIONS_PROJECT.exists():
+        found = False
+        for file_path in sorted(ASSERTIONS_PROJECT.iterdir()):
+            if file_path.is_file() and file_path.suffix in (".yaml", ".yml"):
+                print(f"  - {file_path.name}")
+                found = True
+        if not found:
+            print("  (none)")
+    else:
+        print("  (none)")
+
+    return 0
+
+
+def cmd_assertions_test(args: argparse.Namespace) -> int:
+    """Test assertions against a file or directory."""
+    import os
+
+    from crucible.enforcement.assertions import load_assertions
+    from crucible.enforcement.patterns import run_pattern_assertions
+
+    target_path = Path(args.file)
+    if not target_path.exists():
+        print(f"Error: Path '{target_path}' not found")
+        return 1
+
+    assertions, errors = load_assertions()
+
+    if errors:
+        print("Assertion loading errors:")
+        for error in errors:
+            print(f"  - {error}")
+        print()
+
+    if not assertions:
+        print("No assertions loaded.")
+        return 0
+
+    # Collect files to test
+    files_to_test: list[tuple[str, str]] = []  # (display_path, content)
+
+    if target_path.is_file():
+        try:
+            content = target_path.read_text()
+            files_to_test.append((str(target_path), content))
+        except UnicodeDecodeError:
+            print(f"Error: Cannot read '{target_path}' (binary file?)")
+            return 1
+    else:
+        # Directory mode
+        for root, _, files in os.walk(target_path):
+            for fname in files:
+                fpath = Path(root) / fname
+                rel_path = fpath.relative_to(target_path)
+                try:
+                    content = fpath.read_text()
+                    files_to_test.append((str(rel_path), content))
+                except (UnicodeDecodeError, OSError):
+                    pass  # Skip binary/unreadable files
+
+    # Run assertions on all files
+    all_findings = []
+    checked = 0
+    skipped = 0
+
+    for display_path, content in files_to_test:
+        findings, c, s = run_pattern_assertions(display_path, content, assertions)
+        all_findings.extend(findings)
+        checked = max(checked, c)
+        skipped = max(skipped, s)
+
+    # Separate suppressed and active findings
+    active = [f for f in all_findings if not f.suppressed]
+    suppressed = [f for f in all_findings if f.suppressed]
+
+    print(f"Testing {target_path}")
+    print(f"  Files scanned: {len(files_to_test)}")
+    print(f"  Assertions checked: {checked}")
+    print(f"  Assertions skipped (LLM): {skipped}")
+    print()
+
+    if active:
+        print(f"Findings ({len(active)}):")
+        for f in active:
+            sev = f.severity.upper()
+            print(f"  [{sev}] {f.assertion_id}: {f.location}")
+            print(f"    {f.message}")
+            if f.match_text:
+                print(f"    Matched: {f.match_text!r}")
+            print()
+
+    if suppressed:
+        print(f"Suppressed ({len(suppressed)}):")
+        for f in suppressed:
+            reason = f" -- {f.suppression_reason}" if f.suppression_reason else ""
+            print(f"  {f.assertion_id}: {f.location}{reason}")
+
+    if not active and not suppressed:
+        print("No matches found.")
+
+    return 0
+
+
+def cmd_assertions_explain(args: argparse.Namespace) -> int:
+    """Explain what a rule does."""
+    from crucible.enforcement.assertions import load_assertions
+
+    rule_id = args.rule.lower()
+    assertions, errors = load_assertions()
+
+    for assertion in assertions:
+        if assertion.id.lower() == rule_id:
+            print(f"Rule: {assertion.id}")
+            print(f"Type: {assertion.type.value}")
+            if assertion.pattern:
+                print(f"Pattern: {assertion.pattern}")
+            print(f"Message: {assertion.message}")
+            print(f"Severity: {assertion.severity}")
+            print(f"Priority: {assertion.priority.value}")
+            if assertion.languages:
+                print(f"Languages: {', '.join(assertion.languages)}")
+            if assertion.applicability:
+                if assertion.applicability.glob:
+                    print(f"Applies to: {assertion.applicability.glob}")
+                if assertion.applicability.exclude:
+                    print(f"Excludes: {', '.join(assertion.applicability.exclude)}")
+            if assertion.compliance:
+                print(f"Compliance: {assertion.compliance}")
+            return 0
+
+    print(f"Rule '{rule_id}' not found.")
+    print("\nAvailable rules:")
+    for a in assertions[:10]:
+        print(f"  - {a.id}")
+    if len(assertions) > 10:
+        print(f"  ... and {len(assertions) - 10} more")
+    return 1
+
+
+def cmd_assertions_debug(args: argparse.Namespace) -> int:
+    """Debug applicability for a rule and file."""
+    from crucible.enforcement.assertions import load_assertions
+    from crucible.enforcement.patterns import matches_glob, matches_language
+
+    rule_id = args.rule.lower()
+    file_path = args.file
+
+    assertions, errors = load_assertions()
+
+    for assertion in assertions:
+        if assertion.id.lower() == rule_id:
+            print(f"Applicability check for '{assertion.id}':")
+            print()
+
+            # Language check
+            if assertion.languages:
+                lang_match = matches_language(file_path, assertion.languages)
+                lang_status = "MATCH" if lang_match else "NO MATCH"
+                print(f"  Languages: {', '.join(assertion.languages)}")
+                print(f"    File: {file_path} → {lang_status}")
+            else:
+                print("  Languages: (any)")
+
+            # Glob check
+            if assertion.applicability:
+                if assertion.applicability.glob:
+                    glob_match = matches_glob(
+                        file_path,
+                        assertion.applicability.glob,
+                        assertion.applicability.exclude,
+                    )
+                    glob_status = "MATCH" if glob_match else "NO MATCH"
+                    print(f"  Glob: {assertion.applicability.glob}")
+                    if assertion.applicability.exclude:
+                        print(f"  Exclude: {', '.join(assertion.applicability.exclude)}")
+                    print(f"    File: {file_path} → {glob_status}")
+                else:
+                    print("  Glob: (any)")
+            else:
+                print("  Applicability: (none)")
+
+            # Overall result
+            print()
+            lang_ok = matches_language(file_path, assertion.languages)
+            glob_ok = True
+            if assertion.applicability and assertion.applicability.glob:
+                glob_ok = matches_glob(
+                    file_path,
+                    assertion.applicability.glob,
+                    assertion.applicability.exclude,
+                )
+            overall = lang_ok and glob_ok
+            result = "APPLICABLE" if overall else "NOT APPLICABLE"
+            print(f"  Result: {result}")
+            return 0
+
+    print(f"Rule '{rule_id}' not found.")
+    return 1
+
+
 # --- Hooks commands ---
 
 PRECOMMIT_HOOK_SCRIPT = """\
@@ -1526,6 +1801,38 @@ def main() -> int:
         help="Project path (default: current directory)"
     )
 
+    # === assertions command ===
+    assertions_parser = subparsers.add_parser("assertions", help="Manage pattern assertions")
+    assertions_sub = assertions_parser.add_subparsers(dest="assertions_command")
+
+    # assertions validate
+    assertions_sub.add_parser("validate", help="Validate assertion files")
+
+    # assertions list
+    assertions_sub.add_parser("list", help="List assertion files from all sources")
+
+    # assertions test
+    assertions_test_parser = assertions_sub.add_parser(
+        "test",
+        help="Test assertions against a file"
+    )
+    assertions_test_parser.add_argument("file", help="File to test")
+
+    # assertions explain
+    assertions_explain_parser = assertions_sub.add_parser(
+        "explain",
+        help="Explain what a rule does"
+    )
+    assertions_explain_parser.add_argument("rule", help="Rule ID to explain")
+
+    # assertions debug
+    assertions_debug_parser = assertions_sub.add_parser(
+        "debug",
+        help="Debug applicability for a rule and file"
+    )
+    assertions_debug_parser.add_argument("--rule", "-r", required=True, help="Rule ID")
+    assertions_debug_parser.add_argument("--file", "-f", required=True, help="File to check")
+
     # === ci command ===
     ci_parser = subparsers.add_parser(
         "ci",
@@ -1593,6 +1900,20 @@ def main() -> int:
         else:
             hooks_parser.print_help()
             return 0
+    elif args.command == "assertions":
+        if args.assertions_command == "validate":
+            return cmd_assertions_validate(args)
+        elif args.assertions_command == "list":
+            return cmd_assertions_list(args)
+        elif args.assertions_command == "test":
+            return cmd_assertions_test(args)
+        elif args.assertions_command == "explain":
+            return cmd_assertions_explain(args)
+        elif args.assertions_command == "debug":
+            return cmd_assertions_debug(args)
+        else:
+            assertions_parser.print_help()
+            return 0
     elif args.command == "review":
         return cmd_review(args)
     elif args.command == "pre-commit":
@@ -1618,6 +1939,12 @@ def main() -> int:
         print("  crucible hooks install          Install pre-commit hook to .git/hooks/")
         print("  crucible hooks uninstall        Remove pre-commit hook")
         print("  crucible hooks status           Show hook installation status")
+        print()
+        print("  crucible assertions list        List assertion files from all sources")
+        print("  crucible assertions validate    Validate assertion files")
+        print("  crucible assertions test <file> Test assertions against a file")
+        print("  crucible assertions explain <r> Explain what a rule does")
+        print("  crucible assertions debug       Debug applicability for a rule")
         print()
         print("  crucible review                 Review git changes")
         print("    --mode <mode>                 staged/unstaged/branch/commits (default: staged)")

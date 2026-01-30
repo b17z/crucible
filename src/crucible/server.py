@@ -135,6 +135,11 @@ async def list_tools() -> list[Tool]:
                         "description": "Load knowledge files (default: true). Set false for quick analysis only.",
                         "default": True,
                     },
+                    "enforce": {
+                        "type": "boolean",
+                        "description": "Run pattern assertions from .crucible/assertions/ (default: true).",
+                        "default": True,
+                    },
                 },
             },
         ),
@@ -431,6 +436,10 @@ def _format_review_output(
     skill_content: dict[str, str] | None,
     knowledge_files: set[str] | None,
     knowledge_content: dict[str, str] | None,
+    enforcement_findings: list | None = None,
+    enforcement_errors: list[str] | None = None,
+    assertions_checked: int = 0,
+    assertions_skipped: int = 0,
 ) -> str:
     """Format unified review output."""
     parts: list[str] = ["# Code Review\n"]
@@ -500,6 +509,46 @@ def _format_review_output(
         parts.append("No issues found.")
     parts.append("")
 
+    # Enforcement assertions
+    if enforcement_findings is not None:
+        active = [f for f in enforcement_findings if not f.suppressed]
+        suppressed = [f for f in enforcement_findings if f.suppressed]
+
+        parts.append("## Pattern Assertions\n")
+        if assertions_checked > 0 or assertions_skipped > 0:
+            parts.append(f"*Checked: {assertions_checked}, Skipped (LLM): {assertions_skipped}*\n")
+
+        if enforcement_errors:
+            parts.append("**Errors:**")
+            for err in enforcement_errors:
+                parts.append(f"- {err}")
+            parts.append("")
+
+        if active:
+            # Group by severity
+            by_sev: dict[str, list] = {}
+            for f in active:
+                by_sev.setdefault(f.severity.upper(), []).append(f)
+
+            for sev in ["ERROR", "WARNING", "INFO"]:
+                if sev in by_sev:
+                    parts.append(f"### {sev} ({len(by_sev[sev])})\n")
+                    for f in by_sev[sev]:
+                        parts.append(f"- **[{f.assertion_id}]** {f.message}")
+                        parts.append(f"  - Location: `{f.location}`")
+                        if f.match_text:
+                            parts.append(f"  - Match: `{f.match_text}`")
+        else:
+            parts.append("No pattern violations found.")
+
+        if suppressed:
+            parts.append(f"\n*Suppressed: {len(suppressed)}*")
+            for f in suppressed:
+                reason = f" ({f.suppression_reason})" if f.suppression_reason else ""
+                parts.append(f"- {f.assertion_id}: {f.location}{reason}")
+
+        parts.append("")
+
     # Review checklists from skills
     if skill_content:
         parts.append("---\n")
@@ -525,6 +574,10 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle unified review tool."""
     import os
 
+    from crucible.enforcement.assertions import load_assertions
+    from crucible.enforcement.models import EnforcementFinding
+    from crucible.enforcement.patterns import run_pattern_assertions
+
     path = arguments.get("path")
     mode = arguments.get("mode")
     base = arguments.get("base")
@@ -532,6 +585,7 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     skills_override = arguments.get("skills")
     include_skills = arguments.get("include_skills", True)
     include_knowledge = arguments.get("include_knowledge", True)
+    enforce = arguments.get("enforce", True)
 
     # Determine if this is path-based or git-based review
     git_context: GitContext | None = None
@@ -616,6 +670,66 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     # Deduplicate findings
     all_findings = _deduplicate_findings(all_findings)
 
+    # Run pattern assertions
+    enforcement_findings: list[EnforcementFinding] = []
+    enforcement_errors: list[str] = []
+    assertions_checked = 0
+    assertions_skipped = 0
+
+    if enforce:
+        assertions, assertion_errors = load_assertions()
+        enforcement_errors.extend(assertion_errors)
+
+        if assertions:
+            if git_context:
+                # Git mode: check each changed file
+                repo_path = get_repo_root(path if path else os.getcwd()).value
+                for file_path in changed_files:
+                    full_path = f"{repo_path}/{file_path}"
+                    try:
+                        with open(full_path) as f:
+                            content = f.read()
+                        findings, checked, skipped = run_pattern_assertions(
+                            file_path, content, assertions
+                        )
+                        enforcement_findings.extend(findings)
+                        assertions_checked = max(assertions_checked, checked)
+                        assertions_skipped = max(assertions_skipped, skipped)
+                    except OSError:
+                        pass  # File may have been deleted
+            elif path:
+                # Path mode
+                import os as os_module
+                if os_module.path.isfile(path):
+                    try:
+                        with open(path) as f:
+                            content = f.read()
+                        findings, checked, skipped = run_pattern_assertions(
+                            path, content, assertions
+                        )
+                        enforcement_findings.extend(findings)
+                        assertions_checked = checked
+                        assertions_skipped = skipped
+                    except OSError as e:
+                        enforcement_errors.append(f"Failed to read {path}: {e}")
+                elif os_module.path.isdir(path):
+                    # Scan directory for files
+                    for root, _, files in os_module.walk(path):
+                        for fname in files:
+                            fpath = os_module.path.join(root, fname)
+                            rel_path = os_module.path.relpath(fpath, path)
+                            try:
+                                with open(fpath) as f:
+                                    content = f.read()
+                                findings, checked, skipped = run_pattern_assertions(
+                                    rel_path, content, assertions
+                                )
+                                enforcement_findings.extend(findings)
+                                assertions_checked = max(assertions_checked, checked)
+                                assertions_skipped = max(assertions_skipped, skipped)
+                            except (OSError, UnicodeDecodeError):
+                                pass  # Skip unreadable files
+
     # Compute severity summary
     severity_counts: dict[str, int] = {}
     for f in all_findings:
@@ -652,6 +766,10 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
         skill_content,
         knowledge_files,
         knowledge_content,
+        enforcement_findings if enforce else None,
+        enforcement_errors if enforce else None,
+        assertions_checked,
+        assertions_skipped,
     )
 
     return [TextContent(type="text", text=output)]

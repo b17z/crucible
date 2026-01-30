@@ -1,6 +1,6 @@
 """Data models for the enforcement module."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal
 
@@ -10,6 +10,14 @@ class AssertionType(Enum):
 
     PATTERN = "pattern"
     LLM = "llm"
+
+
+class OverflowBehavior(Enum):
+    """Behavior when token budget is exceeded."""
+
+    SKIP = "skip"  # Skip remaining assertions silently
+    WARN = "warn"  # Skip with warning
+    FAIL = "fail"  # Fail the review
 
 
 class Priority(Enum):
@@ -105,3 +113,65 @@ class EnforcementFinding:
     match_text: str | None = None
     suppressed: bool = False
     suppression_reason: str | None = None
+    source: Literal["pattern", "llm"] = "pattern"
+    llm_reasoning: str | None = None  # LLM's explanation for the finding
+
+
+@dataclass(frozen=True)
+class ComplianceConfig:
+    """Configuration for LLM-based compliance checking."""
+
+    enabled: bool = True
+    model: str = "sonnet"  # Default model (sonnet or opus)
+    token_budget: int = 10000  # 0 = unlimited
+    priority_order: tuple[str, ...] = ("critical", "high", "medium", "low")
+    overflow_behavior: OverflowBehavior = OverflowBehavior.WARN
+
+
+@dataclass
+class BudgetState:
+    """Mutable state for tracking token budget during compliance run."""
+
+    total_budget: int
+    tokens_used: int = 0
+    assertions_run: int = 0
+    assertions_skipped: int = 0
+    overflow_triggered: bool = False
+    skipped_assertions: list[str] = field(default_factory=list)
+
+    @property
+    def tokens_remaining(self) -> int:
+        """Tokens remaining in budget."""
+        if self.total_budget == 0:
+            return float("inf")  # type: ignore[return-value]
+        return max(0, self.total_budget - self.tokens_used)
+
+    @property
+    def is_exhausted(self) -> bool:
+        """Whether budget is exhausted."""
+        if self.total_budget == 0:
+            return False
+        return self.tokens_used >= self.total_budget
+
+    def consume(self, tokens: int) -> None:
+        """Consume tokens from budget."""
+        self.tokens_used += tokens
+        self.assertions_run += 1
+
+    def skip(self, assertion_id: str) -> None:
+        """Record a skipped assertion."""
+        self.assertions_skipped += 1
+        self.skipped_assertions.append(assertion_id)
+        self.overflow_triggered = True
+
+
+@dataclass(frozen=True)
+class LLMAssertionResult:
+    """Result from running a single LLM assertion."""
+
+    assertion_id: str
+    passed: bool
+    findings: tuple["EnforcementFinding", ...]
+    tokens_used: int
+    model_used: str
+    error: str | None = None

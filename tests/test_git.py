@@ -263,6 +263,15 @@ class TestIsGitRepo:
     def test_nonexistent_path(self) -> None:
         assert is_git_repo("/nonexistent/path/12345") is False
 
+    def test_file_inside_repo(self) -> None:
+        # A file inside the crucible repo should report as being in a git repo
+        assert is_git_repo("src/crucible/cli.py") is True
+
+    def test_file_outside_repo(self) -> None:
+        # A file in /tmp is not in a git repo
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            assert is_git_repo(f.name) is False
+
 
 class TestGetRepoRoot:
     """Test get_repo_root function."""
@@ -277,6 +286,17 @@ class TestGetRepoRoot:
             result = get_repo_root(tmpdir)
             assert result.is_err
             assert "Not a git repository" in result.error
+
+    def test_file_inside_repo(self) -> None:
+        # A file path should return the repo root
+        result = get_repo_root("src/crucible/cli.py")
+        assert result.is_ok
+        assert Path(result.value).exists()
+
+    def test_file_outside_repo(self) -> None:
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            result = get_repo_root(f.name)
+            assert result.is_err
 
 
 class TestFindingFiltering:

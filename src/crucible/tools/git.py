@@ -42,11 +42,17 @@ class GitContext:
 
 
 def is_git_repo(path: str | Path) -> bool:
-    """Check if the path is inside a git repository."""
+    """Check if the path is inside a git repository.
+
+    Works with both files and directories.
+    """
+    path = Path(path)
+    # Use parent directory if path is a file
+    check_dir = path.parent if path.is_file() else path
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--git-dir"],
-            cwd=str(path),
+            cwd=str(check_dir),
             capture_output=True,
             text=True,
             timeout=5,
@@ -57,14 +63,21 @@ def is_git_repo(path: str | Path) -> bool:
 
 
 def get_repo_root(path: str | Path) -> Result[str, str]:
-    """Get the root directory of the git repository."""
+    """Get the root directory of the git repository.
+
+    Works with both files and directories.
+    """
     if not shutil.which("git"):
         return err("git not found")
+
+    path = Path(path)
+    # Use parent directory if path is a file
+    check_dir = path.parent if path.is_file() else path
 
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            cwd=str(path),
+            cwd=str(check_dir),
             capture_output=True,
             text=True,
             timeout=5,

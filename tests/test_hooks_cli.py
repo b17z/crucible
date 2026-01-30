@@ -94,7 +94,7 @@ class TestHooksInstall:
         with tempfile.TemporaryDirectory() as tmpdir:
             result = run_cli("hooks", "install", tmpdir)
             assert result.returncode == 1
-            assert "not a git repository" in result.stdout
+            assert "not inside a git repository" in result.stdout
 
 
 class TestHooksUninstall:

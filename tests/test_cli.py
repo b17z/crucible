@@ -290,7 +290,7 @@ class TestCmdReview:
         result = cmd_review(Args())
         assert result == 1
         captured = capsys.readouterr()
-        assert "not a git repository" in captured.out
+        assert "not inside a git repository" in captured.out
 
     def test_review_staged_no_changes(self, tmp_path: Path, capsys) -> None:
         """Should handle no staged changes."""

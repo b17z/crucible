@@ -1,8 +1,11 @@
 """Core review functionality shared between CLI and MCP server."""
 
+from __future__ import annotations
+
 from collections import Counter
 from pathlib import Path
 
+from crucible.enforcement.models import BudgetState, ComplianceConfig
 from crucible.models import Domain, Severity, ToolFinding
 from crucible.tools.delegation import (
     delegate_bandit,
@@ -313,31 +316,42 @@ def run_enforcement(
     content: str | None = None,
     changed_files: list[str] | None = None,
     repo_root: str | None = None,
-) -> tuple[list, list[str], int, int]:
-    """Run pattern assertions.
+    compliance_config: ComplianceConfig | None = None,
+) -> tuple[list, list[str], int, int, BudgetState | None]:
+    """Run pattern and LLM assertions.
 
     Args:
         path: File or directory path
         content: File content (for single file mode)
         changed_files: List of changed files (for git mode)
         repo_root: Repository root path (for git mode)
+        compliance_config: Configuration for LLM compliance checking (optional)
 
     Returns:
-        (enforcement_findings, errors, assertions_checked, assertions_skipped)
+        (enforcement_findings, errors, assertions_checked, assertions_skipped, budget_state)
     """
     import os
 
     from crucible.enforcement.assertions import load_assertions
+    from crucible.enforcement.compliance import run_llm_assertions, run_llm_assertions_batch
     from crucible.enforcement.models import EnforcementFinding
     from crucible.enforcement.patterns import run_pattern_assertions
 
     assertions, errors = load_assertions()
     if not assertions:
-        return [], errors, 0, 0
+        return [], errors, 0, 0, None
 
     findings: list[EnforcementFinding] = []
     checked = 0
     skipped = 0
+    budget_state: BudgetState | None = None
+
+    # Default compliance config if not provided
+    if compliance_config is None:
+        compliance_config = ComplianceConfig()
+
+    # Collect files for batch LLM processing
+    files_for_llm: list[tuple[str, str]] = []
 
     if changed_files and repo_root:
         # Git mode: check each changed file
@@ -346,26 +360,67 @@ def run_enforcement(
             try:
                 with open(full_path) as f:
                     file_content = f.read()
+
+                # Run pattern assertions
                 f_findings, c, s = run_pattern_assertions(file_path, file_content, assertions)
                 findings.extend(f_findings)
                 checked = max(checked, c)
                 skipped = max(skipped, s)
+
+                # Collect for LLM processing
+                if compliance_config.enabled:
+                    files_for_llm.append((file_path, file_content))
             except OSError:
                 pass  # File may have been deleted
+
+        # Run LLM assertions in batch
+        if files_for_llm and compliance_config.enabled:
+            llm_findings, budget_state, llm_errors = run_llm_assertions_batch(
+                files_for_llm, assertions, compliance_config
+            )
+            findings.extend(llm_findings)
+            errors.extend(llm_errors)
+            if budget_state:
+                skipped += budget_state.assertions_skipped
+
     elif content is not None:
         # Single file with provided content
         f_findings, checked, skipped = run_pattern_assertions(path, content, assertions)
         findings.extend(f_findings)
+
+        # Run LLM assertions
+        if compliance_config.enabled:
+            llm_findings, budget_state, llm_errors = run_llm_assertions(
+                path, content, assertions, compliance_config
+            )
+            findings.extend(llm_findings)
+            errors.extend(llm_errors)
+            if budget_state:
+                skipped += budget_state.assertions_skipped
+
     elif os.path.isfile(path):
         # Single file
         try:
             with open(path) as f:
                 file_content = f.read()
-            findings, checked, skipped = run_pattern_assertions(path, file_content, assertions)
+
+            p_findings, checked, skipped = run_pattern_assertions(path, file_content, assertions)
+            findings.extend(p_findings)
+
+            # Run LLM assertions
+            if compliance_config.enabled:
+                llm_findings, budget_state, llm_errors = run_llm_assertions(
+                    path, file_content, assertions, compliance_config
+                )
+                findings.extend(llm_findings)
+                errors.extend(llm_errors)
+                if budget_state:
+                    skipped += budget_state.assertions_skipped
         except OSError as e:
             errors.append(f"Failed to read {path}: {e}")
+
     elif os.path.isdir(path):
-        # Directory
+        # Directory - collect all files for batch processing
         for root, _, files in os.walk(path):
             for fname in files:
                 fpath = os.path.join(root, fname)
@@ -373,11 +428,27 @@ def run_enforcement(
                 try:
                     with open(fpath) as f:
                         file_content = f.read()
+
+                    # Run pattern assertions
                     f_findings, c, s = run_pattern_assertions(rel_path, file_content, assertions)
                     findings.extend(f_findings)
                     checked = max(checked, c)
                     skipped = max(skipped, s)
+
+                    # Collect for LLM processing
+                    if compliance_config.enabled:
+                        files_for_llm.append((rel_path, file_content))
                 except (OSError, UnicodeDecodeError):
                     pass  # Skip unreadable files
 
-    return findings, errors, checked, skipped
+        # Run LLM assertions in batch
+        if files_for_llm and compliance_config.enabled:
+            llm_findings, budget_state, llm_errors = run_llm_assertions_batch(
+                files_for_llm, assertions, compliance_config
+            )
+            findings.extend(llm_findings)
+            errors.extend(llm_errors)
+            if budget_state:
+                skipped += budget_state.assertions_skipped
+
+    return findings, errors, checked, skipped, budget_state

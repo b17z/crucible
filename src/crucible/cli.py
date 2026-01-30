@@ -1,9 +1,13 @@
 """crucible CLI."""
 
+from __future__ import annotations
+
 import argparse
 import shutil
 import sys
 from pathlib import Path
+
+from crucible.enforcement.models import ComplianceConfig
 
 # Skills directories
 SKILLS_BUNDLED = Path(__file__).parent / "skills"
@@ -408,6 +412,12 @@ def _load_review_config(repo_path: str | None = None) -> dict:
           backend: high
         include_context: false
         skip_tools: []
+        enforcement:
+          compliance:
+            enabled: true
+            model: sonnet
+            token_budget: 10000
+            overflow_behavior: warn
     """
     import yaml
 
@@ -423,22 +433,217 @@ def _load_review_config(repo_path: str | None = None) -> dict:
         try:
             with open(config_project) as f:
                 config_data = yaml.safe_load(f) or {}
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Could not load {config_project}: {e}", file=sys.stderr)
 
     # Fall back to user-level
     if not config_data and config_user.exists():
         try:
             with open(config_user) as f:
                 config_data = yaml.safe_load(f) or {}
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Could not load {config_user}: {e}", file=sys.stderr)
 
     return config_data
 
 
+def _build_compliance_config(
+    config: dict,
+    cli_token_budget: int | None = None,
+    cli_model: str | None = None,
+    cli_no_compliance: bool = False,
+) -> ComplianceConfig:
+    """Build compliance config from config file and CLI overrides.
+
+    Args:
+        config: Loaded config dict
+        cli_token_budget: CLI --token-budget override
+        cli_model: CLI --compliance-model override
+        cli_no_compliance: CLI --no-compliance flag
+
+    Returns:
+        ComplianceConfig instance
+    """
+    from crucible.enforcement.models import ComplianceConfig, OverflowBehavior
+
+    # Get enforcement.compliance section from config
+    enforcement_config = config.get("enforcement", {})
+    compliance_section = enforcement_config.get("compliance", {})
+
+    # Build config with defaults
+    enabled = not cli_no_compliance and compliance_section.get("enabled", True)
+    model = cli_model or compliance_section.get("model", "sonnet")
+    token_budget = cli_token_budget if cli_token_budget is not None else compliance_section.get("token_budget", 10000)
+
+    # Parse overflow behavior
+    overflow_str = compliance_section.get("overflow_behavior", "warn")
+    try:
+        overflow_behavior = OverflowBehavior(overflow_str.lower())
+    except ValueError:
+        overflow_behavior = OverflowBehavior.WARN
+
+    # Parse priority order
+    priority_order = compliance_section.get("priority_order", ["critical", "high", "medium", "low"])
+    if isinstance(priority_order, list):
+        priority_order = tuple(priority_order)
+    else:
+        priority_order = ("critical", "high", "medium", "low")
+
+    return ComplianceConfig(
+        enabled=enabled,
+        model=model,
+        token_budget=token_budget,
+        priority_order=priority_order,
+        overflow_behavior=overflow_behavior,
+    )
+
+
+def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
+    """Run static analysis on a path without git awareness."""
+    import json as json_mod
+    from pathlib import Path
+
+    from crucible.models import Domain, Severity, ToolFinding
+    from crucible.review.core import (
+        compute_severity_counts,
+        deduplicate_findings,
+        detect_domain_for_file,
+        get_tools_for_domain,
+        run_static_analysis,
+    )
+
+    path_obj = Path(path)
+    if not path_obj.exists():
+        print(f"Error: {path} does not exist")
+        return 1
+
+    # Load config from current directory or user level
+    config = _load_review_config(".")
+
+    # Parse severity threshold
+    severity_order = ["critical", "high", "medium", "low", "info"]
+    severity_map = {
+        "critical": Severity.CRITICAL,
+        "high": Severity.HIGH,
+        "medium": Severity.MEDIUM,
+        "low": Severity.LOW,
+        "info": Severity.INFO,
+    }
+    default_threshold_str = args.fail_on or config.get("fail_on")
+    default_threshold: Severity | None = None
+    if default_threshold_str:
+        default_threshold = severity_map.get(default_threshold_str.lower())
+
+    skip_tools = set(config.get("skip_tools", []))
+
+    # Collect files to analyze
+    files_to_analyze: list[str] = []
+    if path_obj.is_file():
+        files_to_analyze = [str(path_obj)]
+    else:
+        # Recursively find files, respecting common ignores
+        ignore_dirs = {".git", "__pycache__", "node_modules", ".venv", "venv", "build", "dist"}
+        for file_path in path_obj.rglob("*"):
+            if file_path.is_file():
+                # Skip ignored directories
+                if any(ignored in file_path.parts for ignored in ignore_dirs):
+                    continue
+                files_to_analyze.append(str(file_path))
+
+    if not files_to_analyze:
+        print("No files to analyze.")
+        return 0
+
+    if not args.quiet and not args.json:
+        print(f"Reviewing {len(files_to_analyze)} file(s) (no git)...")
+
+    # Run analysis
+    all_findings: list[ToolFinding] = []
+    tool_errors: list[str] = []
+    domains_detected: set[Domain] = set()
+    all_domain_tags: set[str] = set()
+
+    for file_path in files_to_analyze:
+        domain, domain_tags = detect_domain_for_file(file_path)
+        domains_detected.add(domain)
+        all_domain_tags.update(domain_tags)
+
+        tools = get_tools_for_domain(domain, domain_tags)
+        tools = [t for t in tools if t not in skip_tools]
+
+        findings, errors = run_static_analysis(file_path, domain, domain_tags, tools)
+        all_findings.extend(findings)
+        tool_errors.extend(errors)
+
+    # Deduplicate
+    all_findings = deduplicate_findings(all_findings)
+
+    # Compute severity summary
+    severity_counts = compute_severity_counts(all_findings)
+
+    # Determine pass/fail
+    passed = True
+    if default_threshold:
+        threshold_idx = severity_order.index(default_threshold.value)
+        for sev in severity_order[: threshold_idx + 1]:
+            if severity_counts.get(sev, 0) > 0:
+                passed = False
+                break
+
+    # Output
+    if args.json:
+        output = {
+            "mode": "no-git",
+            "files_analyzed": len(files_to_analyze),
+            "domains_detected": [d.value for d in domains_detected],
+            "findings": [
+                {
+                    "tool": f.tool,
+                    "rule": f.rule,
+                    "severity": f.severity.value,
+                    "message": f.message,
+                    "location": f.location,
+                    "suggestion": f.suggestion,
+                }
+                for f in all_findings
+            ],
+            "severity_counts": severity_counts,
+            "passed": passed,
+            "threshold": default_threshold.value if default_threshold else None,
+            "errors": tool_errors,
+        }
+        print(json_mod.dumps(output, indent=2))
+    else:
+        # Text output
+        if all_findings:
+            print(f"\nFound {len(all_findings)} issue(s):\n")
+            for f in all_findings:
+                sev_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪"}.get(
+                    f.severity.value, "⚪"
+                )
+                print(f"{sev_icon} [{f.severity.value.upper()}] {f.location}")
+                print(f"   {f.tool}/{f.rule}: {f.message}")
+                if f.suggestion:
+                    print(f"   💡 {f.suggestion}")
+                print()
+        else:
+            print("\n✅ No issues found.")
+
+        # Summary
+        if severity_counts:
+            counts_str = ", ".join(f"{k}: {v}" for k, v in severity_counts.items() if v > 0)
+            print(f"Summary: {counts_str}")
+
+        if tool_errors and not args.quiet:
+            print(f"\n⚠️  {len(tool_errors)} tool error(s)")
+            for err in tool_errors[:5]:
+                print(f"   - {err}")
+
+    return 0 if passed else 1
+
+
 def cmd_review(args: argparse.Namespace) -> int:
-    """Run code review on git changes."""
+    """Run code review on git changes or a path directly."""
     import json as json_mod
 
     from crucible.models import Domain, Severity, ToolFinding
@@ -450,6 +655,14 @@ def cmd_review(args: argparse.Namespace) -> int:
         get_tools_for_domain,
         run_static_analysis,
     )
+
+    path = args.path or "."
+
+    # Handle --no-git mode: simple static analysis without git awareness
+    if getattr(args, "no_git", False):
+        return _cmd_review_no_git(args, path)
+
+    # Git-aware review mode
     from crucible.tools.git import (
         get_branch_diff,
         get_recent_commits,
@@ -459,12 +672,12 @@ def cmd_review(args: argparse.Namespace) -> int:
         is_git_repo,
     )
 
-    path = args.path or "."
     mode = args.mode
 
     # Validate git repo
     if not is_git_repo(path):
-        print(f"Error: {path} is not a git repository")
+        print(f"Error: {path} is not inside a git repository")
+        print("Hint: Use --no-git to review files without git awareness")
         return 1
 
     root_result = get_repo_root(path)
@@ -623,6 +836,28 @@ def cmd_review(args: argparse.Namespace) -> int:
         if result.is_ok:
             knowledge_content[filename] = result.value
 
+    # Run enforcement assertions (pattern + LLM)
+    from crucible.review.core import run_enforcement
+
+    compliance_config = _build_compliance_config(
+        config,
+        cli_token_budget=getattr(args, "token_budget", None),
+        cli_model=getattr(args, "compliance_model", None),
+        cli_no_compliance=getattr(args, "no_compliance", False),
+    )
+
+    enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
+        run_enforcement(
+            repo_path,
+            changed_files=changed_files,
+            repo_root=repo_path,
+            compliance_config=compliance_config,
+        )
+    )
+
+    # Add enforcement errors to tool errors
+    tool_errors.extend(enforcement_errors)
+
     # Compute severity summary
     severity_counts = compute_severity_counts(filtered_findings)
 
@@ -673,6 +908,22 @@ def cmd_review(args: argparse.Namespace) -> int:
                 }
                 for f in filtered_findings
             ],
+            "enforcement": {
+                "findings": [
+                    {
+                        "assertion_id": f.assertion_id,
+                        "severity": f.severity,
+                        "message": f.message,
+                        "location": f.location,
+                        "source": f.source,
+                        "suppressed": f.suppressed,
+                    }
+                    for f in enforcement_findings
+                ],
+                "assertions_checked": assertions_checked,
+                "assertions_skipped": assertions_skipped,
+                "llm_tokens_used": budget_state.tokens_used if budget_state else 0,
+            },
             "severity_counts": severity_counts,
             "threshold": threshold_used,
             "errors": tool_errors,
@@ -814,6 +1065,28 @@ def cmd_review(args: argparse.Namespace) -> int:
                 print()
         else:
             print("\nNo issues found in changed code.")
+
+        # Enforcement assertions
+        if enforcement_findings:
+            active_enforcement = [f for f in enforcement_findings if not f.suppressed]
+            suppressed_enforcement = [f for f in enforcement_findings if f.suppressed]
+
+            if active_enforcement:
+                print(f"\nEnforcement Assertions ({len(active_enforcement)}):")
+                for f in active_enforcement:
+                    sev_upper = f.severity.upper()
+                    source_label = "[LLM]" if f.source == "llm" else "[PATTERN]"
+                    print(f"  [{sev_upper}] {source_label} {f.assertion_id}: {f.location}")
+                    print(f"    {f.message}")
+                    print()
+
+            if suppressed_enforcement:
+                print(f"  Suppressed: {len(suppressed_enforcement)}")
+
+        if assertions_checked > 0:
+            print(f"\nAssertions: {assertions_checked} checked, {assertions_skipped} skipped")
+            if budget_state and budget_state.tokens_used > 0:
+                print(f"  LLM tokens used: {budget_state.tokens_used}")
 
         if effective_threshold:
             status = "PASSED" if passed else "FAILED"
@@ -1124,7 +1397,7 @@ def cmd_hooks_install(args: argparse.Namespace) -> int:
 
     path = args.path or "."
     if not is_git_repo(path):
-        print(f"Error: {path} is not a git repository")
+        print(f"Error: {path} is not inside a git repository")
         return 1
 
     root_result = get_repo_root(path)
@@ -1170,7 +1443,7 @@ def cmd_hooks_uninstall(args: argparse.Namespace) -> int:
 
     path = args.path or "."
     if not is_git_repo(path):
-        print(f"Error: {path} is not a git repository")
+        print(f"Error: {path} is not inside a git repository")
         return 1
 
     root_result = get_repo_root(path)
@@ -1203,7 +1476,7 @@ def cmd_hooks_status(args: argparse.Namespace) -> int:
 
     path = args.path or "."
     if not is_git_repo(path):
-        print(f"Error: {path} is not a git repository")
+        print(f"Error: {path} is not inside a git repository")
         return 1
 
     root_result = get_repo_root(path)
@@ -1468,6 +1741,104 @@ def cmd_ci_generate(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Config commands ---
+
+CONFIG_DIR = Path.home() / ".config" / "crucible"
+SECRETS_FILE = CONFIG_DIR / "secrets.yaml"
+
+
+def cmd_config_set_api_key(args: argparse.Namespace) -> int:
+    """Set Anthropic API key for LLM compliance assertions."""
+    import getpass
+
+    import yaml
+
+    print("Set Anthropic API key for LLM compliance assertions.")
+    print("This will be stored in ~/.config/crucible/secrets.yaml")
+    print()
+
+    # Prompt for key (hidden input)
+    api_key = getpass.getpass("Enter API key (input hidden): ")
+
+    if not api_key:
+        print("No key provided, aborting.")
+        return 1
+
+    if not api_key.startswith("sk-ant-"):
+        print("Warning: Key doesn't start with 'sk-ant-', are you sure this is correct?")
+        confirm = input("Continue? [y/N]: ")
+        if confirm.lower() != "y":
+            print("Aborted.")
+            return 1
+
+    # Create config directory
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Load existing config or create new
+    existing_config: dict = {}
+    if SECRETS_FILE.exists():
+        try:
+            with open(SECRETS_FILE) as f:
+                existing_config = yaml.safe_load(f) or {}
+        except Exception as e:
+            print(f"Warning: Could not read existing {SECRETS_FILE}: {e}", file=sys.stderr)
+
+    # Update config
+    existing_config["anthropic_api_key"] = api_key
+
+    # Write with restrictive permissions
+    SECRETS_FILE.write_text(yaml.dump(existing_config, default_flow_style=False))
+    SECRETS_FILE.chmod(0o600)
+
+    print(f"API key saved to {SECRETS_FILE}")
+    print("Permissions set to 600 (owner read/write only)")
+    return 0
+
+
+def cmd_config_show(args: argparse.Namespace) -> int:
+    """Show current configuration."""
+    import os
+
+    import yaml
+
+    print("Crucible Configuration")
+    print("=" * 40)
+
+    # Check env var
+    env_key = os.environ.get("ANTHROPIC_API_KEY")
+    if env_key:
+        print(f"ANTHROPIC_API_KEY (env): {env_key[:10]}...{env_key[-4:]}")
+    else:
+        print("ANTHROPIC_API_KEY (env): not set")
+
+    # Check config file
+    if SECRETS_FILE.exists():
+        try:
+            with open(SECRETS_FILE) as f:
+                data = yaml.safe_load(f) or {}
+            file_key = data.get("anthropic_api_key")
+            if file_key:
+                print(f"anthropic_api_key (file): {file_key[:10]}...{file_key[-4:]}")
+            else:
+                print("anthropic_api_key (file): not set")
+            print(f"Config file: {SECRETS_FILE}")
+        except Exception as e:
+            print(f"Config file error: {e}")
+    else:
+        print(f"Config file: {SECRETS_FILE} (not found)")
+
+    # Show which would be used
+    print()
+    if env_key:
+        print("Active: environment variable (takes precedence)")
+    elif SECRETS_FILE.exists():
+        print("Active: config file")
+    else:
+        print("Active: none (LLM assertions will fail)")
+
+    return 0
+
+
 # --- Main ---
 
 
@@ -1618,7 +1989,24 @@ def main() -> int:
         help="Suppress progress messages"
     )
     review_parser.add_argument(
-        "path", nargs="?", default=".", help="Repository path"
+        "--token-budget", type=int,
+        help="Token budget for LLM compliance assertions (0 = unlimited)"
+    )
+    review_parser.add_argument(
+        "--compliance-model",
+        choices=["sonnet", "opus", "haiku"],
+        help="Model for LLM compliance assertions (default: sonnet)"
+    )
+    review_parser.add_argument(
+        "--no-compliance", action="store_true",
+        help="Disable LLM compliance assertions"
+    )
+    review_parser.add_argument(
+        "--no-git", action="store_true",
+        help="Review path directly without git awareness (static analysis only)"
+    )
+    review_parser.add_argument(
+        "path", nargs="?", default=".", help="Path to review (file or directory)"
     )
 
     # === pre-commit command (direct invocation) ===
@@ -1716,6 +2104,22 @@ def main() -> int:
         help="Fail threshold for CI (default: high)"
     )
 
+    # === config command ===
+    config_parser = subparsers.add_parser("config", help="Manage crucible configuration")
+    config_sub = config_parser.add_subparsers(dest="config_command")
+
+    # config set-api-key
+    config_sub.add_parser(
+        "set-api-key",
+        help="Set Anthropic API key for LLM compliance assertions"
+    )
+
+    # config show
+    config_sub.add_parser(
+        "show",
+        help="Show current configuration"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -1778,6 +2182,14 @@ def main() -> int:
         return cmd_review(args)
     elif args.command == "pre-commit":
         return cmd_precommit(args)
+    elif args.command == "config":
+        if args.config_command == "set-api-key":
+            return cmd_config_set_api_key(args)
+        elif args.config_command == "show":
+            return cmd_config_show(args)
+        else:
+            config_parser.print_help()
+            return 0
     else:
         # Default help
         print("crucible - Code review orchestration\n")
@@ -1806,9 +2218,10 @@ def main() -> int:
         print("  crucible assertions explain <r> Explain what a rule does")
         print("  crucible assertions debug       Debug applicability for a rule")
         print()
-        print("  crucible review                 Review git changes")
+        print("  crucible review                 Review git changes or files")
         print("    --mode <mode>                 staged/unstaged/branch/commits (default: staged)")
         print("    --base <ref>                  Base branch or commit count")
+        print("    --no-git                      Review path without git (static analysis only)")
         print("    --fail-on <severity>          Fail threshold (critical/high/medium/low/info)")
         print("    --format <format>             Output format: text (default) or report (markdown)")
         print()

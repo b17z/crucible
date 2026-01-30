@@ -117,6 +117,20 @@ async def list_tools() -> list[Tool]:
                         "description": "Run pattern assertions from .crucible/assertions/ (default: true).",
                         "default": True,
                     },
+                    "compliance_enabled": {
+                        "type": "boolean",
+                        "description": "Enable LLM compliance assertions (default: true).",
+                        "default": True,
+                    },
+                    "compliance_model": {
+                        "type": "string",
+                        "enum": ["sonnet", "opus", "haiku"],
+                        "description": "Model for LLM compliance assertions (default: sonnet).",
+                    },
+                    "token_budget": {
+                        "type": "integer",
+                        "description": "Token budget for LLM assertions (0 = unlimited, default: 10000).",
+                    },
                 },
             },
         ),
@@ -318,6 +332,7 @@ def _format_review_output(
     enforcement_errors: list[str] | None = None,
     assertions_checked: int = 0,
     assertions_skipped: int = 0,
+    budget_state: Any = None,
 ) -> str:
     """Format unified review output."""
     parts: list[str] = ["# Code Review\n"]
@@ -392,9 +407,22 @@ def _format_review_output(
         active = [f for f in enforcement_findings if not f.suppressed]
         suppressed = [f for f in enforcement_findings if f.suppressed]
 
-        parts.append("## Pattern Assertions\n")
-        if assertions_checked > 0 or assertions_skipped > 0:
-            parts.append(f"*Checked: {assertions_checked}, Skipped (LLM): {assertions_skipped}*\n")
+        # Separate pattern vs LLM findings
+        pattern_findings = [f for f in active if getattr(f, "source", "pattern") == "pattern"]
+        llm_findings = [f for f in active if getattr(f, "source", "pattern") == "llm"]
+
+        parts.append("## Enforcement Assertions\n")
+
+        # Summary line
+        summary_parts = []
+        if assertions_checked > 0:
+            summary_parts.append(f"Checked: {assertions_checked}")
+        if assertions_skipped > 0:
+            summary_parts.append(f"Skipped: {assertions_skipped}")
+        if budget_state and budget_state.tokens_used > 0:
+            summary_parts.append(f"LLM tokens: {budget_state.tokens_used}")
+        if summary_parts:
+            parts.append(f"*{', '.join(summary_parts)}*\n")
 
         if enforcement_errors:
             parts.append("**Errors:**")
@@ -402,22 +430,40 @@ def _format_review_output(
                 parts.append(f"- {err}")
             parts.append("")
 
-        if active:
-            # Group by severity
+        # Pattern assertions
+        if pattern_findings:
+            parts.append("### Pattern Assertions\n")
             by_sev: dict[str, list] = {}
-            for f in active:
+            for f in pattern_findings:
                 by_sev.setdefault(f.severity.upper(), []).append(f)
 
             for sev in ["ERROR", "WARNING", "INFO"]:
                 if sev in by_sev:
-                    parts.append(f"### {sev} ({len(by_sev[sev])})\n")
+                    parts.append(f"#### {sev} ({len(by_sev[sev])})\n")
                     for f in by_sev[sev]:
                         parts.append(f"- **[{f.assertion_id}]** {f.message}")
                         parts.append(f"  - Location: `{f.location}`")
                         if f.match_text:
                             parts.append(f"  - Match: `{f.match_text}`")
-        else:
-            parts.append("No pattern violations found.")
+
+        # LLM compliance assertions
+        if llm_findings:
+            parts.append("### LLM Compliance Assertions\n")
+            by_sev_llm: dict[str, list] = {}
+            for f in llm_findings:
+                by_sev_llm.setdefault(f.severity.upper(), []).append(f)
+
+            for sev in ["ERROR", "WARNING", "INFO"]:
+                if sev in by_sev_llm:
+                    parts.append(f"#### {sev} ({len(by_sev_llm[sev])})\n")
+                    for f in by_sev_llm[sev]:
+                        parts.append(f"- **[{f.assertion_id}]** {f.message}")
+                        parts.append(f"  - Location: `{f.location}`")
+                        if getattr(f, "llm_reasoning", None):
+                            parts.append(f"  - Reasoning: {f.llm_reasoning}")
+
+        if not pattern_findings and not llm_findings:
+            parts.append("No assertion violations found.")
 
         if suppressed:
             parts.append(f"\n*Suppressed: {len(suppressed)}*")
@@ -452,6 +498,8 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle unified review tool."""
     import os
 
+    from crucible.enforcement.models import ComplianceConfig, OverflowBehavior
+
     path = arguments.get("path")
     mode = arguments.get("mode")
     base = arguments.get("base")
@@ -460,6 +508,18 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     include_skills = arguments.get("include_skills", True)
     include_knowledge = arguments.get("include_knowledge", True)
     enforce = arguments.get("enforce", True)
+
+    # Build compliance config
+    compliance_enabled = arguments.get("compliance_enabled", True)
+    compliance_model = arguments.get("compliance_model", "sonnet")
+    token_budget = arguments.get("token_budget", 10000)
+
+    compliance_config = ComplianceConfig(
+        enabled=compliance_enabled,
+        model=compliance_model,
+        token_budget=token_budget,
+        overflow_behavior=OverflowBehavior.WARN,
+    )
 
     # Determine if this is path-based or git-based review
     git_context: GitContext | None = None
@@ -544,21 +604,27 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     # Deduplicate findings
     all_findings = deduplicate_findings(all_findings)
 
-    # Run pattern assertions
+    # Run pattern and LLM assertions
     enforcement_findings = []
     enforcement_errors: list[str] = []
     assertions_checked = 0
     assertions_skipped = 0
+    budget_state = None
 
     if enforce:
         if git_context:
             repo_path = get_repo_root(path if path else os.getcwd()).value
-            enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped = (
-                run_enforcement(path or "", changed_files=changed_files, repo_root=repo_path)
+            enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
+                run_enforcement(
+                    path or "",
+                    changed_files=changed_files,
+                    repo_root=repo_path,
+                    compliance_config=compliance_config,
+                )
             )
         elif path:
-            enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped = (
-                run_enforcement(path)
+            enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
+                run_enforcement(path, compliance_config=compliance_config)
             )
 
     # Compute severity summary
@@ -598,6 +664,7 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
         enforcement_errors if enforce else None,
         assertions_checked,
         assertions_skipped,
+        budget_state,
     )
 
     return [TextContent(type="text", text=output)]

@@ -1,3 +1,10 @@
+---
+name: Type Safety
+description: Type annotations, generics, strict mode, type guards
+triggers: [types, typescript, typing, mypy, type-safety]
+type: principle
+---
+
 # Type Safety Principles
 
 Patterns for making invalid states unrepresentable.

@@ -1,3 +1,10 @@
+---
+name: Testing Principles
+description: Test pyramid, unit/integration/e2e, mocking patterns
+triggers: [testing, tests, unit-tests, integration, e2e]
+type: principle
+---
+
 # Testing Principles
 
 What to test, how to structure tests, and patterns that work.

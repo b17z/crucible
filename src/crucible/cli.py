@@ -578,6 +578,27 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
     # Deduplicate
     all_findings = deduplicate_findings(all_findings)
 
+    # Run enforcement assertions
+    from crucible.review.core import run_enforcement
+
+    compliance_config = _build_compliance_config(
+        config,
+        cli_token_budget=getattr(args, "token_budget", None),
+        cli_model=getattr(args, "compliance_model", None),
+        cli_no_compliance=getattr(args, "no_compliance", False),
+    )
+
+    # Use current directory as repo root for enforcement
+    enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
+        run_enforcement(
+            ".",
+            changed_files=files_to_analyze,
+            repo_root=".",
+            compliance_config=compliance_config,
+        )
+    )
+    tool_errors.extend(enforcement_errors)
+
     # Compute severity summary
     severity_counts = compute_severity_counts(all_findings)
 
@@ -607,6 +628,21 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
                 }
                 for f in all_findings
             ],
+            "enforcement": {
+                "findings": [
+                    {
+                        "assertion_id": f.assertion_id,
+                        "severity": f.severity,
+                        "message": f.message,
+                        "location": f.location,
+                        "source": f.source,
+                    }
+                    for f in enforcement_findings
+                ],
+                "assertions_checked": assertions_checked,
+                "assertions_skipped": assertions_skipped,
+                "tokens_used": budget_state.tokens_used if budget_state else 0,
+            },
             "severity_counts": severity_counts,
             "passed": passed,
             "threshold": default_threshold.value if default_threshold else None,
@@ -616,7 +652,7 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
     else:
         # Text output
         if all_findings:
-            print(f"\nFound {len(all_findings)} issue(s):\n")
+            print(f"\nFound {len(all_findings)} static analysis issue(s):\n")
             for f in all_findings:
                 sev_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪"}.get(
                     f.severity.value, "⚪"
@@ -626,13 +662,29 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
                 if f.suggestion:
                     print(f"   💡 {f.suggestion}")
                 print()
-        else:
+
+        # Enforcement findings
+        if enforcement_findings:
+            print(f"\nEnforcement Assertions ({len(enforcement_findings)}):")
+            for f in enforcement_findings:
+                sev_icon = {"error": "🔴", "warning": "🟠", "info": "⚪"}.get(f.severity, "⚪")
+                source_tag = "[LLM]" if f.source == "llm" else "[Pattern]"
+                print(f"  {sev_icon} [{f.severity.upper()}] {source_tag} {f.assertion_id}: {f.location}")
+                print(f"    {f.message}")
+                print()
+
+        if not all_findings and not enforcement_findings:
             print("\n✅ No issues found.")
 
         # Summary
         if severity_counts:
             counts_str = ", ".join(f"{k}: {v}" for k, v in severity_counts.items() if v > 0)
             print(f"Summary: {counts_str}")
+
+        if assertions_checked or assertions_skipped:
+            print(f"Assertions: {assertions_checked} checked, {assertions_skipped} skipped")
+            if budget_state and budget_state.tokens_used > 0:
+                print(f"  LLM tokens used: {budget_state.tokens_used}")
 
         if tool_errors and not args.quiet:
             print(f"\n⚠️  {len(tool_errors)} tool error(s)")

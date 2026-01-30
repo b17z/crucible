@@ -1,3 +1,10 @@
+---
+name: Observability
+description: Logging, metrics, tracing, alerting patterns
+triggers: [logging, monitoring, metrics, tracing, observability]
+type: pattern
+---
+
 # Observability Principles
 
 Logs, metrics, traces, and alerting patterns.

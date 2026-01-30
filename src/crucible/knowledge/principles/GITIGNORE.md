@@ -1,3 +1,10 @@
+---
+name: Gitignore Patterns
+description: What to exclude from version control
+triggers: [gitignore, git, secrets]
+type: pattern
+---
+
 # Gitignore Principles
 
 Defense-in-depth for preventing secret commits.

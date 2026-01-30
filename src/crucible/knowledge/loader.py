@@ -4,11 +4,95 @@ Knowledge follows the same cascade as skills:
 1. Project: .crucible/knowledge/
 2. User: ~/.claude/crucible/knowledge/
 3. Bundled: package knowledge/
+
+Knowledge files support frontmatter for better Claude Code integration:
+---
+name: Security Principles
+description: Core security principles for all code
+triggers: [security, auth, crypto]
+type: principle  # principle | pattern | preference
+assertions: security.yaml  # linked assertion file
+---
 """
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
+import yaml
+
 from crucible.errors import Result, err, ok
+
+
+@dataclass(frozen=True)
+class KnowledgeMetadata:
+    """Metadata parsed from knowledge file frontmatter."""
+
+    name: str
+    description: str = ""
+    triggers: tuple[str, ...] = ()
+    type: str = "principle"  # principle, pattern, preference
+    assertions: str | None = None  # linked assertion file
+
+    @classmethod
+    def from_frontmatter(cls, data: dict, filename: str) -> "KnowledgeMetadata":
+        """Create metadata from parsed frontmatter dict."""
+        return cls(
+            name=data.get("name", filename.replace(".md", "").replace("_", " ").title()),
+            description=data.get("description", ""),
+            triggers=tuple(data.get("triggers", [])),
+            type=data.get("type", "principle"),
+            assertions=data.get("assertions"),
+        )
+
+
+@dataclass
+class KnowledgeFile:
+    """A knowledge file with metadata and content."""
+
+    filename: str
+    path: Path
+    source: str  # project, user, bundled
+    metadata: KnowledgeMetadata
+    content: str = field(repr=False)
+
+
+def parse_frontmatter(content: str, filename: str) -> tuple[KnowledgeMetadata, str]:
+    """Parse YAML frontmatter from knowledge file content.
+
+    Args:
+        content: Full file content
+        filename: Filename for default metadata
+
+    Returns:
+        Tuple of (metadata, content without frontmatter)
+    """
+    if not content.startswith("---"):
+        # No frontmatter, return defaults
+        return KnowledgeMetadata(name=filename.replace(".md", "").replace("_", " ").title()), content
+
+    # Find closing ---
+    lines = content.split("\n")
+    end_idx = None
+    for i, line in enumerate(lines[1:], 1):
+        if line.strip() == "---":
+            end_idx = i
+            break
+
+    if end_idx is None:
+        # Malformed frontmatter, treat as no frontmatter
+        return KnowledgeMetadata(name=filename.replace(".md", "").replace("_", " ").title()), content
+
+    # Parse YAML
+    frontmatter_text = "\n".join(lines[1:end_idx])
+    remaining_content = "\n".join(lines[end_idx + 1 :]).lstrip()
+
+    try:
+        data = yaml.safe_load(frontmatter_text) or {}
+        metadata = KnowledgeMetadata.from_frontmatter(data, filename)
+    except yaml.YAMLError:
+        metadata = KnowledgeMetadata(name=filename.replace(".md", "").replace("_", " ").title())
+
+    return metadata, remaining_content
 
 # Knowledge directories (same pattern as skills)
 KNOWLEDGE_BUNDLED = Path(__file__).parent / "principles"
@@ -69,6 +153,77 @@ def get_all_knowledge_files() -> set[str]:
                     files.add(file_path.name)
 
     return files
+
+
+def load_knowledge_with_metadata(filename: str) -> Result[KnowledgeFile, str]:
+    """Load a knowledge file with parsed metadata.
+
+    Args:
+        filename: Knowledge file name (e.g., "SECURITY.md")
+
+    Returns:
+        Result containing KnowledgeFile or error message
+    """
+    path, source = resolve_knowledge_file(filename)
+    if path is None:
+        return err(f"Knowledge file '{filename}' not found")
+
+    try:
+        raw_content = path.read_text()
+        metadata, content = parse_frontmatter(raw_content, filename)
+        return ok(
+            KnowledgeFile(
+                filename=filename,
+                path=path,
+                source=source,
+                metadata=metadata,
+                content=content,
+            )
+        )
+    except OSError as e:
+        return err(f"Failed to read '{filename}': {e}")
+
+
+def get_all_knowledge_metadata() -> list[tuple[str, KnowledgeMetadata]]:
+    """Get metadata for all knowledge files (for discovery/indexing).
+
+    Returns list of (filename, metadata) tuples. This is cheap - only parses
+    frontmatter, doesn't load full content into memory.
+    """
+    results: list[tuple[str, KnowledgeMetadata]] = []
+
+    for filename in sorted(get_all_knowledge_files()):
+        path, _ = resolve_knowledge_file(filename)
+        if path:
+            try:
+                # Read just enough to get frontmatter
+                content = path.read_text()
+                metadata, _ = parse_frontmatter(content, filename)
+                results.append((filename, metadata))
+            except OSError:
+                # Skip unreadable files
+                pass
+
+    return results
+
+
+def get_knowledge_by_trigger(trigger: str) -> list[str]:
+    """Get knowledge files that match a trigger.
+
+    Args:
+        trigger: Trigger to match (e.g., "security", "auth")
+
+    Returns:
+        List of matching filenames
+    """
+    matches: list[str] = []
+    trigger_lower = trigger.lower()
+
+    for filename, metadata in get_all_knowledge_metadata():
+        if trigger_lower in [t.lower() for t in metadata.triggers]:
+            matches.append(filename)
+
+    return matches
 
 
 def get_custom_knowledge_files() -> set[str]:

@@ -1,3 +1,10 @@
+---
+name: Error Handling
+description: Result types, error boundaries, no silent failures
+triggers: [errors, exceptions, error-handling, try-catch]
+type: principle
+---
+
 # Error Handling Principles
 
 ---

@@ -1,3 +1,10 @@
+---
+name: Documentation
+description: Code comments, READMEs, API docs, architecture docs
+triggers: [docs, documentation, readme, comments]
+type: preference
+---
+
 # Documentation Principles
 
 What to document, where to put it, and how to keep it useful.

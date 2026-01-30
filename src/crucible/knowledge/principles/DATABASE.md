@@ -1,3 +1,10 @@
+---
+name: Database Patterns
+description: Migrations, indexing, query patterns, connection management
+triggers: [database, sql, postgres, mysql, migrations]
+type: pattern
+---
+
 # Database Principles
 
 ---

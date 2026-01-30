@@ -1,3 +1,10 @@
+---
+name: Functional Programming
+description: Immutability, pure functions, composition patterns
+triggers: [functional, fp, immutable, pure-functions]
+type: preference
+---
+
 # Functional Programming Principles
 
 ---

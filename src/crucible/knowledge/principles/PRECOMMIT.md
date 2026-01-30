@@ -1,3 +1,10 @@
+---
+name: Pre-commit Hooks
+description: Automated checks before commits - linting, formatting, secrets
+triggers: [precommit, hooks, linting, formatting]
+type: pattern
+---
+
 # Pre-commit Hook Principles
 
 Automated guardrails before code enters the repo.

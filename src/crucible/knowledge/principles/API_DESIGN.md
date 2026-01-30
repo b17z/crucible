@@ -1,3 +1,10 @@
+---
+name: API Design
+description: REST conventions, versioning, pagination, error responses
+triggers: [api, rest, http, endpoints]
+type: pattern
+---
+
 # API Design Principles
 
 REST conventions, response shapes, and common patterns.

@@ -1,3 +1,10 @@
+---
+name: Commit Messages
+description: Conventional commits format and best practices
+triggers: [git, commits, version-control]
+type: pattern
+---
+
 # Commit Message Principles
 
 Semantic commits for readable history.

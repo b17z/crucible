@@ -1,3 +1,10 @@
+---
+name: System Design
+description: Architecture patterns, scalability, distributed systems
+triggers: [architecture, system-design, scalability, distributed]
+type: principle
+---
+
 # System Design Principles
 
 ---

@@ -1,6 +1,8 @@
 # Crucible
 
-Load your coding patterns into Claude Code.
+**Your team's standards, applied by Claude, every time.**
+
+Claude without context applies generic best practices. Crucible loads *your* patterns—so Claude reviews code the way your team would, not the way the internet would.
 
 ```
 ├── Personas:      Domain-specific thinking (how to approach problems)
@@ -9,7 +11,12 @@ Load your coding patterns into Claude Code.
 └── Context-aware: Loads relevant skills based on what you're working on
 ```
 
-**Personas for domains. Knowledge for patterns. All customizable.**
+**Why Crucible?**
+- **Consistency** — Same checklist every time, for every engineer, every session
+- **Automation** — Runs in CI and pre-commit, not just interactively
+- **Institutional knowledge** — Your senior engineer's mental checklist, in the repo
+- **Your context** — Security fundamentals plus *your* auth patterns, *your* conventions, *your* definition of "done"
+- **Cost efficiency** — Filter with free tools first, LLM only on what needs judgment
 
 > Not affiliated with Atlassian's Crucible.
 

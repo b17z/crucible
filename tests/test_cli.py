@@ -376,9 +376,9 @@ class TestCmdReview:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_ruff", return_value=ok([finding])),
-            patch("crucible.tools.delegation.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([finding])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = cmd_review(Args())
             # Without --fail-on, should always pass
@@ -416,9 +416,9 @@ class TestCmdReview:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_ruff", return_value=ok([finding])),
-            patch("crucible.tools.delegation.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([finding])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = cmd_review(Args())
             # With --fail-on low, should fail
@@ -460,9 +460,9 @@ class TestCmdReview:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_ruff", return_value=ok([finding])),
-            patch("crucible.tools.delegation.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([finding])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = cmd_review(Args())
             assert result == 0
@@ -559,9 +559,9 @@ class TestCmdReview:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_ruff", return_value=ok([finding])),
-            patch("crucible.tools.delegation.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([finding])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = cmd_review(Args())
             # Config specifies fail_on: low, so should fail
@@ -611,8 +611,8 @@ fail_on_domain:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_slither", return_value=ok([finding])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_slither", return_value=ok([finding])),
         ):
             result = cmd_review(Args())
             # Per-domain threshold is critical, but finding is high, so should pass
@@ -646,9 +646,9 @@ fail_on_domain:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_ruff", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_bandit", return_value=ok([])) as mock_bandit,
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])) as mock_bandit,
         ):
             result = cmd_review(Args())
             # bandit should not be called due to skip_tools config
@@ -687,9 +687,9 @@ fail_on_domain:
             patch("crucible.tools.git.is_git_repo", return_value=True),
             patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
             patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
-            patch("crucible.tools.delegation.delegate_semgrep", return_value=ok([])),
-            patch("crucible.tools.delegation.delegate_ruff", return_value=ok([finding])),
-            patch("crucible.tools.delegation.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([finding])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = cmd_review(Args())
             captured = capsys.readouterr()

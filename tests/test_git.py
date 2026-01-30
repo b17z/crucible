@@ -284,7 +284,7 @@ class TestFindingFiltering:
 
     def test_filter_findings_in_changed_lines(self) -> None:
         # Import the filter function from server
-        from crucible.server import _filter_findings_to_changes
+        from crucible.review.core import filter_findings_to_changes
 
         findings = [
             ToolFinding(
@@ -315,12 +315,12 @@ class TestFindingFiltering:
             ),
         )
 
-        filtered = _filter_findings_to_changes(findings, context)
+        filtered = filter_findings_to_changes(findings, context)
         assert len(filtered) == 1
         assert filtered[0].location == "src/test.py:5"
 
     def test_filter_with_context_lines(self) -> None:
-        from crucible.server import _filter_findings_to_changes
+        from crucible.review.core import filter_findings_to_changes
 
         findings = [
             ToolFinding(
@@ -352,16 +352,16 @@ class TestFindingFiltering:
         )
 
         # Without context
-        filtered = _filter_findings_to_changes(findings, context, include_context=False)
+        filtered = filter_findings_to_changes(findings, context, include_context=False)
         assert len(filtered) == 0
 
         # With context (within 5 lines)
-        filtered = _filter_findings_to_changes(findings, context, include_context=True)
+        filtered = filter_findings_to_changes(findings, context, include_context=True)
         assert len(filtered) == 1
         assert filtered[0].location == "test.py:15"
 
     def test_filter_excludes_deleted_files(self) -> None:
-        from crucible.server import _filter_findings_to_changes
+        from crucible.review.core import filter_findings_to_changes
 
         findings = [
             ToolFinding(
@@ -385,5 +385,5 @@ class TestFindingFiltering:
             ),
         )
 
-        filtered = _filter_findings_to_changes(findings, context)
+        filtered = filter_findings_to_changes(findings, context)
         assert len(filtered) == 0

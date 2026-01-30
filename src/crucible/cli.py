@@ -442,11 +442,13 @@ def cmd_review(args: argparse.Namespace) -> int:
     import json as json_mod
 
     from crucible.models import Domain, Severity, ToolFinding
-    from crucible.tools.delegation import (
-        delegate_bandit,
-        delegate_ruff,
-        delegate_semgrep,
-        delegate_slither,
+    from crucible.review.core import (
+        compute_severity_counts,
+        deduplicate_findings,
+        detect_domain_for_file,
+        filter_findings_to_changes,
+        get_tools_for_domain,
+        run_static_analysis,
     )
     from crucible.tools.git import (
         get_branch_diff,
@@ -456,92 +458,6 @@ def cmd_review(args: argparse.Namespace) -> int:
         get_unstaged_changes,
         is_git_repo,
     )
-
-    # Helper functions (inline to avoid circular imports)
-    def get_semgrep_config(domain: Domain) -> str:
-        if domain == Domain.SMART_CONTRACT:
-            return "p/smart-contracts"
-        elif domain == Domain.BACKEND:
-            return "p/python"
-        elif domain == Domain.FRONTEND:
-            return "p/typescript"
-        return "auto"
-
-    def detect_domain(filename: str) -> tuple[Domain, list[str]]:
-        """Detect domain from file extension."""
-        ext = Path(filename).suffix.lower()
-        if ext == ".sol":
-            return Domain.SMART_CONTRACT, ["solidity", "smart_contract", "web3"]
-        elif ext in (".py", ".pyw"):
-            return Domain.BACKEND, ["python", "backend"]
-        elif ext in (".ts", ".tsx", ".js", ".jsx"):
-            return Domain.FRONTEND, ["typescript", "frontend", "javascript"]
-        elif ext == ".rs":
-            return Domain.BACKEND, ["rust", "backend"]
-        elif ext == ".go":
-            return Domain.BACKEND, ["go", "backend"]
-        return Domain.UNKNOWN, []
-
-    def get_changed_files(changes: list) -> list[str]:
-        """Get list of changed files (excluding deleted)."""
-        return [c.path for c in changes if c.status != "D"]
-
-    def parse_location_line(location: str) -> int | None:
-        """Extract line number from location string like 'file.py:10'."""
-        if ":" in location:
-            try:
-                return int(location.split(":")[1].split(":")[0])
-            except (ValueError, IndexError):
-                return None
-        return None
-
-    def filter_findings_to_changes(
-        findings: list[ToolFinding],
-        changes: list,
-        include_context: bool = False,
-    ) -> list[ToolFinding]:
-        """Filter findings to only those in changed lines."""
-        # Build a lookup of file -> changed line ranges
-        changed_ranges: dict[str, list[tuple[int, int]]] = {}
-        for change in changes:
-            if change.status == "D":
-                continue  # Skip deleted files
-            ranges = [(r.start, r.end) for r in change.added_lines]
-            changed_ranges[change.path] = ranges
-
-        context_lines = 5 if include_context else 0
-        filtered: list[ToolFinding] = []
-
-        for finding in findings:
-            # Parse location: "path:line" or "path:line:col"
-            parts = finding.location.split(":")
-            if len(parts) < 2:
-                continue
-
-            file_path = parts[0]
-            try:
-                line_num = int(parts[1])
-            except ValueError:
-                continue
-
-            # Check if file is in changes
-            # Handle both absolute and relative paths
-            matching_file = None
-            for changed_file in changed_ranges:
-                if file_path.endswith(changed_file) or changed_file.endswith(file_path):
-                    matching_file = changed_file
-                    break
-
-            if not matching_file:
-                continue
-
-            # Check if line is in changed ranges (with context)
-            for start, end in changed_ranges[matching_file]:
-                if start - context_lines <= line_num <= end + context_lines:
-                    filtered.append(finding)
-                    break
-
-        return filtered
 
     path = args.path or "."
     mode = args.mode
@@ -638,7 +554,7 @@ def cmd_review(args: argparse.Namespace) -> int:
             print("No changes found.")
         return 0
 
-    changed_files = get_changed_files(context.changes)
+    changed_files = [c.path for c in context.changes if c.status != "D"]
     if not changed_files:
         print("No files to analyze (only deletions).")
         return 0
@@ -656,77 +572,24 @@ def cmd_review(args: argparse.Namespace) -> int:
 
     for file_path in changed_files:
         full_path = f"{repo_path}/{file_path}"
-        domain, domain_tags = detect_domain(file_path)
+        domain, domain_tags = detect_domain_for_file(file_path)
         domains_detected.add(domain)
         all_domain_tags.update(domain_tags)
 
-        # Select tools based on domain
-        if domain == Domain.SMART_CONTRACT:
-            tools = ["slither", "semgrep"]
-        elif domain == Domain.BACKEND and "python" in domain_tags:
-            tools = ["ruff", "bandit", "semgrep"]
-        elif domain == Domain.FRONTEND:
-            tools = ["semgrep"]
-        else:
-            tools = ["semgrep"]
-
-        # Apply skip_tools from config
+        # Get tools for this domain, applying skip_tools from config
+        tools = get_tools_for_domain(domain, domain_tags)
         tools = [t for t in tools if t not in skip_tools]
 
-        # Run tools
-        if "semgrep" in tools:
-            semgrep_config = get_semgrep_config(domain)
-            result = delegate_semgrep(full_path, semgrep_config)
-            if result.is_ok:
-                all_findings.extend(result.value)
-            elif result.is_err:
-                tool_errors.append(f"semgrep ({file_path}): {result.error}")
+        # Run static analysis
+        findings, errors = run_static_analysis(full_path, domain, domain_tags, tools)
+        all_findings.extend(findings)
+        for err in errors:
+            tool_errors.append(f"{err} ({file_path})")
 
-        if "ruff" in tools:
-            result = delegate_ruff(full_path)
-            if result.is_ok:
-                all_findings.extend(result.value)
-            elif result.is_err:
-                tool_errors.append(f"ruff ({file_path}): {result.error}")
-
-        if "slither" in tools:
-            result = delegate_slither(full_path)
-            if result.is_ok:
-                all_findings.extend(result.value)
-            elif result.is_err:
-                tool_errors.append(f"slither ({file_path}): {result.error}")
-
-        if "bandit" in tools:
-            result = delegate_bandit(full_path)
-            if result.is_ok:
-                all_findings.extend(result.value)
-            elif result.is_err:
-                tool_errors.append(f"bandit ({file_path}): {result.error}")
-
-    # Filter findings to changed lines
+    # Filter findings to changed lines and deduplicate
     filtered_findings = filter_findings_to_changes(
-        all_findings, context.changes, args.include_context
+        all_findings, context, args.include_context
     )
-
-    # Deduplicate findings
-    def deduplicate_findings(findings: list[ToolFinding]) -> list[ToolFinding]:
-        """Deduplicate findings by location and message."""
-        seen: dict[tuple[str, str], ToolFinding] = {}
-        severity_order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
-
-        for f in findings:
-            norm_msg = f.message.lower().strip()
-            key = (f.location, norm_msg)
-
-            if key not in seen:
-                seen[key] = f
-            else:
-                existing = seen[key]
-                if severity_order.index(f.severity) < severity_order.index(existing.severity):
-                    seen[key] = f
-
-        return list(seen.values())
-
     filtered_findings = deduplicate_findings(filtered_findings)
 
     # Match skills and load knowledge based on detected domains
@@ -761,10 +624,7 @@ def cmd_review(args: argparse.Namespace) -> int:
             knowledge_content[filename] = result.value
 
     # Compute severity summary
-    severity_counts: dict[str, int] = {}
-    for f in filtered_findings:
-        sev = f.severity.value
-        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+    severity_counts = compute_severity_counts(filtered_findings)
 
     # Determine pass/fail using per-domain thresholds
     # Use the strictest applicable threshold

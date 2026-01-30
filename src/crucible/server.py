@@ -13,6 +13,15 @@ from crucible.knowledge.loader import (
     load_principles,
 )
 from crucible.models import Domain, FullReviewResult, Severity, ToolFinding
+from crucible.review.core import (
+    compute_severity_counts,
+    deduplicate_findings,
+    detect_domain,
+    filter_findings_to_changes,
+    load_skills_and_knowledge,
+    run_enforcement,
+    run_static_analysis,
+)
 from crucible.skills import get_knowledge_for_skills, load_skill, match_skills_for_domain
 from crucible.tools.delegation import (
     check_all_tools,
@@ -59,38 +68,6 @@ def _format_findings(findings: list[ToolFinding]) -> str:
                 parts.append(f"  - Suggestion: {f.suggestion}")
 
     return "\n".join(parts) if parts else "No findings."
-
-
-def _deduplicate_findings(findings: list[ToolFinding]) -> list[ToolFinding]:
-    """Deduplicate findings by location and message.
-
-    When multiple tools report the same issue at the same location,
-    keep only the highest severity finding.
-    """
-    # Group by (location, normalized_message)
-    seen: dict[tuple[str, str], ToolFinding] = {}
-
-    for f in findings:
-        # Normalize the message for comparison (lowercase, strip whitespace)
-        norm_msg = f.message.lower().strip()
-        key = (f.location, norm_msg)
-
-        if key not in seen:
-            seen[key] = f
-        else:
-            # Keep the higher severity finding
-            existing = seen[key]
-            severity_order = [
-                Severity.CRITICAL,
-                Severity.HIGH,
-                Severity.MEDIUM,
-                Severity.LOW,
-                Severity.INFO,
-            ]
-            if severity_order.index(f.severity) < severity_order.index(existing.severity):
-                seen[key] = f
-
-    return list(seen.values())
 
 
 @server.list_tools()  # type: ignore[misc]
@@ -326,105 +303,6 @@ async def list_tools() -> list[Tool]:
     ]
 
 
-def _run_static_analysis(
-    path: str,
-    domain: Domain,
-    domain_tags: list[str],
-) -> tuple[list[ToolFinding], list[str]]:
-    """Run static analysis tools based on domain.
-
-    Returns (findings, tool_errors).
-    """
-    # Select tools based on domain
-    if domain == Domain.SMART_CONTRACT:
-        tools = ["slither", "semgrep"]
-    elif domain == Domain.BACKEND and "python" in domain_tags:
-        tools = ["ruff", "bandit", "semgrep"]
-    elif domain == Domain.FRONTEND:
-        tools = ["semgrep"]
-    else:
-        tools = ["semgrep"]
-
-    all_findings: list[ToolFinding] = []
-    tool_errors: list[str] = []
-
-    if "semgrep" in tools:
-        config = get_semgrep_config(domain)
-        result = delegate_semgrep(path, config)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"semgrep: {result.error}")
-
-    if "ruff" in tools:
-        result = delegate_ruff(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"ruff: {result.error}")
-
-    if "slither" in tools:
-        result = delegate_slither(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"slither: {result.error}")
-
-    if "bandit" in tools:
-        result = delegate_bandit(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"bandit: {result.error}")
-
-    return all_findings, tool_errors
-
-
-def _load_skills_and_knowledge(
-    domain: Domain,
-    domain_tags: list[str],
-    skills_override: list[str] | None = None,
-) -> tuple[list[tuple[str, list[str]]], dict[str, str], set[str], dict[str, str]]:
-    """Load matched skills and linked knowledge.
-
-    Returns (matched_skills, skill_content, knowledge_files, knowledge_content).
-    """
-    from crucible.knowledge.loader import load_knowledge_file
-    from crucible.skills.loader import (
-        get_knowledge_for_skills,
-        load_skill,
-        match_skills_for_domain,
-    )
-
-    matched_skills = match_skills_for_domain(domain, domain_tags, skills_override)
-    skill_names = [name for name, _ in matched_skills]
-
-    # Load skill content
-    skill_content: dict[str, str] = {}
-    for skill_name, _ in matched_skills:
-        result = load_skill(skill_name)
-        if result.is_ok:
-            _, content = result.value
-            # Extract content after frontmatter
-            if "\n---\n" in content:
-                skill_content[skill_name] = content.split("\n---\n", 1)[1].strip()
-            else:
-                skill_content[skill_name] = content
-
-    # Load knowledge from skills + custom project/user knowledge
-    knowledge_files = get_knowledge_for_skills(skill_names)
-    custom_knowledge = get_custom_knowledge_files()
-    knowledge_files = knowledge_files | custom_knowledge
-
-    knowledge_content: dict[str, str] = {}
-    for filename in knowledge_files:
-        result = load_knowledge_file(filename)
-        if result.is_ok:
-            knowledge_content[filename] = result.value
-
-    return matched_skills, skill_content, knowledge_files, knowledge_content
-
-
 def _format_review_output(
     path: str | None,
     git_context: GitContext | None,
@@ -574,10 +452,6 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle unified review tool."""
     import os
 
-    from crucible.enforcement.assertions import load_assertions
-    from crucible.enforcement.models import EnforcementFinding
-    from crucible.enforcement.patterns import run_pattern_assertions
-
     path = arguments.get("path")
     mode = arguments.get("mode")
     base = arguments.get("base")
@@ -647,94 +521,48 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
         repo_path = get_repo_root(path if path else os.getcwd()).value
         for file_path in changed_files:
             full_path = f"{repo_path}/{file_path}"
-            domain, domain_tags = _detect_domain(file_path)
+            domain, domain_tags = detect_domain(file_path)
             domains_detected.add(domain)
             all_domain_tags.update(domain_tags)
 
-            findings, errors = _run_static_analysis(full_path, domain, domain_tags)
+            findings, errors = run_static_analysis(full_path, domain, domain_tags)
             all_findings.extend(findings)
             tool_errors.extend([f"{e} ({file_path})" for e in errors])
 
         # Filter findings to changed lines
-        all_findings = _filter_findings_to_changes(all_findings, git_context, include_context)
+        all_findings = filter_findings_to_changes(all_findings, git_context, include_context)
     else:
         # Path mode: analyze the path directly
-        domain, domain_tags = _detect_domain(path)
+        domain, domain_tags = detect_domain(path)
         domains_detected.add(domain)
         all_domain_tags.update(domain_tags)
 
-        findings, errors = _run_static_analysis(path, domain, domain_tags)
+        findings, errors = run_static_analysis(path, domain, domain_tags)
         all_findings.extend(findings)
         tool_errors.extend(errors)
 
     # Deduplicate findings
-    all_findings = _deduplicate_findings(all_findings)
+    all_findings = deduplicate_findings(all_findings)
 
     # Run pattern assertions
-    enforcement_findings: list[EnforcementFinding] = []
+    enforcement_findings = []
     enforcement_errors: list[str] = []
     assertions_checked = 0
     assertions_skipped = 0
 
     if enforce:
-        assertions, assertion_errors = load_assertions()
-        enforcement_errors.extend(assertion_errors)
-
-        if assertions:
-            if git_context:
-                # Git mode: check each changed file
-                repo_path = get_repo_root(path if path else os.getcwd()).value
-                for file_path in changed_files:
-                    full_path = f"{repo_path}/{file_path}"
-                    try:
-                        with open(full_path) as f:
-                            content = f.read()
-                        findings, checked, skipped = run_pattern_assertions(
-                            file_path, content, assertions
-                        )
-                        enforcement_findings.extend(findings)
-                        assertions_checked = max(assertions_checked, checked)
-                        assertions_skipped = max(assertions_skipped, skipped)
-                    except OSError:
-                        pass  # File may have been deleted
-            elif path:
-                # Path mode
-                import os as os_module
-                if os_module.path.isfile(path):
-                    try:
-                        with open(path) as f:
-                            content = f.read()
-                        findings, checked, skipped = run_pattern_assertions(
-                            path, content, assertions
-                        )
-                        enforcement_findings.extend(findings)
-                        assertions_checked = checked
-                        assertions_skipped = skipped
-                    except OSError as e:
-                        enforcement_errors.append(f"Failed to read {path}: {e}")
-                elif os_module.path.isdir(path):
-                    # Scan directory for files
-                    for root, _, files in os_module.walk(path):
-                        for fname in files:
-                            fpath = os_module.path.join(root, fname)
-                            rel_path = os_module.path.relpath(fpath, path)
-                            try:
-                                with open(fpath) as f:
-                                    content = f.read()
-                                findings, checked, skipped = run_pattern_assertions(
-                                    rel_path, content, assertions
-                                )
-                                enforcement_findings.extend(findings)
-                                assertions_checked = max(assertions_checked, checked)
-                                assertions_skipped = max(assertions_skipped, skipped)
-                            except (OSError, UnicodeDecodeError):
-                                pass  # Skip unreadable files
+        if git_context:
+            repo_path = get_repo_root(path if path else os.getcwd()).value
+            enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped = (
+                run_enforcement(path or "", changed_files=changed_files, repo_root=repo_path)
+            )
+        elif path:
+            enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped = (
+                run_enforcement(path)
+            )
 
     # Compute severity summary
-    severity_counts: dict[str, int] = {}
-    for f in all_findings:
-        sev = f.severity.value
-        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+    severity_counts = compute_severity_counts(all_findings)
 
     # Load skills and knowledge
     matched_skills: list[tuple[str, list[str]]] | None = None
@@ -744,7 +572,7 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
 
     if include_skills or include_knowledge:
         primary_domain = next(iter(domains_detected)) if domains_detected else Domain.UNKNOWN
-        matched, s_content, k_files, k_content = _load_skills_and_knowledge(
+        matched, s_content, k_files, k_content = load_skills_and_knowledge(
             primary_domain, list(all_domain_tags), skills_override
         )
         if include_skills:
@@ -891,89 +719,13 @@ def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text="\n".join(parts))]
 
 
-def _detect_domain_for_file(path: str) -> tuple[Domain, list[str]]:
-    """Detect domain from a single file path.
-
-    Returns (domain, list of domain tags for skill matching).
-    """
-    if path.endswith(".sol"):
-        return Domain.SMART_CONTRACT, ["solidity", "smart_contract", "web3"]
-    elif path.endswith(".vy"):
-        return Domain.SMART_CONTRACT, ["vyper", "smart_contract", "web3"]
-    elif path.endswith(".py"):
-        return Domain.BACKEND, ["python", "backend"]
-    elif path.endswith((".ts", ".tsx")):
-        return Domain.FRONTEND, ["typescript", "frontend"]
-    elif path.endswith((".js", ".jsx")):
-        return Domain.FRONTEND, ["javascript", "frontend"]
-    elif path.endswith(".go"):
-        return Domain.BACKEND, ["go", "backend"]
-    elif path.endswith(".rs"):
-        return Domain.BACKEND, ["rust", "backend"]
-    elif path.endswith((".tf", ".yaml", ".yml")):
-        return Domain.INFRASTRUCTURE, ["infrastructure", "devops"]
-    else:
-        return Domain.UNKNOWN, []
-
-
-def _detect_domain(path: str) -> tuple[Domain, list[str]]:
-    """Detect domain from file or directory path.
-
-    For directories, scans contained files and aggregates domains.
-    Returns (primary_domain, list of all domain tags).
-    """
-    from collections import Counter
-    from pathlib import Path
-
-    p = Path(path)
-
-    # Single file - use direct detection
-    if p.is_file():
-        return _detect_domain_for_file(path)
-
-    # Directory - scan and aggregate
-    if not p.is_dir():
-        return Domain.UNKNOWN, ["unknown"]
-
-    domain_counts: Counter[Domain] = Counter()
-    all_tags: set[str] = set()
-
-    # Scan files in directory (up to 1000 to avoid huge repos)
-    file_count = 0
-    max_files = 1000
-
-    for file_path in p.rglob("*"):
-        if file_count >= max_files:
-            break
-        if not file_path.is_file():
-            continue
-        # Skip hidden files and common non-code directories
-        if any(part.startswith(".") for part in file_path.parts):
-            continue
-        if any(part in ("node_modules", "__pycache__", "venv", ".venv", "dist", "build") for part in file_path.parts):
-            continue
-
-        domain, tags = _detect_domain_for_file(str(file_path))
-        if domain != Domain.UNKNOWN:
-            domain_counts[domain] += 1
-            all_tags.update(tags)
-        file_count += 1
-
-    # Return most common domain, or UNKNOWN if none found
-    if not domain_counts:
-        return Domain.UNKNOWN, ["unknown"]
-
-    primary_domain = domain_counts.most_common(1)[0][0]
-    return primary_domain, sorted(all_tags) if all_tags else ["unknown"]
-
-
 def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle quick_review tool - returns findings with domain metadata."""
     path = arguments.get("path", "")
     tools = arguments.get("tools")
 
     # Internal domain detection
-    domain, domain_tags = _detect_domain(path)
+    domain, domain_tags = detect_domain(path)
 
     # Select tools based on domain
     if domain == Domain.SMART_CONTRACT:
@@ -1026,7 +778,7 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
             tool_results.append(f"## Bandit\nError: {result.error}")
 
     # Deduplicate findings
-    all_findings = _deduplicate_findings(all_findings)
+    all_findings = deduplicate_findings(all_findings)
 
     # Compute severity summary
     severity_counts: dict[str, int] = {}
@@ -1043,60 +795,6 @@ def _handle_quick_review(arguments: dict[str, Any]) -> list[TextContent]:
     ]
 
     return [TextContent(type="text", text="\n".join(output_parts))]
-
-
-def _filter_findings_to_changes(
-    findings: list[ToolFinding],
-    context: GitContext,
-    include_context: bool = False,
-) -> list[ToolFinding]:
-    """Filter findings to only those in changed lines."""
-    # Build a lookup of file -> changed line ranges
-    changed_ranges: dict[str, list[tuple[int, int]]] = {}
-    for change in context.changes:
-        if change.status == "D":
-            continue  # Skip deleted files
-        ranges = [(r.start, r.end) for r in change.added_lines]
-        changed_ranges[change.path] = ranges
-
-    context_lines = 5 if include_context else 0
-    filtered: list[ToolFinding] = []
-
-    for finding in findings:
-        # Parse location: "path:line" or "path:line:col"
-        parts = finding.location.split(":")
-        if len(parts) < 2:
-            continue
-
-        file_path = parts[0]
-        try:
-            line_num = int(parts[1])
-        except ValueError:
-            continue
-
-        # Check if file is in changes
-        # Handle both absolute and relative paths
-        matching_file = None
-        for changed_file in changed_ranges:
-            if file_path.endswith(changed_file) or changed_file.endswith(file_path):
-                matching_file = changed_file
-                break
-
-        if not matching_file:
-            continue
-
-        # Check if line is in changed ranges
-        ranges = changed_ranges[matching_file]
-        in_range = False
-        for start, end in ranges:
-            if start - context_lines <= line_num <= end + context_lines:
-                in_range = True
-                break
-
-        if in_range:
-            filtered.append(finding)
-
-    return filtered
 
 
 def _format_change_review(
@@ -1254,7 +952,7 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
         full_path = f"{repo_path}/{file_path}"
 
         # Detect domain for this file
-        domain, domain_tags = _detect_domain(file_path)
+        domain, domain_tags = detect_domain(file_path)
         domains_detected.add(domain)
         all_domain_tags.update(domain_tags)
 
@@ -1299,10 +997,10 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
                 tool_errors.append(f"bandit ({file_path}): {result.error}")
 
     # Filter findings to changed lines
-    filtered_findings = _filter_findings_to_changes(all_findings, context, include_context)
+    filtered_findings = filter_findings_to_changes(all_findings, context, include_context)
 
     # Deduplicate findings
-    filtered_findings = _deduplicate_findings(filtered_findings)
+    filtered_findings = deduplicate_findings(filtered_findings)
 
     # Compute severity summary
     severity_counts: dict[str, int] = {}
@@ -1353,56 +1051,20 @@ def _handle_review_changes(arguments: dict[str, Any]) -> list[TextContent]:
 
 
 def _handle_full_review(arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle full_review tool - comprehensive code review."""
+    """Handle full_review tool - comprehensive code review.
+
+    DEPRECATED: Use _handle_review with path parameter instead.
+    """
+    from crucible.review.core import run_static_analysis
+
     path = arguments.get("path", "")
     skills_override = arguments.get("skills")
-    # include_sage is accepted but not yet implemented
-    # _ = arguments.get("include_sage", True)
 
     # 1. Detect domain
-    domain, domain_tags = _detect_domain(path)
+    domain, domain_tags = detect_domain(path)
 
-    # 2. Run static analysis (reuse quick_review logic)
-    if domain == Domain.SMART_CONTRACT:
-        default_tools = ["slither", "semgrep"]
-    elif domain == Domain.BACKEND and "python" in domain_tags:
-        default_tools = ["ruff", "bandit", "semgrep"]
-    elif domain == Domain.FRONTEND:
-        default_tools = ["semgrep"]
-    else:
-        default_tools = ["semgrep"]
-
-    all_findings: list[ToolFinding] = []
-    tool_errors: list[str] = []
-
-    if "semgrep" in default_tools:
-        config = get_semgrep_config(domain)
-        result = delegate_semgrep(path, config)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"semgrep: {result.error}")
-
-    if "ruff" in default_tools:
-        result = delegate_ruff(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"ruff: {result.error}")
-
-    if "slither" in default_tools:
-        result = delegate_slither(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"slither: {result.error}")
-
-    if "bandit" in default_tools:
-        result = delegate_bandit(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"bandit: {result.error}")
+    # 2. Run static analysis using shared core function
+    all_findings, tool_errors = run_static_analysis(path, domain, domain_tags)
 
     # 3. Match applicable skills
     matched_skills = match_skills_for_domain(domain, domain_tags, skills_override)
@@ -1436,13 +1098,10 @@ def _handle_full_review(arguments: dict[str, Any]) -> list[TextContent]:
     )
 
     # 7. Deduplicate findings
-    all_findings = _deduplicate_findings(all_findings)
+    all_findings = deduplicate_findings(all_findings)
 
     # 8. Compute severity summary
-    severity_counts: dict[str, int] = {}
-    for f in all_findings:
-        sev = f.severity.value
-        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+    severity_counts = compute_severity_counts(all_findings)
 
     # 8. Build result
     review_result = FullReviewResult(

@@ -333,3 +333,5 @@ config.local.json
 # PROJECT-SPECIFIC (add your own below)
 # ============================================================================
 .mcpmon.yaml
+docs/RFC_ENFORCEMENT.md
+docs/SAGE_INTEGRATION.md

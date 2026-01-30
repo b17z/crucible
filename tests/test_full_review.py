@@ -7,8 +7,8 @@ import pytest
 
 from crucible.errors import ok
 from crucible.models import Domain, FullReviewResult, Severity, ToolFinding
+from crucible.review.core import detect_domain_for_file
 from crucible.server import (
-    _detect_domain_for_file,
     _handle_full_review,
     _handle_load_knowledge,
     _handle_review,
@@ -76,9 +76,9 @@ class TestHandleFullReview:
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
             # Mock the delegation tools to avoid actual tool execution
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             assert len(result) == 1
@@ -94,8 +94,8 @@ class TestHandleFullReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_slither", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_slither", return_value=ok([])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             assert len(result) == 1
@@ -111,9 +111,9 @@ class TestHandleFullReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             text = result[0].text
@@ -130,9 +130,9 @@ class TestHandleFullReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             text = result[0].text
@@ -147,9 +147,9 @@ class TestHandleFullReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_full_review({
                 "path": str(test_file),
@@ -178,9 +178,9 @@ class TestHandleFullReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok(mock_findings)),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok(mock_findings)),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             text = result[0].text
@@ -212,9 +212,9 @@ class TestHandleFullReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([mock_findings[1]])),
-            patch("crucible.server.delegate_bandit", return_value=ok([mock_findings[0]])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([mock_findings[1]])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([mock_findings[0]])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             text = result[0].text
@@ -253,30 +253,30 @@ class TestDomainDetection:
 
     def test_python_domain(self) -> None:
         """Python files should detect as backend."""
-        domain, tags = _detect_domain_for_file("app.py")
+        domain, tags = detect_domain_for_file("app.py")
         assert domain == Domain.BACKEND
         assert "python" in tags
         assert "backend" in tags
 
     def test_solidity_domain(self) -> None:
         """Solidity files should detect as smart_contract."""
-        domain, tags = _detect_domain_for_file("Contract.sol")
+        domain, tags = detect_domain_for_file("Contract.sol")
         assert domain == Domain.SMART_CONTRACT
         assert "solidity" in tags
         assert "web3" in tags
 
     def test_typescript_domain(self) -> None:
         """TypeScript files should detect as frontend."""
-        domain, tags = _detect_domain_for_file("App.tsx")
+        domain, tags = detect_domain_for_file("App.tsx")
         assert domain == Domain.FRONTEND
         assert "typescript" in tags
         assert "frontend" in tags
 
     def test_unknown_domain(self) -> None:
         """Unknown extensions should detect as unknown."""
-        domain, tags = _detect_domain_for_file("README.md")
+        domain, tags = detect_domain_for_file("README.md")
         assert domain == Domain.UNKNOWN
-        assert tags == []  # _detect_domain_for_file returns empty list for unknown
+        assert tags == []  # detect_domain_for_file returns empty list for unknown
 
 
 class TestHandleLoadKnowledge:
@@ -347,9 +347,9 @@ class TestFullReviewIncludesCustomKnowledge:
             patch("crucible.knowledge.loader.KNOWLEDGE_PROJECT", project_knowledge),
             patch("crucible.knowledge.loader.KNOWLEDGE_USER", tmp_path / "nonexistent-user"),
             patch("crucible.server.get_custom_knowledge_files", return_value={"PROJECT_PATTERNS.md"}),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_full_review({"path": str(test_file)})
             text = result[0].text
@@ -367,9 +367,9 @@ class TestUnifiedReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_review({"path": str(test_file)})
             text = result[0].text
@@ -385,9 +385,9 @@ class TestUnifiedReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_review({
                 "path": str(test_file),
@@ -416,9 +416,9 @@ class TestUnifiedReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok([])),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_review({
                 "path": str(test_file),
@@ -445,9 +445,9 @@ class TestUnifiedReview:
         with (
             patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
             patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
-            patch("crucible.server.delegate_semgrep", return_value=ok([])),
-            patch("crucible.server.delegate_ruff", return_value=ok(mock_findings)),
-            patch("crucible.server.delegate_bandit", return_value=ok([])),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok(mock_findings)),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
         ):
             result = _handle_review({"path": str(test_file)})
             text = result[0].text

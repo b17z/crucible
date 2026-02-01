@@ -1,6 +1,6 @@
 [project]
 name = "crucible-mcp"
-version = "1.0.0"
+version = "1.0.1"
 description = "Code review MCP server for Claude. Not affiliated with Atlassian."
 readme = "README.md"
 requires-python = ">=3.11"

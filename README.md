@@ -40,6 +40,20 @@ That's it. Crucible will now:
 2. Review files Claude edits (Claude Code hook)
 3. Block code that violates bundled assertions (security, error handling, smart contracts)
 
+## CLAUDE.md Setup
+
+Add to your `CLAUDE.md` to inject rules at session start:
+
+```markdown
+# Project
+
+At session start, call get_assertions() to load enforcement rules.
+
+For code review: crucible review
+```
+
+This tells Claude to load the active assertions *before* writing code, not just catch violations after.
+
 ## How Enforcement Works
 
 ```

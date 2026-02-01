@@ -7,6 +7,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
+from crucible.enforcement.assertions import load_assertions
 from crucible.knowledge.loader import (
     get_custom_knowledge_files,
     load_all_knowledge,
@@ -310,6 +311,20 @@ async def list_tools() -> list[Tool]:
                     "topic": {
                         "type": "string",
                         "description": "Load by topic instead of files: 'security', 'engineering', 'smart_contract', 'checklist', 'repo_hygiene'",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="get_assertions",
+            description="Load active enforcement assertions for this project. Call at session start to understand what code patterns are enforced. Returns all pattern and LLM assertions that will be checked during reviews.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "include_compliance": {
+                        "type": "boolean",
+                        "description": "Include LLM compliance assertion details (default: true)",
+                        "default": True,
                     },
                 },
             },
@@ -713,6 +728,61 @@ def _handle_load_knowledge(arguments: dict[str, Any]) -> list[TextContent]:
     ]
 
     return [TextContent(type="text", text="\n".join(output_parts))]
+
+
+def _handle_get_assertions(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle get_assertions tool - load active enforcement rules."""
+    include_compliance = arguments.get("include_compliance", True)
+
+    assertions, load_errors = load_assertions()
+
+    if not assertions and not load_errors:
+        return [TextContent(type="text", text="No assertions found. Add assertion files to .crucible/assertions/ or use bundled assertions.")]
+
+    parts: list[str] = ["# Active Enforcement Assertions\n"]
+    parts.append("These patterns are enforced during code review. Avoid these in your code.\n")
+
+    if load_errors:
+        parts.append("## Load Errors\n")
+        for error in load_errors:
+            parts.append(f"- {error}")
+        parts.append("")
+
+    # Group by source file / category
+    pattern_assertions = [a for a in assertions if a.type.value == "pattern"]
+    llm_assertions = [a for a in assertions if a.type.value == "llm"]
+
+    if pattern_assertions:
+        parts.append("## Pattern Assertions (fast, always run)\n")
+        parts.append("| ID | Message | Severity | Languages |")
+        parts.append("|---|---|---|---|")
+        for a in pattern_assertions:
+            langs = ", ".join(a.languages) if a.languages else "all"
+            parts.append(f"| `{a.id}` | {a.message} | {a.severity} | {langs} |")
+        parts.append("")
+
+    if llm_assertions and include_compliance:
+        parts.append("## LLM Compliance Assertions (semantic, budget-controlled)\n")
+        parts.append("| ID | Message | Severity | Model |")
+        parts.append("|---|---|---|---|")
+        for a in llm_assertions:
+            model = a.model or "sonnet"
+            parts.append(f"| `{a.id}` | {a.message} | {a.severity} | {model} |")
+        parts.append("")
+
+        # Show compliance requirements for LLM assertions
+        parts.append("### Compliance Requirements\n")
+        for a in llm_assertions:
+            parts.append(f"**{a.id}:**")
+            if a.compliance:
+                parts.append(f"```\n{a.compliance.strip()}\n```")
+            parts.append("")
+
+    # Summary
+    parts.append("---\n")
+    parts.append(f"**Total:** {len(pattern_assertions)} pattern + {len(llm_assertions)} LLM assertions")
+
+    return [TextContent(type="text", text="\n".join(parts))]
 
 
 def _handle_delegate_semgrep(arguments: dict[str, Any]) -> list[TextContent]:
@@ -1241,7 +1311,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         "quick_review": _handle_quick_review,
         "full_review": _handle_full_review,
         "review_changes": _handle_review_changes,
-        # Other tools
+        # Context injection tools (call at session start)
+        "get_assertions": _handle_get_assertions,
         "get_principles": _handle_get_principles,
         "load_knowledge": _handle_load_knowledge,
         "delegate_semgrep": _handle_delegate_semgrep,

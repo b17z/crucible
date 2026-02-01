@@ -91,12 +91,15 @@ Add to Claude Code (`.mcp.json`):
 
 | Tool | Purpose |
 |------|---------|
+| `get_assertions()` | **Session start:** Load enforced patterns into context |
+| `get_principles(topic)` | **Session start:** Load engineering knowledge by topic |
+| `load_knowledge(files)` | **Session start:** Load specific knowledge files |
 | `review(path)` | Full review: analysis + skills + knowledge + assertions |
 | `review(mode='staged')` | Review git changes with enforcement |
-| `load_knowledge(files)` | Load specific knowledge files |
-| `get_principles(topic)` | Load engineering knowledge by topic |
 | `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit) |
 | `check_tools()` | Show installed analysis tools |
+
+**Tip:** Call `get_assertions()` at the start of a session so Claude knows what patterns to avoid *before* writing code.
 
 ## CLI
 

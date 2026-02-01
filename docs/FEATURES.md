@@ -198,6 +198,25 @@ review_changes(mode="commits", base="3")
 |--------|-------------|
 | `include_context` | Include findings within 5 lines of changes (default: false) |
 
+### get_assertions(include_compliance?)
+
+Load active enforcement assertions for context injection at session start.
+
+```
+get_assertions()
+
+→ # Active Enforcement Assertions
+→ These patterns are enforced during code review. Avoid these in your code.
+→
+→ ## Pattern Assertions (fast, always run)
+→ | ID | Message | Severity | Languages |
+→ | no-eval | eval() is dangerous | error | python |
+→ | no-bare-except | Catch specific exceptions | warning | python |
+→ ...
+```
+
+Call this at session start so Claude knows what patterns to avoid *before* writing code.
+
 ### load_knowledge(files?, topic?, include_bundled?)
 
 Load knowledge/principles files without running static analysis.

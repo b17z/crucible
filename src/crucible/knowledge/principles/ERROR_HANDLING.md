@@ -3,6 +3,7 @@ name: Error Handling
 description: Result types, error boundaries, no silent failures
 triggers: [errors, exceptions, error-handling, try-catch]
 type: principle
+assertions: error-handling.yaml
 ---
 
 # Error Handling Principles

@@ -1,21 +1,28 @@
 # crucible
 
-Claude Code customization layer. Personas for domains, knowledge for patterns, customizable at every level.
+Code review with enforcement. Patterns that block bad code, not just suggest fixes.
 
 ## Quick Reference
 
 ```bash
 pip install -e ".[dev]"    # Install
-pytest                     # Test (509 tests)
+pytest                     # Test (580+ tests)
 ruff check src/ --fix      # Lint
 ```
+
+## Key 1.0 Features
+
+- **30 bundled assertions** - security, error handling, smart contracts
+- **Pre-commit hook** - `crucible hooks install`
+- **Claude Code hook** - `crucible hooks claudecode init`
+- **Pattern + LLM assertions** - fast/free + semantic/costs
 
 ## MCP Tools
 
 | Tool | Purpose |
 |------|---------|
-| `review(path)` | Unified review: analysis + skills + knowledge |
-| `review(mode='staged')` | Git-aware review with skills + knowledge |
+| `review(path)` | Unified review: analysis + skills + knowledge + assertions |
+| `review(mode='staged')` | Git-aware review with enforcement |
 | `load_knowledge(files)` | Load specific knowledge files |
 | `get_principles(topic)` | Load engineering knowledge by topic |
 | `delegate_*` | Direct tool access (semgrep, ruff, slither, bandit) |
@@ -24,32 +31,39 @@ ruff check src/ --fix      # Lint
 ## CLI Commands
 
 ```bash
-crucible init                     # Initialize .crucible/ for project
+crucible init --with-claudemd     # Initialize + minimal CLAUDE.md
 crucible review                   # Review staged changes
 crucible review --mode branch     # Review branch vs main
-crucible ci generate              # Generate GitHub Actions workflow
+crucible review src/ --no-git     # Review without git
 
-crucible skills list              # List all skills
-crucible skills init <skill>      # Copy for project customization
+crucible hooks install            # Git pre-commit hook
+crucible hooks claudecode init    # Claude Code hooks
 
-crucible knowledge list           # List all knowledge files
+crucible assertions list          # List assertion files
+crucible assertions test file.py  # Test assertions
+
+crucible skills init <skill>      # Copy for customization
 crucible knowledge init <file>    # Copy for customization
-
-crucible hooks install            # Install pre-commit hook
 ```
 
 ## Project Structure
 
 ```
 src/crucible/
-├── server.py           # MCP server (unified review tool)
-├── cli.py              # CLI commands
-├── models.py           # Domain, Severity, ToolFinding
-├── errors.py           # Result types (Ok/Err)
-├── domain/detection.py # Classify code by extension/content
-├── tools/delegation.py # Shell out to analysis tools
-├── knowledge/          # 12 bundled knowledge files
-└── skills/             # 18 bundled persona skills
+├── server.py              # MCP server
+├── cli.py                 # CLI commands
+├── models.py              # Domain, Severity, ToolFinding
+├── errors.py              # Result types (Ok/Err)
+├── enforcement/           # Assertions, patterns, compliance
+│   ├── bundled/           # 30 bundled assertions
+│   ├── assertions.py      # Load and resolve
+│   ├── patterns.py        # Pattern matching
+│   └── compliance.py      # LLM assertions
+├── hooks/                 # Git and Claude Code hooks
+│   ├── precommit.py       # Pre-commit hook logic
+│   └── claudecode.py      # Claude Code hooks
+├── knowledge/             # 14 bundled knowledge files
+└── skills/                # 18 bundled persona skills
 ```
 
 ## Patterns
@@ -67,18 +81,17 @@ def do_thing() -> Result[Value, str]:
 **Frozen dataclasses:**
 ```python
 @dataclass(frozen=True)
-class ToolFinding:
-    tool: str
-    rule: str
-    severity: Severity
+class EnforcementFinding:
+    assertion_id: str
     message: str
+    severity: str
     location: str
 ```
 
 ## Cascade Resolution
 
-Skills and knowledge follow priority (first found wins):
-1. `.crucible/skills/` or `.crucible/knowledge/` (project)
+Skills, knowledge, and assertions follow priority (first found wins):
+1. `.crucible/` (project)
 2. `~/.claude/crucible/` (user)
 3. bundled (package)
 
@@ -91,9 +104,10 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 ## Documentation
 
 See `docs/` for:
+- QUICKSTART.md - 5-minute setup guide
 - FEATURES.md - Complete feature reference
 - ARCHITECTURE.md - How pieces fit together
-- CUSTOMIZATION.md - Skill/knowledge cascade
+- CUSTOMIZATION.md - Skill/knowledge/assertion cascade
 - SKILLS.md - All 18 personas
-- KNOWLEDGE.md - All 12 knowledge files
+- KNOWLEDGE.md - All 14 knowledge files
 - CONTRIBUTING.md - For contributors

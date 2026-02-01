@@ -300,9 +300,36 @@ The `get_principles(topic)` tool maps topics to files:
 
 ---
 
+## Knowledge → Assertion Linking
+
+Knowledge files can link to assertion files via frontmatter:
+
+```yaml
+---
+name: Security Principles
+description: Core security principles
+triggers: [security, auth, crypto]
+type: principle
+assertions: security.yaml
+---
+```
+
+**Bundled links:**
+
+| Knowledge | Assertion File |
+|-----------|----------------|
+| SECURITY.md | security.yaml |
+| ERROR_HANDLING.md | error-handling.yaml |
+| SMART_CONTRACT.md | smart-contract.yaml |
+
+When these knowledge files are loaded, their linked assertions are also available.
+
+---
+
 ## Customization
 
 See [CUSTOMIZATION.md](CUSTOMIZATION.md) for how to:
 - Override bundled knowledge for your project
 - Add project-specific knowledge files
 - Link custom knowledge to skills
+- Link knowledge to assertion files

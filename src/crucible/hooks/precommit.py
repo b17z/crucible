@@ -124,6 +124,12 @@ class PrecommitConfig:
     verbose: bool = False
     # Secrets detection: "auto" (gitleaks if available, else builtin), "gitleaks", "builtin", or "none"
     secrets_tool: str = "auto"
+    # Enforcement assertions
+    run_assertions: bool = True
+    # LLM assertions (expensive, off by default for pre-commit)
+    run_llm_assertions: bool = False
+    # Token budget for LLM assertions
+    llm_token_budget: int = 5000
 
 
 @dataclass(frozen=True)
@@ -136,6 +142,11 @@ class PrecommitResult:
     severity_counts: dict[str, int]
     files_checked: int
     error: str | None = None
+    # Enforcement results
+    enforcement_findings: tuple = ()
+    assertions_checked: int = 0
+    assertions_skipped: int = 0
+    llm_tokens_used: int = 0
 
 
 def load_precommit_config(repo_path: str | None = None) -> PrecommitConfig:
@@ -188,6 +199,11 @@ def load_precommit_config(repo_path: str | None = None) -> PrecommitConfig:
             if domain:
                 tools[domain] = list(tool_list)
 
+    # Enforcement config
+    run_assertions = config_data.get("run_assertions", True)
+    run_llm_assertions = config_data.get("run_llm_assertions", False)
+    llm_token_budget = config_data.get("llm_token_budget", 5000)
+
     return PrecommitConfig(
         fail_on=fail_on,
         timeout=timeout,
@@ -197,6 +213,9 @@ def load_precommit_config(repo_path: str | None = None) -> PrecommitConfig:
         skip_tools=skip_tools,
         verbose=verbose,
         secrets_tool=secrets_tool,
+        run_assertions=run_assertions,
+        run_llm_assertions=run_llm_assertions,
+        llm_token_budget=llm_token_budget,
     )
 
 
@@ -473,6 +492,34 @@ def run_precommit(
             if result.is_ok:
                 all_findings.extend(result.value)
 
+    # Step 3.5: Run enforcement assertions
+    enforcement_findings = []
+    assertions_checked = 0
+    assertions_skipped = 0
+    llm_tokens_used = 0
+
+    if config.run_assertions:
+        from crucible.enforcement.models import ComplianceConfig
+
+        compliance_config = ComplianceConfig(
+            enabled=config.run_llm_assertions,
+            token_budget=config.llm_token_budget,
+        )
+
+        from crucible.review.core import run_enforcement
+
+        enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
+            run_enforcement(
+                repo_root,
+                changed_files=files_to_check,
+                repo_root=repo_root,
+                compliance_config=compliance_config,
+            )
+        )
+
+        if budget_state:
+            llm_tokens_used = budget_state.tokens_used
+
     # Step 4: Filter to staged lines only
     filtered_findings = _filter_findings_to_staged(
         all_findings, context, config.include_context
@@ -484,6 +531,11 @@ def run_precommit(
         sev = f.severity.value
         severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
+    # Count enforcement severities
+    for f in enforcement_findings:
+        sev = f.severity
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
     # Check if any finding meets threshold
     passed = True
     for finding in filtered_findings:
@@ -491,12 +543,29 @@ def run_precommit(
             passed = False
             break
 
+    # Check enforcement findings (error = HIGH, warning = MEDIUM, info = LOW)
+    if passed:
+        enforcement_severity_map = {
+            "error": Severity.HIGH,
+            "warning": Severity.MEDIUM,
+            "info": Severity.LOW,
+        }
+        for finding in enforcement_findings:
+            sev = enforcement_severity_map.get(finding.severity, Severity.MEDIUM)
+            if _severity_meets_threshold(sev, config.fail_on):
+                passed = False
+                break
+
     return PrecommitResult(
         passed=passed,
         findings=tuple(filtered_findings),
         blocked_files=(),
         severity_counts=severity_counts,
         files_checked=len(files_to_check),
+        enforcement_findings=tuple(enforcement_findings),
+        assertions_checked=assertions_checked,
+        assertions_skipped=assertions_skipped,
+        llm_tokens_used=llm_tokens_used,
     )
 
 
@@ -524,43 +593,66 @@ def format_precommit_output(result: PrecommitResult, verbose: bool = False) -> s
         lines.append("Pre-commit: FAILED")
         return "\n".join(lines)
 
-    if not result.findings:
-        lines.append(f"Checked {result.files_checked} file(s) - no issues found")
+    total_findings = len(result.findings) + len(result.enforcement_findings)
+
+    if total_findings == 0:
+        msg = f"Checked {result.files_checked} file(s)"
+        if result.assertions_checked > 0:
+            msg += f", {result.assertions_checked} assertion(s)"
+        msg += " - no issues found"
+        lines.append(msg)
         return "\n".join(lines)
 
     # Header
-    total = len(result.findings)
-    lines.append(f"Found {total} issue(s) in {result.files_checked} file(s):")
+    lines.append(f"Found {total_findings} issue(s) in {result.files_checked} file(s):")
     lines.append("")
 
     # Severity summary
-    for sev in ["critical", "high", "medium", "low", "info"]:
+    for sev in ["critical", "high", "medium", "low", "info", "error", "warning"]:
         count = result.severity_counts.get(sev, 0)
         if count > 0:
             lines.append(f"  {sev.upper()}: {count}")
 
     lines.append("")
 
-    # Findings
-    if verbose:
-        for sev in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]:
-            sev_findings = [f for f in result.findings if f.severity == sev]
-            if not sev_findings:
-                continue
+    # Static analysis findings
+    if result.findings:
+        if verbose:
+            for sev in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]:
+                sev_findings = [f for f in result.findings if f.severity == sev]
+                if not sev_findings:
+                    continue
 
-            lines.append(f"[{sev.value.upper()}]")
-            for f in sev_findings:
-                lines.append(f"  {f.location}")
-                lines.append(f"    {f.rule}: {f.message}")
-                if f.suggestion:
-                    lines.append(f"    Fix: {f.suggestion}")
-            lines.append("")
-    else:
-        # Compact: just show high+ findings
-        for f in result.findings:
-            if f.severity in (Severity.CRITICAL, Severity.HIGH):
-                lines.append(f"  [{f.severity.value.upper()}] {f.location}")
-                lines.append(f"    {f.rule}: {f.message}")
+                lines.append(f"[{sev.value.upper()}]")
+                for f in sev_findings:
+                    lines.append(f"  {f.location}")
+                    lines.append(f"    {f.rule}: {f.message}")
+                    if f.suggestion:
+                        lines.append(f"    Fix: {f.suggestion}")
+                lines.append("")
+        else:
+            # Compact: just show high+ findings
+            for f in result.findings:
+                if f.severity in (Severity.CRITICAL, Severity.HIGH):
+                    lines.append(f"  [{f.severity.value.upper()}] {f.location}")
+                    lines.append(f"    {f.rule}: {f.message}")
+
+    # Enforcement findings
+    if result.enforcement_findings:
+        lines.append("")
+        lines.append("Enforcement Assertions:")
+        for f in result.enforcement_findings:
+            sev_icon = {"error": "🔴", "warning": "🟠", "info": "⚪"}.get(f.severity, "⚪")
+            source_tag = "[LLM]" if f.source == "llm" else "[Pattern]"
+            lines.append(f"  {sev_icon} [{f.severity.upper()}] {source_tag} {f.assertion_id}")
+            lines.append(f"    {f.location}: {f.message}")
+
+    # Assertion summary
+    if result.assertions_checked > 0 or result.assertions_skipped > 0:
+        lines.append("")
+        lines.append(f"Assertions: {result.assertions_checked} checked, {result.assertions_skipped} skipped")
+        if result.llm_tokens_used > 0:
+            lines.append(f"  LLM tokens used: {result.llm_tokens_used}")
 
     # Status
     lines.append("")

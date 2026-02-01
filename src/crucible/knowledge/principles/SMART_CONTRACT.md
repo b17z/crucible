@@ -3,6 +3,7 @@ name: Smart Contract Principles
 description: EVM patterns - reentrancy, CEI, gas optimization, upgrade safety
 triggers: [solidity, smart-contract, web3, evm, ethereum, blockchain]
 type: principle
+assertions: smart-contract.yaml
 ---
 
 # Smart Contract Principles

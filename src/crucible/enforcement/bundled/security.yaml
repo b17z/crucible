@@ -1,0 +1,123 @@
+version: "1.0"
+name: security
+description: Security assertions to catch common vulnerabilities
+linked_knowledge: SECURITY.md
+
+assertions:
+  # Critical: Code execution risks
+  - id: no-eval
+    type: pattern
+    pattern: "\\beval\\s*\\("
+    message: "eval() is dangerous - use ast.literal_eval() for data or safer alternatives"
+    severity: error
+    priority: critical
+    languages: [python, javascript, typescript]
+
+  - id: no-exec
+    type: pattern
+    pattern: "\\bexec\\s*\\("
+    message: "exec() allows arbitrary code execution - avoid or sandbox carefully"
+    severity: error
+    priority: critical
+    languages: [python]
+
+  # Critical: Shell injection
+  - id: no-shell-true
+    type: pattern
+    pattern: "shell\\s*=\\s*True"
+    message: "shell=True enables shell injection - use shell=False with argument list"
+    severity: error
+    priority: critical
+    languages: [python]
+
+  - id: no-os-system
+    type: pattern
+    pattern: "os\\.system\\s*\\("
+    message: "os.system() is vulnerable to shell injection - use subprocess with shell=False"
+    severity: error
+    priority: critical
+    languages: [python]
+
+  # Critical: Deserialization
+  - id: no-pickle-load
+    type: pattern
+    pattern: "pickle\\.load|pickle\\.loads|cPickle\\.load"
+    message: "pickle can execute arbitrary code - use json or msgpack for untrusted data"
+    severity: error
+    priority: critical
+    languages: [python]
+
+  - id: no-yaml-unsafe-load
+    type: pattern
+    pattern: "yaml\\.load\\s*\\([^)]*\\)(?!.*Loader)"
+    message: "yaml.load() without Loader is unsafe - use yaml.safe_load()"
+    severity: error
+    priority: critical
+    languages: [python]
+
+  # High: Hardcoded secrets
+  - id: no-hardcoded-password
+    type: pattern
+    pattern: "(?i)(password|passwd|pwd)\\s*=\\s*[\"'][^\"']{4,}[\"']"
+    message: "Possible hardcoded password - use environment variables or secrets manager"
+    severity: error
+    priority: high
+    applicability:
+      exclude:
+        - "**/test_*.py"
+        - "**/*_test.py"
+        - "**/tests/**"
+        - "**/*.md"
+
+  - id: no-hardcoded-api-key
+    type: pattern
+    pattern: "(?i)(api[_-]?key|apikey|secret[_-]?key)\\s*=\\s*[\"'][a-zA-Z0-9]{16,}[\"']"
+    message: "Possible hardcoded API key - use environment variables or secrets manager"
+    severity: error
+    priority: high
+    applicability:
+      exclude:
+        - "**/test_*.py"
+        - "**/*_test.py"
+        - "**/tests/**"
+        - "**/*.md"
+
+  # High: SQL injection
+  - id: no-string-sql
+    type: pattern
+    pattern: "execute\\s*\\(\\s*[\"']\\s*SELECT|execute\\s*\\(\\s*f[\"']|execute\\s*\\([^)]*%\\s*\\("
+    message: "Possible SQL injection - use parameterized queries"
+    severity: error
+    priority: high
+    languages: [python]
+
+  # Medium: Weak crypto
+  - id: no-md5-security
+    type: pattern
+    pattern: "hashlib\\.md5|MD5\\s*\\(|md5\\.new"
+    message: "MD5 is cryptographically broken - use SHA-256 or better for security"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  - id: no-sha1-security
+    type: pattern
+    pattern: "hashlib\\.sha1|SHA1\\s*\\(|sha1\\.new"
+    message: "SHA-1 is deprecated for security - use SHA-256 or better"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  # Medium: Insecure random
+  - id: no-random-for-security
+    type: pattern
+    pattern: "\\brandom\\.(choice|randint|random|uniform)\\s*\\("
+    message: "random module is not cryptographically secure - use secrets module"
+    severity: warning
+    priority: medium
+    languages: [python]
+    applicability:
+      exclude:
+        - "**/test_*.py"
+        - "**/*_test.py"
+        - "**/tests/**"

@@ -1,0 +1,110 @@
+version: "1.0"
+name: smart-contract
+description: Smart contract security patterns for Solidity/Vyper
+linked_knowledge: SMART_CONTRACT.md
+
+assertions:
+  # Critical: Reentrancy
+  - id: state-after-external-call
+    type: pattern
+    pattern: "\\.call\\{[^}]*\\}\\([^)]*\\)[^;]*;[^}]*\\b(balances|_balances|userBalances|amounts)\\s*\\["
+    message: "State change after external call - potential reentrancy vulnerability (CEI violation)"
+    severity: error
+    priority: critical
+    languages: [solidity]
+
+  - id: transfer-without-reentrancy-guard
+    type: llm
+    compliance: |
+      Check for reentrancy vulnerabilities:
+      1. External calls (.call, .transfer, .send) should come AFTER state changes (CEI pattern)
+      2. Functions making external calls should have reentrancy guards (nonReentrant modifier)
+      3. State variables should be updated before external calls, not after
+      4. Check-effects-interactions pattern: checks first, then effects (state changes), then interactions (external calls)
+    message: "Potential reentrancy vulnerability - apply CEI pattern and/or nonReentrant modifier"
+    severity: error
+    priority: critical
+    model: opus
+    languages: [solidity]
+
+  # Critical: Access control
+  - id: missing-access-control
+    type: pattern
+    pattern: "function\\s+\\w+\\s*\\([^)]*\\)\\s+(external|public)(?![^{]*onlyOwner|[^{]*onlyRole|[^{]*require\\s*\\(\\s*msg\\.sender)"
+    message: "Public/external function may need access control"
+    severity: warning
+    priority: high
+    languages: [solidity]
+
+  - id: tx-origin-auth
+    type: pattern
+    pattern: "require\\s*\\(\\s*tx\\.origin\\s*==|tx\\.origin\\s*==\\s*msg\\.sender"
+    message: "tx.origin for auth is vulnerable to phishing - use msg.sender"
+    severity: error
+    priority: critical
+    languages: [solidity]
+
+  # High: Integer overflow (pre-0.8.0)
+  - id: unchecked-arithmetic
+    type: pattern
+    pattern: "unchecked\\s*\\{[^}]*[+\\-*/]"
+    message: "Unchecked arithmetic - ensure overflow/underflow is intentional and safe"
+    severity: warning
+    priority: high
+    languages: [solidity]
+
+  # High: Front-running
+  - id: block-timestamp-comparison
+    type: pattern
+    pattern: "block\\.timestamp\\s*[<>=]|[<>=]\\s*block\\.timestamp"
+    message: "block.timestamp can be manipulated by miners (~15 sec) - avoid for critical logic"
+    severity: warning
+    priority: medium
+    languages: [solidity]
+
+  # High: Denial of service
+  - id: unbounded-loop
+    type: pattern
+    pattern: "for\\s*\\([^;]*;[^;]*\\.length\\s*;"
+    message: "Loop bounded by dynamic array length - may cause out-of-gas DoS"
+    severity: warning
+    priority: high
+    languages: [solidity]
+
+  # Medium: Best practices
+  - id: missing-zero-address-check
+    type: pattern
+    pattern: "address\\s+\\w+\\s*=[^;]*;(?![^}]*require\\s*\\([^)]*!=\\s*address\\(0\\))"
+    message: "Consider checking for zero address on address parameters"
+    severity: info
+    priority: medium
+    languages: [solidity]
+
+  - id: hardcoded-gas
+    type: pattern
+    pattern: "\\.call\\{[^}]*gas:\\s*\\d+[^}]*\\}"
+    message: "Hardcoded gas values may break with EVM changes - use gasleft() or remove gas limit"
+    severity: warning
+    priority: medium
+    languages: [solidity]
+
+  # LLM: Complex security patterns
+  - id: smart-contract-security-review
+    type: llm
+    compliance: |
+      Perform a security review of this smart contract code:
+      1. Check for reentrancy vulnerabilities (external calls before state changes)
+      2. Verify access control on privileged functions
+      3. Check for integer overflow/underflow risks
+      4. Look for front-running vulnerabilities
+      5. Check for DoS vectors (unbounded loops, block gas limit issues)
+      6. Verify proper validation of external inputs
+      7. Check for unsafe delegatecall usage
+      8. Look for flash loan attack vectors
+    message: "Smart contract security issue detected"
+    severity: error
+    priority: critical
+    model: opus
+    languages: [solidity, vyper]
+    applicability:
+      glob: "**/*.sol"

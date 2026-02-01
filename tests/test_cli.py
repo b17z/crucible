@@ -716,7 +716,7 @@ class TestInitCommand:
 
         from crucible.cli import cmd_init
 
-        args = Namespace(path=str(tmp_path), force=False, minimal=True)
+        args = Namespace(path=str(tmp_path), force=False, minimal=True, with_claudemd=False)
         result = cmd_init(args)
 
         assert result == 0
@@ -734,7 +734,7 @@ class TestInitCommand:
 
         (tmp_path / ".crucible").mkdir()
 
-        args = Namespace(path=str(tmp_path), force=False, minimal=True)
+        args = Namespace(path=str(tmp_path), force=False, minimal=True, with_claudemd=False)
         result = cmd_init(args)
 
         assert result == 1
@@ -749,7 +749,7 @@ class TestInitCommand:
 
         (tmp_path / ".crucible").mkdir()
 
-        args = Namespace(path=str(tmp_path), force=True, minimal=True)
+        args = Namespace(path=str(tmp_path), force=True, minimal=True, with_claudemd=False)
         result = cmd_init(args)
 
         assert result == 0
@@ -762,7 +762,7 @@ class TestInitCommand:
 
         (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
 
-        args = Namespace(path=str(tmp_path), force=False, minimal=False)
+        args = Namespace(path=str(tmp_path), force=False, minimal=False, with_claudemd=False)
         result = cmd_init(args)
 
         assert result == 0
@@ -777,7 +777,7 @@ class TestInitCommand:
 
         (tmp_path / "foundry.toml").write_text("[profile.default]\n")
 
-        args = Namespace(path=str(tmp_path), force=False, minimal=False)
+        args = Namespace(path=str(tmp_path), force=False, minimal=False, with_claudemd=False)
         result = cmd_init(args)
 
         assert result == 0

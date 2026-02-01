@@ -335,3 +335,5 @@ config.local.json
 .mcpmon.yaml
 docs/RFC_ENFORCEMENT.md
 docs/SAGE_INTEGRATION.md
+docs/RESEARCH_CONTEXT_ARCHITECTURE.md
+docs/PLAN_1.0.md

@@ -5,13 +5,92 @@ Complete reference for all Crucible capabilities.
 ## Overview
 
 ```
+├── Enforcement:   Pattern + LLM assertions that block bad code
 ├── Personas:      Domain-specific thinking (how to approach problems)
 ├── Knowledge:     Coding patterns and principles (what to apply)
 ├── Cascade:       Project → User → Bundled (customizable at every level)
 └── Context-aware: Loads relevant skills based on what you're working on
 ```
 
-**Personas for domains. Knowledge for patterns. All customizable.**
+**Enforcement, not just context. Your patterns block bad code automatically.**
+
+---
+
+## Enforcement
+
+Crucible enforces your patterns through hooks that run automatically.
+
+### Bundled Assertions
+
+30 assertions across 3 files:
+
+| File | Assertions | Covers |
+|------|------------|--------|
+| `security.yaml` | 12 | eval, exec, shell injection, pickle, secrets, SQL, weak crypto |
+| `error-handling.yaml` | 8 | bare except, silent catch, empty catch, error suppression |
+| `smart-contract.yaml` | 10 | reentrancy, CEI, access control, tx.origin, overflow, DoS |
+
+### Assertion Types
+
+**Pattern assertions** (fast, free):
+```yaml
+- id: no-eval
+  type: pattern
+  pattern: "\\beval\\s*\\("
+  message: "eval() is dangerous"
+  severity: error
+  priority: critical
+  languages: [python]
+```
+
+**LLM assertions** (semantic, ~$0.02/check):
+```yaml
+- id: error-handling-check
+  type: llm
+  compliance: |
+    Check that error handling follows best practices:
+    1. Errors are not silently swallowed
+    2. Error messages are descriptive
+  message: "Error handling may need improvement"
+  severity: warning
+  priority: medium
+  model: sonnet  # or opus for high-stakes
+```
+
+### Hooks
+
+**Pre-commit hook** (`crucible hooks install`):
+- Runs on every `git commit`
+- Checks secrets, static analysis, pattern assertions
+- Fails commit if high+ severity findings
+
+**Claude Code hook** (`crucible hooks claudecode init`):
+- Runs on every `Edit` or `Write` operation
+- Zero context cost (runs outside Claude's context)
+- Exit code 2 blocks the operation and shows feedback to Claude
+
+### Configuration
+
+`.crucible/precommit.yaml`:
+```yaml
+fail_on: high
+run_assertions: true
+run_llm_assertions: false  # Off by default (slow)
+llm_token_budget: 5000
+exclude:
+  - "*.md"
+```
+
+`.crucible/claudecode.yaml`:
+```yaml
+on_finding: deny           # deny, warn, allow
+severity_threshold: error  # error, warning, info
+run_assertions: true
+run_llm_assertions: false
+exclude:
+  - "**/*.md"
+  - "**/test_*.py"
+```
 
 ---
 
@@ -227,7 +306,7 @@ When the skill loads, linked knowledge is available via `get_principles()`.
 
 Engineering principles organized by domain.
 
-### 12 Domain Files
+### 14 Domain Files
 
 | File | Content |
 |------|---------|
@@ -243,6 +322,8 @@ Engineering principles organized by domain.
 | **FP.md** | Pure functions, immutability, composition |
 | **COMMITS.md** | Semantic commit messages, atomic commits |
 | **DOCUMENTATION.md** | FEATURES, ROADMAP, ARCHITECTURE patterns |
+| **GITIGNORE.md** | Defense-in-depth patterns for preventing secret commits |
+| **PRECOMMIT.md** | Automated guardrails before code enters the repo |
 
 ### Knowledge Resolution Cascade
 
@@ -285,6 +366,27 @@ crucible hooks uninstall [path]   # Remove pre-commit hook
 crucible hooks status [path]      # Show hook installation status
 ```
 
+### Claude Code Hooks
+
+```bash
+crucible hooks claudecode init    # Initialize Claude Code hooks
+crucible hooks claudecode hook    # Run hook (called by Claude Code)
+```
+
+This creates:
+- `.claude/settings.json` with PostToolUse hook for Edit|Write
+- `.crucible/claudecode.yaml` for configuration
+
+### Assertions Management
+
+```bash
+crucible assertions list          # List all assertion files
+crucible assertions validate      # Validate assertion files
+crucible assertions test file.py  # Test assertions against a file
+crucible assertions explain <id>  # Explain what a rule does
+crucible assertions debug         # Debug applicability for a rule
+```
+
 ### Code Review
 
 ```bash
@@ -298,6 +400,7 @@ crucible review --include-context # Include findings near changes
 crucible review --json            # Output as JSON
 crucible review --format report   # Output as markdown audit report
 crucible review --quiet           # Suppress progress output
+crucible review src/file.py --no-git  # Review without git awareness
 
 # Generate a markdown report file
 crucible review --format report > review-report.md

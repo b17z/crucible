@@ -1,0 +1,84 @@
+version: "1.0"
+name: error-handling
+description: Error handling best practices to prevent silent failures
+linked_knowledge: ERROR_HANDLING.md
+
+assertions:
+  # High: Silent failures
+  - id: no-bare-except
+    type: pattern
+    pattern: "except\\s*:"
+    message: "Bare except catches everything including SystemExit/KeyboardInterrupt - catch specific exceptions"
+    severity: warning
+    priority: high
+    languages: [python]
+
+  - id: no-pass-in-except
+    type: pattern
+    pattern: "except[^:]*:\\s*\\n\\s*pass\\s*$"
+    message: "Empty except block silently swallows errors - log or re-raise"
+    severity: warning
+    priority: high
+    languages: [python]
+
+  - id: no-empty-catch
+    type: pattern
+    pattern: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+    message: "Empty catch block silently swallows errors - log or re-throw"
+    severity: warning
+    priority: high
+    languages: [javascript, typescript]
+
+  # Medium: Pokemon exception handling
+  - id: no-catch-exception
+    type: pattern
+    pattern: "except\\s+Exception\\s*:"
+    message: "Catching Exception is too broad - catch specific exception types"
+    severity: info
+    priority: medium
+    languages: [python]
+
+  - id: no-catch-base-exception
+    type: pattern
+    pattern: "except\\s+BaseException\\s*:"
+    message: "Catching BaseException includes SystemExit/KeyboardInterrupt - use Exception or specific types"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  # Medium: Error suppression
+  - id: no-ignore-errors-flag
+    type: pattern
+    pattern: "errors\\s*=\\s*[\"']ignore[\"']"
+    message: "errors='ignore' silently drops data - use 'replace' or handle explicitly"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  # Info: Best practices
+  - id: prefer-contextlib-suppress
+    type: pattern
+    pattern: "except\\s+\\w+\\s*:\\s*\\n\\s*pass\\s*$"
+    message: "Consider contextlib.suppress() for intentionally ignoring specific exceptions"
+    severity: info
+    priority: low
+    languages: [python]
+
+  # LLM assertion for complex error handling patterns
+  - id: error-handling-semantic
+    type: llm
+    compliance: |
+      Check that error handling follows best practices:
+      1. Errors are not silently swallowed (no empty except/catch blocks that do nothing)
+      2. Exceptions are logged or reported before being suppressed
+      3. Error messages provide enough context to debug issues
+      4. Errors at API/system boundaries are handled (not just propagated)
+    message: "Error handling may need improvement"
+    severity: warning
+    priority: medium
+    languages: [python, javascript, typescript]
+    applicability:
+      exclude:
+        - "**/test_*.py"
+        - "**/*_test.py"
+        - "**/tests/**"

@@ -1734,11 +1734,30 @@ include_context: false
     if not gitignore_path.exists():
         gitignore_path.write_text("# Local overrides (optional)\n*.local.md\n")
 
+    # Create minimal CLAUDE.md if requested
+    if args.with_claudemd:
+        claudemd_path = project_path / "CLAUDE.md"
+        if claudemd_path.exists() and not args.force:
+            print(f"Warning: {claudemd_path} exists, skipping (use --force to overwrite)")
+        else:
+            project_name = project_path.name
+            claudemd_content = f"""# {project_name}
+
+Use Crucible for code review: `crucible review`
+
+For full engineering principles and patterns, run:
+- `crucible knowledge list` - see available knowledge
+- `crucible skills list` - see available review personas
+"""
+            claudemd_path.write_text(claudemd_content)
+            print(f"Created {claudemd_path}")
+
     print(f"\nInitialized {crucible_dir}")
     print("\nNext steps:")
     print("  1. Customize skills:     crucible skills init <skill>")
     print("  2. Customize knowledge:  crucible knowledge init <file>")
     print("  3. Install git hooks:    crucible hooks install")
+    print("  4. Claude Code hooks:    crucible hooks claudecode init")
     return 0
 
 
@@ -2002,6 +2021,28 @@ def main() -> int:
         "path", nargs="?", default=".", help="Repository path"
     )
 
+    # hooks claudecode
+    hooks_claudecode_parser = hooks_sub.add_parser(
+        "claudecode",
+        help="Claude Code hooks integration"
+    )
+    hooks_claudecode_sub = hooks_claudecode_parser.add_subparsers(dest="claudecode_command")
+
+    # hooks claudecode init
+    hooks_cc_init_parser = hooks_claudecode_sub.add_parser(
+        "init",
+        help="Initialize Claude Code hooks for project"
+    )
+    hooks_cc_init_parser.add_argument(
+        "path", nargs="?", default=".", help="Project path"
+    )
+
+    # hooks claudecode hook (called by Claude Code)
+    hooks_claudecode_sub.add_parser(
+        "hook",
+        help="Run hook (reads JSON from stdin)"
+    )
+
     # === review command ===
     review_parser = subparsers.add_parser(
         "review",
@@ -2095,6 +2136,10 @@ def main() -> int:
     init_proj_parser.add_argument(
         "--minimal", action="store_true",
         help="Create minimal config without copying skills"
+    )
+    init_proj_parser.add_argument(
+        "--with-claudemd", action="store_true",
+        help="Generate minimal CLAUDE.md that points to Crucible"
     )
     init_proj_parser.add_argument(
         "path", nargs="?", default=".",
@@ -2213,6 +2258,15 @@ def main() -> int:
             return cmd_hooks_uninstall(args)
         elif args.hooks_command == "status":
             return cmd_hooks_status(args)
+        elif args.hooks_command == "claudecode":
+            from crucible.hooks.claudecode import main_init, run_hook
+            if args.claudecode_command == "init":
+                return main_init(args.path)
+            elif args.claudecode_command == "hook":
+                return run_hook()
+            else:
+                hooks_claudecode_parser.print_help()
+                return 0
         else:
             hooks_parser.print_help()
             return 0
@@ -2263,6 +2317,7 @@ def main() -> int:
         print("  crucible hooks install          Install pre-commit hook to .git/hooks/")
         print("  crucible hooks uninstall        Remove pre-commit hook")
         print("  crucible hooks status           Show hook installation status")
+        print("  crucible hooks claudecode init  Initialize Claude Code hooks")
         print()
         print("  crucible assertions list        List assertion files from all sources")
         print("  crucible assertions validate    Validate assertion files")

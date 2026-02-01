@@ -588,15 +588,15 @@
 ░█▀▀░█▀▄░█░█░█▀▀░▀█▀░█▀▄░█░░░█▀▀
 ░█░░░█▀▄░█░█░█░░░░█░░█▀▄░█░░░█▀▀
 ░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀</div>
-      <p class="tagline typing">Code review orchestrator.</p>
-      <p class="subtitle">Your patterns. Your rules. Loaded when relevant.</p>
+      <p class="tagline typing">Code review with enforcement.</p>
+      <p class="subtitle">Your patterns. Your rules. Enforced every time.</p>
       <div class="cta-buttons">
         <a href="#install" class="btn btn-primary">INSTALL</a>
         <a href="https://github.com/b17z/crucible" class="btn btn-secondary">SOURCE</a>
       </div>
       <p class="disclaimer">
         Augments human review, doesn't replace it.<br>
-        Chains static analysis + assertions + skills + knowledge.
+        Enforces via pre-commit hooks + Claude Code hooks.
       </p>
     </div>
   </header>
@@ -624,6 +624,49 @@
         Git-aware: review staged changes, branch diffs, or recent commits.<br>
         CI-ready: <code>crucible ci generate</code> creates GitHub Actions workflows.
       </p>
+    </div>
+  </section>
+
+  <!-- Enforcement -->
+  <section id="enforcement">
+    <div class="container">
+      <h2 class="section-header">ENFORCEMENT</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Not suggestions. Constraints. Assertions that block bad code.</p>
+      <div class="code-block">
+<span class="comment"># Claude writes code with shell=True</span>
+<span class="cmd">→ PostToolUse hook triggers</span>
+<span class="cmd">→ Crucible runs pattern assertions</span>
+<span class="cmd">→ no-shell-true detected</span>
+
+<span class="cmd">Exit 2</span> <span class="comment"># Block + feedback to Claude</span>
+
+<span class="text-dim">Claude sees:</span>
+  "Crucible found 1 issue in src/runner.py:
+  [ERROR] no-shell-true: shell=True enables shell injection
+    at src/runner.py:15:1"
+
+<span class="cmd">Claude fixes the issue automatically.</span>
+      </div>
+      <div class="cards" style="margin-top: 30px;">
+        <div class="card">
+          <h3 class="card-title">PRE-COMMIT HOOK</h3>
+          <p class="card-desc">crucible hooks install</p>
+          <p class="card-meta">Runs on every git commit</p>
+          <p class="card-quote">Secrets + analysis + assertions</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">CLAUDE CODE HOOK</h3>
+          <p class="card-desc">crucible hooks claudecode init</p>
+          <p class="card-meta">Runs on Edit|Write operations</p>
+          <p class="card-quote">Zero context cost enforcement</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">30 BUNDLED RULES</h3>
+          <p class="card-desc">security + errors + contracts</p>
+          <p class="card-meta">eval, shell, pickle, reentrancy...</p>
+          <p class="card-quote">Add your own in .crucible/assertions/</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -745,21 +788,23 @@
     <div class="container">
       <h2 class="section-header">CLI</h2>
       <div class="code-block">
+<span class="comment"># Quick start</span>
+<span class="cmd">crucible init --with-claudemd</span>           <span class="comment"># Initialize project + minimal CLAUDE.md</span>
+<span class="cmd">crucible hooks install</span>                  <span class="comment"># Git pre-commit hook</span>
+<span class="cmd">crucible hooks claudecode init</span>          <span class="comment"># Claude Code hooks</span>
+
 <span class="comment"># Review</span>
 <span class="cmd">crucible review</span>                         <span class="comment"># Staged changes (default)</span>
 <span class="cmd">crucible review --mode branch</span>           <span class="comment"># Branch vs main</span>
-<span class="cmd">crucible review --mode commits --base 3</span> <span class="comment"># Last 3 commits</span>
-<span class="cmd">crucible review --fail-on high</span>          <span class="comment"># Exit 1 if high+ findings</span>
+<span class="cmd">crucible review src/file.py --no-git</span>    <span class="comment"># Single file without git</span>
 
-<span class="comment"># Initialize project</span>
-<span class="cmd">crucible init</span>                           <span class="comment"># Creates .crucible/ structure</span>
+<span class="comment"># Assertions</span>
+<span class="cmd">crucible assertions list</span>                <span class="comment"># List all assertion files</span>
+<span class="cmd">crucible assertions test file.py</span>        <span class="comment"># Test assertions against a file</span>
 
 <span class="comment"># Customize templates</span>
 <span class="cmd">crucible skills init security-engineer</span>  <span class="comment"># Copy skill to .crucible/skills/</span>
 <span class="cmd">crucible knowledge init SECURITY</span>        <span class="comment"># Copy knowledge to .crucible/knowledge/</span>
-
-<span class="comment"># CI</span>
-<span class="cmd">crucible ci generate</span>                    <span class="comment"># Generate GitHub Actions workflow</span>
       </div>
     </div>
   </section>
@@ -802,7 +847,7 @@
         This augments human review. It doesn't replace it.<br>
         Bundled templates are starting points. Plug in your own.
       </p>
-      <p class="footer-version">crucible v0.4.0</p>
+      <p class="footer-version">crucible v1.0.0</p>
       <p class="footer-family">part of: <a href="https://b17z.github.io/sage/">sage</a> | <a href="https://b17z.github.io/mcpmon/">mcpmon</a></p>
       <p class="footer-note">Not affiliated with Atlassian's Crucible.</p>
       <div class="footer-links">

@@ -3,6 +3,7 @@ name: Security Principles
 description: Core security principles - input validation, secrets, injection prevention
 triggers: [security, auth, crypto, api, secrets, injection]
 type: principle
+assertions: security.yaml
 ---
 
 # Security Principles

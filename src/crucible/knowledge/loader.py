@@ -312,6 +312,37 @@ def load_principles(topic: str | None = None) -> Result[str, str]:
     return ok("\n\n---\n\n".join(content_parts))
 
 
+def get_linked_assertion_files(knowledge_files: set[str] | None = None) -> set[str]:
+    """Get assertion files linked to knowledge files.
+
+    Looks at the `assertions` field in knowledge frontmatter to find
+    linked assertion files that should be loaded.
+
+    Args:
+        knowledge_files: Specific knowledge files to check (if None, checks all)
+
+    Returns:
+        Set of assertion filenames to load
+    """
+    if knowledge_files is None:
+        knowledge_files = get_all_knowledge_files()
+
+    assertion_files: set[str] = set()
+
+    for filename in knowledge_files:
+        path, _ = resolve_knowledge_file(filename)
+        if path:
+            try:
+                content = path.read_text()
+                metadata, _ = parse_frontmatter(content, filename)
+                if metadata.assertions:
+                    assertion_files.add(metadata.assertions)
+            except OSError:
+                pass
+
+    return assertion_files
+
+
 def get_persona_section(persona: str, content: str) -> str | None:
     """
     Extract a specific persona section from the checklist content.

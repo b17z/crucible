@@ -279,11 +279,12 @@ src/crucible/
 │   └── git.py             # Git operations (staged/branch/commits)
 │
 ├── hooks/
-│   └── precommit.py       # Pre-commit hook implementation
+│   ├── precommit.py       # Pre-commit hook implementation
+│   └── claudecode.py      # Claude Code PostToolUse hook
 │
 ├── knowledge/
 │   ├── loader.py          # Load principles with cascade
-│   └── principles/        # 12 bundled knowledge files
+│   └── principles/        # 14 bundled knowledge files
 │       ├── SECURITY.md
 │       ├── TESTING.md
 │       ├── SMART_CONTRACT.md
@@ -295,6 +296,17 @@ src/crucible/
 │       ├── security-engineer/
 │       ├── web3-engineer/
 │       └── ...
+│
+├── enforcement/
+│   ├── assertions.py      # Load/validate YAML assertion files
+│   ├── patterns.py        # Pattern matching with suppression
+│   ├── compliance.py      # LLM compliance checking
+│   ├── budget.py          # Token estimation and tracking
+│   ├── models.py          # Assertion, Finding, Config models
+│   └── bundled/           # 30 bundled assertions
+│       ├── security.yaml
+│       ├── error-handling.yaml
+│       └── smart-contract.yaml
 
 docs/
 ├── README.md              # Quick start
@@ -391,6 +403,77 @@ class ToolFinding:
 │  4. Check severity threshold                                        │
 │                                                                     │
 │  Config cascade: .crucible/precommit.yaml > ~/.claude/crucible/     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Claude Code Hooks
+
+`hooks/claudecode.py` integrates with Claude Code's PostToolUse hook:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    CLAUDE CODE HOOK FLOW                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. Claude calls Edit or Write tool                                 │
+│                                                                     │
+│  2. Claude Code runs PostToolUse hook:                              │
+│     crucible hooks claudecode hook                                  │
+│                                                                     │
+│  3. Hook receives JSON on stdin:                                    │
+│     {"tool_name": "Write", "tool_input": {...}}                     │
+│                                                                     │
+│  4. Crucible runs pattern assertions against file                   │
+│                                                                     │
+│  5. Exit codes:                                                     │
+│     0 = allow (operation proceeds)                                  │
+│     2 = deny (stderr shown to Claude as feedback)                   │
+│                                                                     │
+│  Config: .crucible/claudecode.yaml                                  │
+│     on_finding: deny | warn | allow                                 │
+│     severity_threshold: error | warning | info                      │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Setup: `crucible hooks claudecode init` generates `.claude/settings.json`.
+
+---
+
+## Enforcement Assertions
+
+`enforcement/` provides pattern and LLM-based code assertions:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    ENFORCEMENT FLOW                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Assertions loaded from cascade:                                    │
+│    1. .crucible/assertions/*.yaml   (project)                       │
+│    2. ~/.claude/crucible/assertions/*.yaml  (user)                  │
+│    3. <package>/enforcement/bundled/*.yaml  (bundled)               │
+│                                                                     │
+│  Two types:                                                         │
+│                                                                     │
+│  Pattern (fast, free):                                              │
+│    - Regex matching against code                                    │
+│    - Inline suppression: // crucible-ignore: rule-id                │
+│    - Always runs                                                    │
+│                                                                     │
+│  LLM (semantic, uses API tokens):                                      │
+│    - Sends code + compliance prompt to Claude                       │
+│    - Token budget controls cost                                     │
+│    - Priority sorting (critical first)                              │
+│    - Model selection (Sonnet default, Opus for high-stakes)         │
+│                                                                     │
+│  30 bundled assertions across 3 files:                              │
+│    security.yaml       - 12 assertions                              │
+│    error-handling.yaml - 8 assertions                               │
+│    smart-contract.yaml - 10 assertions                              │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```

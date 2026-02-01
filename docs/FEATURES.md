@@ -43,7 +43,7 @@ Crucible enforces your patterns through hooks that run automatically.
   languages: [python]
 ```
 
-**LLM assertions** (semantic, ~$0.02/check):
+**LLM assertions** (semantic, uses API tokens):
 ```yaml
 - id: error-handling-check
   type: llm

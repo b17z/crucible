@@ -6,6 +6,7 @@ Supports Sonnet (default) and Opus (for high-stakes assertions).
 
 import json
 import os
+import sys
 from typing import Any
 
 from crucible.enforcement.budget import (
@@ -79,8 +80,8 @@ def _load_api_key_from_config() -> str | None:
                     key = data.get("anthropic_api_key") or data.get("ANTHROPIC_API_KEY")
                     if key:
                         return key
-            except Exception:
-                pass  # Ignore malformed config files
+            except Exception as e:
+                print(f"Warning: failed to read {config_path}: {e}", file=sys.stderr)
 
     return None
 
@@ -294,27 +295,30 @@ def run_single_assertion(
         )
 
     except ImportError as e:
+        print(f"Warning: LLM assertion '{assertion.id}' skipped: {e}", file=sys.stderr)
         return LLMAssertionResult(
             assertion_id=assertion.id,
-            passed=True,  # Don't fail on missing dependency
+            passed=True,  # Graceful degradation - don't fail on missing dependency
             findings=(),
             tokens_used=0,
             model_used=model_name,
             error=str(e),
         )
     except ValueError as e:
+        print(f"Warning: LLM assertion '{assertion.id}' skipped: {e}", file=sys.stderr)
         return LLMAssertionResult(
             assertion_id=assertion.id,
-            passed=True,  # Don't fail on missing API key
+            passed=True,  # Graceful degradation - don't fail on missing API key
             findings=(),
             tokens_used=0,
             model_used=model_name,
             error=str(e),
         )
     except Exception as e:
+        print(f"Warning: LLM assertion '{assertion.id}' failed: {e}", file=sys.stderr)
         return LLMAssertionResult(
             assertion_id=assertion.id,
-            passed=True,  # Don't fail on API errors
+            passed=True,  # Graceful degradation - don't fail on API errors
             findings=(),
             tokens_used=0,
             model_used=model_name,

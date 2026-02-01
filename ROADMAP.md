@@ -11,9 +11,9 @@
 - [x] Tests for domain detection
 
 ### Phase 2: Architecture Refactor
-- [x] Simplify MCP to 7 tools (remove persona logic from MCP)
+- [x] Simplify MCP tools (remove persona logic from MCP)
 - [x] Internal domain detection (returns metadata, not exposed as tool)
-- [x] `quick_review` returns `domains_detected` + `severity_summary`
+- [x] Unified `review()` tool with domain metadata + severity summary
 - [x] CLI: `crucible skills install/list`
 - [x] Initial skills: security-engineer, web3-engineer
 - [x] Remove dead code (Persona enum, PERSONA_ROUTING, persona engine)

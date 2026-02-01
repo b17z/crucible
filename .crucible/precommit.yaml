@@ -1,0 +1,6 @@
+# Pre-commit hook configuration
+fail_on: high
+
+exclude:
+  - "tests/fixtures/**"    # Intentionally vulnerable test fixtures
+  - "tests/test_integration.py"  # Contains vulnerable code samples for testing

@@ -48,17 +48,20 @@ Claude uses the domain detection to load relevant personas and knowledge.
 
 ## MCP Server Entry Points
 
-The server exposes 10 tools via `server.py`:
+The server exposes tools via `server.py`:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          MCP TOOLS                                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  Main tools:                                                        │
-│  ├── quick_review(path)       Run analysis, return findings + domains │
-│  ├── full_review(path)        Analysis + skills + knowledge (unified)│
-│  ├── review_changes(mode)     Analyze git changes (staged/branch/etc) │
+│  Main review tool:                                                  │
+│  └── review(path?, mode?)     Unified review: path OR git-aware     │
+│                               Runs analysis + skills + knowledge +  │
+│                               enforcement assertions                 │
+│                                                                     │
+│  Context injection (call at session start):                         │
+│  ├── get_assertions()         Load enforcement rules                │
 │  ├── get_principles(topic)    Load engineering knowledge            │
 │  └── load_knowledge(files)    Load specific knowledge files         │
 │                                                                     │

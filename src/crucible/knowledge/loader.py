@@ -247,14 +247,17 @@ def get_custom_knowledge_files() -> set[str]:
 
 
 def load_all_knowledge(
-    include_bundled: bool = False,
+    include_bundled: bool = True,
     filenames: set[str] | None = None,
 ) -> tuple[list[str], str]:
     """Load multiple knowledge files.
 
+    Knowledge follows cascade priority: project > user > bundled.
+    Project/user files override bundled files with the same name.
+
     Args:
-        include_bundled: If True, include bundled knowledge files
-        filenames: Specific files to load (if None, loads based on include_bundled)
+        include_bundled: If True, include bundled knowledge files (default: True)
+        filenames: Specific files to load (if None, loads all from cascade)
 
     Returns:
         Tuple of (list of loaded filenames, combined content)

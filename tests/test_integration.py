@@ -192,29 +192,33 @@ class TestDomainDetection:
         assert "python" in tags
 
 
-class TestQuickReviewIntegration:
-    """Test quick_review end-to-end."""
+class TestReviewIntegration:
+    """Test unified review() end-to-end."""
 
-    def test_quick_review_returns_domains(self) -> None:
-        """quick_review should return domains_detected in output."""
-        # This tests the full flow through the MCP handler
-        from crucible.server import _handle_quick_review
+    def test_review_returns_domains(self) -> None:
+        """review() should return domains in output."""
+        from crucible.server import _handle_review
 
-        result = _handle_quick_review({"path": str(FIXTURES / "sql_injection.py")})
+        result = _handle_review({
+            "path": str(FIXTURES / "sql_injection.py"),
+            "include_skills": False,
+            "include_knowledge": False,
+        })
         assert len(result) == 1
         output = result[0].text
 
-        assert "Domains detected:" in output
+        assert "Domains" in output
         assert "python" in output.lower()
 
-    def test_quick_review_returns_severity_summary(self) -> None:
-        """quick_review should return severity_summary."""
-        from crucible.server import _handle_quick_review
+    def test_review_returns_severity_summary(self) -> None:
+        """review() should return severity_summary."""
+        from crucible.server import _handle_review
 
-        result = _handle_quick_review({
+        result = _handle_review({
             "path": str(FIXTURES / "command_injection.py"),
-            "tools": ["semgrep"],
+            "include_skills": False,
+            "include_knowledge": False,
         })
         output = result[0].text
 
-        assert "Severity summary:" in output
+        assert "Severity" in output

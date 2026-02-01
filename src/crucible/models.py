@@ -61,16 +61,3 @@ DOMAIN_HEURISTICS: dict[Domain, dict[str, list[str]]] = {
 }
 
 
-@dataclass(frozen=True)
-class FullReviewResult:
-    """Result from full_review tool."""
-
-    domains_detected: tuple[str, ...]
-    severity_summary: dict[str, int]
-    findings: tuple[ToolFinding, ...]
-    applicable_skills: tuple[str, ...]
-    skill_triggers_matched: dict[str, tuple[str, ...]]
-    principles_loaded: tuple[str, ...]
-    principles_content: str
-    sage_knowledge: str | None = None
-    sage_query_used: str | None = None

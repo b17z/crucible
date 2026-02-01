@@ -96,19 +96,17 @@ exclude:
 
 ## MCP Tools
 
-### quick_review(path)
+### review(path?, mode?, ...)
 
-Run static analysis and return findings with domain metadata.
+Unified code review tool. Supports path-based review OR git-aware review.
 
 ```
-quick_review(path="src/Vault.sol")
+review(path="src/Vault.sol")
 
-→ domains_detected: solidity, smart_contract, web3
-→ severity_summary: {critical: 1, high: 3, medium: 5}
-→ Semgrep findings, Slither findings
+→ Domains: solidity, smart_contract, web3
+→ Severity summary: {critical: 1, high: 3, medium: 5}
+→ Matched skills, knowledge loaded, static analysis + enforcement findings
 ```
-
-Claude sees the domain metadata and loads relevant skills (web3-engineer, security-engineer).
 
 **Auto-detected tools by domain:**
 
@@ -118,6 +116,30 @@ Claude sees the domain metadata and loads relevant skills (web3-engineer, securi
 | Python (.py) | ruff, bandit, semgrep |
 | Frontend (.ts, .tsx, .js) | semgrep |
 | Other | semgrep |
+
+**Git-aware review:**
+
+```
+review(mode="staged")         # Review staged changes before commit
+review(mode="branch")         # Review current branch vs main
+review(mode="commits", base="3")  # Review last 3 commits
+```
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `path` | File or directory to review |
+| `mode` | Git mode: staged, unstaged, branch, commits |
+| `base` | Base branch for branch mode, or count for commits mode |
+| `include_context` | Include findings within 5 lines of changes |
+| `skills` | Override auto skill selection |
+| `include_skills` | Load skills/checklists (default: true) |
+| `include_knowledge` | Load knowledge files (default: true) |
+| `enforce` | Run pattern assertions (default: true) |
+| `compliance_enabled` | Run LLM assertions (default: true) |
+| `compliance_model` | Model for LLM assertions: sonnet, opus, haiku |
+| `token_budget` | Token budget for LLM assertions |
 
 ### get_principles(topic?)
 
@@ -136,67 +158,6 @@ get_principles(topic="smart_contract")
 - `smart_contract` - SMART_CONTRACT.md
 - `engineering` - TESTING.md, ERROR_HANDLING.md, TYPE_SAFETY.md
 - `checklist` - Combined security + testing + error handling
-
-### full_review(path, skills?, include_sage?)
-
-Comprehensive code review that orchestrates analysis, skill matching, and knowledge loading.
-
-```
-full_review(path="src/")
-
-→ domains_detected: python, backend
-→ severity_summary: {critical: 0, high: 2, medium: 5}
-→ applicable_skills: [security-engineer, backend-engineer]
-→ skill_triggers_matched: {security-engineer: [always_run], backend-engineer: [api, database]}
-→ principles_loaded: [SECURITY.md, API_DESIGN.md, DATABASE.md]
-→ principles_content: <merged knowledge from linked files>
-→ findings: <deduplicated static analysis results>
-```
-
-**What it does:**
-1. Runs domain-appropriate static analysis tools
-2. Matches skills based on triggers, `always_run`, and `always_run_for_domains`
-3. Loads knowledge files linked by matched skills
-4. Deduplicates findings across tools
-5. Returns unified report for Claude to synthesize
-
-**Parameters:**
-
-| Parameter | Description |
-|-----------|-------------|
-| `path` | File or directory to review |
-| `skills` | Override auto-detection with specific skills |
-| `include_sage` | Include Sage knowledge (not yet implemented) |
-
-### review_changes(mode, base?, path?, include_context?)
-
-Analyze git changes with domain-aware static analysis. Filters findings to only changed lines.
-
-```
-review_changes(mode="staged")
-→ Analyze staged changes before commit
-
-review_changes(mode="branch", base="main")
-→ Analyze all changes on current branch vs main
-
-review_changes(mode="commits", base="3")
-→ Analyze last 3 commits
-```
-
-**Modes:**
-
-| Mode | Description |
-|------|-------------|
-| `staged` | Changes ready to commit |
-| `unstaged` | Working directory changes |
-| `branch` | Current branch vs base (default: main) |
-| `commits` | Recent N commits (default: 1) |
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `include_context` | Include findings within 5 lines of changes (default: false) |
 
 ### get_assertions(include_compliance?)
 
@@ -219,17 +180,17 @@ Call this at session start so Claude knows what patterns to avoid *before* writi
 
 ### load_knowledge(files?, topic?, include_bundled?)
 
-Load knowledge/principles files without running static analysis.
+Load knowledge/principles files without running static analysis. Loads all 14 bundled knowledge files by default.
 
 ```
+load_knowledge()
+→ All 14 bundled knowledge files (project/user files override)
+
 load_knowledge(topic="security")
 → SECURITY.md content
 
 load_knowledge(files=["API_DESIGN.md", "DATABASE.md"])
 → Combined content from specified files
-
-load_knowledge(include_bundled=true)
-→ All bundled knowledge files
 ```
 
 **Parameters:**
@@ -238,7 +199,7 @@ load_knowledge(include_bundled=true)
 |-----------|-------------|
 | `files` | Specific files to load (e.g., `["SECURITY.md"]`) |
 | `topic` | Load by topic: security, engineering, smart_contract, checklist, repo_hygiene |
-| `include_bundled` | Include bundled files (default: project/user only) |
+| `include_bundled` | Include bundled files (default: true). Project/user files override bundled. |
 
 ### delegate_* Tools
 

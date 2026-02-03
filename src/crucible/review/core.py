@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from pathlib import Path
 
 from crucible.enforcement.models import BudgetState, ComplianceConfig
+from crucible.ignore import load_ignore_spec
 from crucible.models import Domain, Severity, ToolFinding
 from crucible.tools.delegation import (
     delegate_bandit,
@@ -64,17 +66,16 @@ def detect_domain(path: str) -> tuple[Domain, list[str]]:
     # Scan files in directory (up to 1000 to avoid huge repos)
     file_count = 0
     max_files = 1000
-    skip_dirs = {"node_modules", "__pycache__", "venv", ".venv", "dist", "build"}
+    ignore_spec = load_ignore_spec(p)
 
     for file_path in p.rglob("*"):
         if file_count >= max_files:
             break
         if not file_path.is_file():
             continue
-        # Skip hidden files and common non-code directories
-        if any(part.startswith(".") for part in file_path.parts):
-            continue
-        if any(part in skip_dirs for part in file_path.parts):
+        # Use .crucibleignore patterns
+        rel_path = file_path.relative_to(p)
+        if ignore_spec.is_ignored(str(rel_path), is_dir=False):
             continue
 
         domain, tags = detect_domain_for_file(str(file_path))
@@ -187,6 +188,46 @@ def deduplicate_findings(findings: list[ToolFinding]) -> list[ToolFinding]:
                 seen[key] = f
 
     return list(seen.values())
+
+
+def filter_ignored_findings(
+    findings: list[ToolFinding],
+    base_path: str | Path | None = None,
+) -> list[ToolFinding]:
+    """Filter out findings from ignored paths.
+
+    Args:
+        findings: All findings from analysis
+        base_path: Base path for loading ignore spec (defaults to cwd)
+
+    Returns:
+        Findings that are not in ignored paths
+    """
+    if base_path is None:
+        base_path = Path.cwd()
+    elif isinstance(base_path, str):
+        base_path = Path(base_path)
+
+    spec = load_ignore_spec(base_path)
+    filtered: list[ToolFinding] = []
+
+    for finding in findings:
+        # Parse location: "path:line" or "path:line:col" or just "path"
+        parts = finding.location.split(":")
+        file_path = parts[0]
+
+        # Make path relative if it's absolute
+        try:
+            path_obj = Path(file_path)
+            if path_obj.is_absolute():
+                file_path = str(path_obj.relative_to(base_path))
+        except ValueError:
+            pass  # Not under base_path, keep as-is
+
+        if not spec.is_ignored(file_path, is_dir=False):
+            filtered.append(finding)
+
+    return filtered
 
 
 def filter_findings_to_changes(
@@ -330,7 +371,6 @@ def run_enforcement(
     Returns:
         (enforcement_findings, errors, assertions_checked, assertions_skipped, budget_state)
     """
-    import os
 
     from crucible.enforcement.assertions import load_assertions
     from crucible.enforcement.compliance import run_llm_assertions, run_llm_assertions_batch
@@ -421,10 +461,23 @@ def run_enforcement(
 
     elif os.path.isdir(path):
         # Directory - collect all files for batch processing
-        for root, _, files in os.walk(path):
+        ignore_spec = load_ignore_spec(Path(path))
+        for root, dirs, files in os.walk(path):
+            # Filter out ignored directories in-place (modifies os.walk behavior)
+            rel_root = os.path.relpath(root, path)
+            dirs[:] = [
+                d for d in dirs
+                if not ignore_spec.is_ignored(
+                    os.path.join(rel_root, d) if rel_root != "." else d,
+                    is_dir=True
+                )
+            ]
             for fname in files:
                 fpath = os.path.join(root, fname)
                 rel_path = os.path.relpath(fpath, path)
+                # Skip ignored files
+                if ignore_spec.is_ignored(rel_path, is_dir=False):
+                    continue
                 try:
                     with open(fpath) as f:
                         file_content = f.read()

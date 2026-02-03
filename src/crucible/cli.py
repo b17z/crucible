@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from crucible.enforcement.models import ComplianceConfig
+from crucible.ignore import load_ignore_spec
 
 # Skills directories
 SKILLS_BUNDLED = Path(__file__).parent / "skills"
@@ -541,12 +542,12 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
     if path_obj.is_file():
         files_to_analyze = [str(path_obj)]
     else:
-        # Recursively find files, respecting common ignores
-        ignore_dirs = {".git", "__pycache__", "node_modules", ".venv", "venv", "build", "dist"}
+        # Load ignore patterns (.crucibleignore + defaults)
+        ignore_spec = load_ignore_spec(path_obj)
         for file_path in path_obj.rglob("*"):
             if file_path.is_file():
-                # Skip ignored directories
-                if any(ignored in file_path.parts for ignored in ignore_dirs):
+                rel_path = file_path.relative_to(path_obj)
+                if ignore_spec.is_ignored(str(rel_path), is_dir=False):
                     continue
                 files_to_analyze.append(str(file_path))
 
@@ -1910,6 +1911,113 @@ def cmd_config_show(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Ignore commands ---
+
+
+def cmd_ignore_show(args: argparse.Namespace) -> int:
+    """Show active ignore patterns and their sources."""
+    from crucible.ignore import (
+        DEFAULT_PATTERNS,
+        IGNORE_PROJECT,
+        IGNORE_USER,
+        clear_ignore_cache,
+        load_ignore_spec,
+    )
+
+    clear_ignore_cache()
+    spec = load_ignore_spec()
+
+    print("Ignore patterns (files/directories excluded from review)")
+    print()
+
+    # Show default patterns
+    print(f"Defaults ({len(DEFAULT_PATTERNS)} patterns):")
+    print("  node_modules/, .git/, __pycache__/, .venv/, dist/, build/,")
+    print("  .next/, .nuxt/, package-lock.json, yarn.lock, *.log, ...")
+    print()
+
+    # Show user patterns
+    print("User (~/.claude/crucible/.crucibleignore):")
+    if IGNORE_USER.exists():
+        user_content = IGNORE_USER.read_text().strip()
+        for line in user_content.splitlines()[:5]:
+            print(f"  {line}")
+        lines = user_content.splitlines()
+        if len(lines) > 5:
+            print(f"  ... and {len(lines) - 5} more")
+    else:
+        print("  (not set)")
+    print()
+
+    # Show project patterns
+    print("Project (.crucible/.crucibleignore):")
+    if IGNORE_PROJECT.exists():
+        proj_content = IGNORE_PROJECT.read_text().strip()
+        for line in proj_content.splitlines()[:5]:
+            print(f"  {line}")
+        lines = proj_content.splitlines()
+        if len(lines) > 5:
+            print(f"  ... and {len(lines) - 5} more")
+    else:
+        print("  (not set)")
+    print()
+
+    print(f"Total: {len(spec.patterns)} patterns active (source: {spec.source})")
+    return 0
+
+
+def cmd_ignore_init(args: argparse.Namespace) -> int:
+    """Initialize a project .crucibleignore file."""
+    from crucible.ignore import IGNORE_PROJECT
+
+    # Create .crucible directory if needed
+    crucible_dir = Path(".crucible")
+    crucible_dir.mkdir(exist_ok=True)
+
+    if IGNORE_PROJECT.exists() and not args.force:
+        print(f"✗ {IGNORE_PROJECT} already exists (use --force to overwrite)")
+        return 1
+
+    template = """# Project-specific ignore patterns for Crucible
+# These are in addition to the built-in defaults (node_modules, .git, etc.)
+# Syntax: gitignore-style patterns
+
+# Large generated files
+# generated/
+
+# Vendor directories not in defaults
+# third_party/
+
+# Project-specific build outputs
+# .output/
+
+# Test fixtures that shouldn't be reviewed
+# fixtures/large-*.json
+"""
+    IGNORE_PROJECT.write_text(template)
+    print(f"✓ Created {IGNORE_PROJECT}")
+    print("\nEdit this file to add project-specific ignore patterns.")
+    return 0
+
+
+def cmd_ignore_test(args: argparse.Namespace) -> int:
+    """Test if a path would be ignored."""
+    from crucible.ignore import clear_ignore_cache, load_ignore_spec
+
+    clear_ignore_cache()
+    spec = load_ignore_spec()
+
+    path = args.path
+    is_dir = Path(path).is_dir() if Path(path).exists() else path.endswith("/")
+
+    if spec.is_ignored(path, is_dir=is_dir):
+        print(f"✓ {path} would be IGNORED")
+        return 0
+    else:
+        print(f"✗ {path} would be INCLUDED in review")
+        return 1
+
+
 # --- Main ---
 
 
@@ -2217,6 +2325,37 @@ def main() -> int:
         help="Show current configuration"
     )
 
+    # === ignore command ===
+    ignore_parser = subparsers.add_parser("ignore", help="Manage file ignore patterns")
+    ignore_sub = ignore_parser.add_subparsers(dest="ignore_command")
+
+    # ignore show
+    ignore_sub.add_parser(
+        "show",
+        help="Show active ignore patterns"
+    )
+
+    # ignore init
+    ignore_init_parser = ignore_sub.add_parser(
+        "init",
+        help="Create a project .crucibleignore file"
+    )
+    ignore_init_parser.add_argument(
+        "--force", "-f",
+        action="store_true",
+        help="Overwrite existing file"
+    )
+
+    # ignore test
+    ignore_test_parser = ignore_sub.add_parser(
+        "test",
+        help="Test if a path would be ignored"
+    )
+    ignore_test_parser.add_argument(
+        "path",
+        help="Path to test"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -2295,6 +2434,16 @@ def main() -> int:
             return cmd_config_show(args)
         else:
             config_parser.print_help()
+            return 0
+    elif args.command == "ignore":
+        if args.ignore_command == "show":
+            return cmd_ignore_show(args)
+        elif args.ignore_command == "init":
+            return cmd_ignore_init(args)
+        elif args.ignore_command == "test":
+            return cmd_ignore_test(args)
+        else:
+            ignore_parser.print_help()
             return 0
     else:
         # Default help

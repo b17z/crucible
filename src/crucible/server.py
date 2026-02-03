@@ -18,6 +18,7 @@ from crucible.review.core import (
     deduplicate_findings,
     detect_domain,
     filter_findings_to_changes,
+    filter_ignored_findings,
     load_skills_and_knowledge,
     run_enforcement,
     run_static_analysis,
@@ -509,6 +510,14 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
         if not changed_files:
             return [TextContent(type="text", text="No files to analyze (only deletions).")]
 
+        # Filter out ignored files (.crucibleignore)
+        from crucible.ignore import load_ignore_spec
+        repo_path_for_ignore = get_repo_root(path if path else os.getcwd()).value
+        ignore_spec = load_ignore_spec(repo_path_for_ignore)
+        changed_files = [f for f in changed_files if not ignore_spec.is_ignored(f, is_dir=False)]
+        if not changed_files:
+            return [TextContent(type="text", text="No files to analyze (all changes are in ignored paths).")]
+
     elif not path:
         return [TextContent(type="text", text="Error: Either 'path' or 'mode' is required.")]
 
@@ -545,6 +554,10 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
 
     # Deduplicate findings
     all_findings = deduplicate_findings(all_findings)
+
+    # Filter out findings from ignored paths (.crucibleignore)
+    base_path = path if path else os.getcwd()
+    all_findings = filter_ignored_findings(all_findings, base_path)
 
     # Run pattern and LLM assertions
     enforcement_findings = []

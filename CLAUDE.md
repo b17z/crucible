@@ -44,6 +44,10 @@ crucible assertions test file.py  # Test assertions
 
 crucible skills init <skill>      # Copy for customization
 crucible knowledge init <file>    # Copy for customization
+
+crucible ignore show              # Show active ignore patterns
+crucible ignore init              # Create .crucible/.crucibleignore
+crucible ignore test <path>       # Test if path would be ignored
 ```
 
 ## Project Structure
@@ -54,6 +58,7 @@ src/crucible/
 ├── cli.py                 # CLI commands
 ├── models.py              # Domain, Severity, ToolFinding
 ├── errors.py              # Result types (Ok/Err)
+├── ignore.py              # .crucibleignore file handling
 ├── enforcement/           # Assertions, patterns, compliance
 │   ├── bundled/           # 30 bundled assertions
 │   ├── assertions.py      # Load and resolve
@@ -90,10 +95,19 @@ class EnforcementFinding:
 
 ## Cascade Resolution
 
-Skills, knowledge, and assertions follow priority (first found wins):
+Skills, knowledge, assertions, and ignore patterns follow priority (first found wins):
 1. `.crucible/` (project)
 2. `~/.claude/crucible/` (user)
 3. bundled (package)
+
+## Ignore Patterns
+
+`.crucibleignore` uses gitignore syntax. Built-in defaults exclude:
+- `node_modules/`, `.git/`, `__pycache__/`, `.venv/`
+- `.next/`, `.nuxt/`, `dist/`, `build/`
+- `package-lock.json`, `yarn.lock`, `*.log`
+
+Create `.crucible/.crucibleignore` to add project-specific patterns.
 
 ## Commit Messages
 

@@ -135,6 +135,11 @@ crucible hooks claudecode init      # Initialize Claude Code hooks
 crucible skills init <skill>        # Copy skill for customization
 crucible knowledge init <file>      # Copy knowledge for customization
 
+# Ignore patterns
+crucible ignore show                # Show active patterns
+crucible ignore init                # Create .crucibleignore
+crucible ignore test <path>         # Test if path is ignored
+
 # CI
 crucible ci generate                # Generate GitHub Actions workflow
 ```
@@ -145,6 +150,14 @@ Everything follows cascade resolution (first found wins):
 1. `.crucible/` — Project overrides (checked into repo)
 2. `~/.claude/crucible/` — User preferences
 3. Bundled — Package defaults
+
+**Ignore patterns:**
+
+Crucible auto-excludes `node_modules/`, `.next/`, `dist/`, etc. Add project-specific patterns:
+```bash
+crucible ignore init
+# Edit .crucible/.crucibleignore
+```
 
 **Override a skill:**
 ```bash

@@ -548,6 +548,48 @@ The builtin detector catches: `.env` files, private keys (`.pem`, `.key`), SSH k
 
 ---
 
+## Ignore Patterns
+
+Crucible uses `.crucibleignore` files (gitignore syntax) to exclude files from review.
+
+### Default Patterns
+
+49 built-in patterns exclude common non-source directories:
+- `node_modules/`, `.pnpm/`, `vendor/`
+- `.next/`, `.nuxt/`, `dist/`, `build/`
+- `.git/`, `__pycache__/`, `.venv/`
+- `package-lock.json`, `yarn.lock`, `*.log`
+
+### CLI Commands
+
+```bash
+crucible ignore show              # Show all active patterns
+crucible ignore init              # Create .crucible/.crucibleignore
+crucible ignore test <path>       # Test if a path would be ignored
+```
+
+### Custom Patterns
+
+Create `.crucible/.crucibleignore` for project-specific exclusions:
+
+```gitignore
+# Project-specific ignores (in addition to defaults)
+generated/
+fixtures/large-*.json
+```
+
+### Cascade Resolution
+
+```
+1. .crucible/.crucibleignore          # Project (highest)
+2. ~/.claude/crucible/.crucibleignore # User
+3. Built-in defaults                   # (lowest)
+```
+
+All patterns are combined. Use `!pattern` to un-ignore.
+
+---
+
 ## External Tools
 
 Crucible shells out to these (install separately):

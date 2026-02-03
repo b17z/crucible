@@ -1,10 +1,10 @@
 # Customizing Crucible
 
-Personas and knowledge cascade for project-specific patterns.
+Personas, knowledge, and ignore patterns cascade for project-specific configuration.
 
 ## The Cascade Pattern
 
-Both skills and knowledge follow the same resolution pattern:
+Skills, knowledge, assertions, and ignore patterns follow the same resolution:
 
 ```
 1. PROJECT    .crucible/skills/ or .crucible/knowledge/    (highest priority)
@@ -297,6 +297,32 @@ If you have personal overrides in a shared repo:
 ```gitignore
 # Personal overrides only
 .crucible/skills/my-personal-skill/
+```
+
+---
+
+## Ignore Patterns
+
+Crucible auto-excludes common non-source paths (`node_modules/`, `.next/`, `dist/`, etc.). Add project-specific patterns:
+
+```bash
+crucible ignore init
+```
+
+Creates `.crucible/.crucibleignore`:
+
+```gitignore
+# Project-specific ignores (in addition to 49 defaults)
+generated/
+fixtures/large-*.json
+!important.log  # Un-ignore with !
+```
+
+Check what's active:
+
+```bash
+crucible ignore show    # List all patterns
+crucible ignore test node_modules/foo.js  # Test a path
 ```
 
 ---

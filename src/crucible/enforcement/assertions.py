@@ -133,6 +133,11 @@ def _parse_assertion(data: dict) -> Result[Assertion, str]:
     compliance = data.get("compliance")
     model = data.get("model")
 
+    # Scope field (code, prewrite, or all)
+    scope = data.get("scope", "code")
+    if scope not in ("code", "prewrite", "all"):
+        scope = "code"
+
     return ok(
         Assertion(
             id=assertion_id,
@@ -145,6 +150,7 @@ def _parse_assertion(data: dict) -> Result[Assertion, str]:
             applicability=applicability,
             compliance=compliance,
             model=model,
+            scope=scope,  # type: ignore[arg-type]
         )
     )
 

@@ -398,6 +398,141 @@ def cmd_knowledge_install(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Prewrite commands ---
+
+# Prewrite directories
+TEMPLATES_BUNDLED = Path(__file__).parent / "templates" / "prewrite"
+TEMPLATES_USER = Path.home() / ".claude" / "crucible" / "templates" / "prewrite"
+TEMPLATES_PROJECT = Path(".crucible") / "templates" / "prewrite"
+
+
+def cmd_prewrite_list(args: argparse.Namespace) -> int:
+    """List available pre-write templates."""
+    from crucible.prewrite.loader import get_all_template_names, resolve_template_path
+
+    print("Available pre-write templates:\n")
+
+    all_names = sorted(get_all_template_names())
+    if not all_names:
+        print("  (none)")
+        return 0
+
+    for name in all_names:
+        path, source = resolve_template_path(name)
+        if path:
+            print(f"  {name:<20} ({source})")
+
+    print("\nUse 'crucible prewrite init <template> <output>' to create a spec from template.")
+    return 0
+
+
+def cmd_prewrite_init(args: argparse.Namespace) -> int:
+    """Initialize a spec from a pre-write template."""
+    from crucible.prewrite.loader import load_template
+
+    template_name = args.template
+    output_path = Path(args.output)
+
+    # Check if output exists
+    if output_path.exists() and not args.force:
+        print(f"Error: {output_path} already exists")
+        print("  Use --force to overwrite")
+        return 1
+
+    # Load template
+    result = load_template(template_name)
+    if result.is_err:
+        print(f"Error: {result.error}")
+        return 1
+
+    metadata, content = result.value
+
+    # Write output
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(content)
+    except OSError as e:
+        print(f"Error: Failed to write {output_path}: {e}")
+        return 1
+
+    print(f"Created {output_path} from {template_name} template")
+    print("\nEdit the file to fill in your specification details.")
+    if metadata.checklist:
+        print(f"\nReview checklist ({len(metadata.checklist)} items):")
+        for item in metadata.checklist[:5]:
+            print(f"  - {item}")
+        if len(metadata.checklist) > 5:
+            print(f"  ... and {len(metadata.checklist) - 5} more")
+
+    return 0
+
+
+def cmd_prewrite_review(args: argparse.Namespace) -> int:
+    """Review a spec against pre-write assertions."""
+    from crucible.enforcement.models import ComplianceConfig
+    from crucible.prewrite.review import format_prewrite_result, prewrite_review
+
+    path = args.path
+    template = args.template
+    skills = args.skills.split(",") if args.skills else None
+
+    # Build compliance config
+    config = ComplianceConfig(
+        enabled=True,
+        model=args.model or "sonnet",
+        token_budget=args.token_budget or 10000,
+    )
+
+    # Check if file exists
+    if not Path(path).exists():
+        print(f"Error: File not found: {path}")
+        return 1
+
+    # Run review
+    result = prewrite_review(
+        path=path,
+        template=template,
+        skills=skills,
+        compliance_config=config,
+    )
+
+    # Format output
+    if args.json:
+        import json
+        output = {
+            "path": result.path,
+            "template": result.template,
+            "passed": result.passed,
+            "findings": [
+                {
+                    "assertion_id": f.assertion_id,
+                    "message": f.message,
+                    "severity": f.severity,
+                    "reasoning": f.reasoning,
+                }
+                for f in result.findings
+            ],
+            "checklist": result.checklist,
+            "tokens_used": result.tokens_used,
+            "errors": result.errors,
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        print(format_prewrite_result(result))
+
+    # Exit code based on findings
+    if args.fail_on:
+        severity_order = ["error", "warning", "info"]
+        threshold_idx = severity_order.index(args.fail_on)
+        for f in result.findings:
+            finding_idx = severity_order.index(f.severity)
+            if finding_idx <= threshold_idx:
+                return 1
+        return 0
+
+    return 0 if result.passed else 1
+
+
 # --- Review command ---
 
 
@@ -2018,6 +2153,96 @@ def cmd_ignore_test(args: argparse.Namespace) -> int:
         return 1
 
 
+# --- System commands ---
+
+SYSTEM_DIR = Path(".crucible") / "system"
+
+
+def cmd_system_init(args: argparse.Namespace) -> int:
+    """Initialize .crucible/system/ with template files."""
+    from crucible.hooks.claudecode import generate_system_templates
+
+    created = generate_system_templates(args.path)
+
+    if created:
+        print("Created system context files:")
+        for path in created:
+            print(f"  {path}")
+        print()
+        print("Edit these files to add team-specific context.")
+        print("They will be automatically injected into Claude Code sessions.")
+    else:
+        print("System directory already initialized.")
+        print(f"Files in {SYSTEM_DIR}:")
+        system_dir = Path(args.path) / SYSTEM_DIR if args.path != "." else SYSTEM_DIR
+        if system_dir.exists():
+            for f in sorted(system_dir.glob("*.md")):
+                print(f"  {f.name}")
+
+    return 0
+
+
+def cmd_system_show(args: argparse.Namespace) -> int:
+    """Show what context will be injected."""
+    from crucible.enforcement.assertions import load_assertions
+    from crucible.history import load_recent_findings
+    from crucible.hooks.claudecode import _generate_enforcement_summary
+
+    path = Path(args.path) if args.path else Path(".")
+    system_dir = path / SYSTEM_DIR
+
+    print("Session Context Preview")
+    print("=" * 60)
+    print()
+
+    # Enforcement summary
+    print("## Enforcement Summary")
+    assertions, _ = load_assertions()
+    if assertions:
+        summary = _generate_enforcement_summary(assertions)
+        # Print first 20 lines
+        lines = summary.split("\n")[:20]
+        for line in lines:
+            print(f"  {line}")
+        if len(summary.split("\n")) > 20:
+            print("  ...")
+    else:
+        print("  No assertions configured")
+    print()
+
+    # System files
+    print("## System Files")
+    if system_dir.exists():
+        for md_file in sorted(system_dir.glob("*.md")):
+            content = md_file.read_text()
+            lines = content.split("\n")[:5]
+            print(f"  {md_file.name}:")
+            for line in lines:
+                print(f"    {line}")
+            if len(content.split("\n")) > 5:
+                print("    ...")
+            print()
+    else:
+        print(f"  No system files ({system_dir} does not exist)")
+        print("  Run 'crucible system init' to create templates")
+    print()
+
+    # Recent findings
+    print("## Recent Findings")
+    recent = load_recent_findings(str(path))
+    if recent:
+        lines = recent.split("\n")[:10]
+        for line in lines:
+            print(f"  {line}")
+        if len(recent.split("\n")) > 10:
+            print("  ...")
+    else:
+        print("  No recent findings")
+    print()
+
+    return 0
+
+
 # --- Main ---
 
 
@@ -2145,10 +2370,16 @@ def main() -> int:
         "path", nargs="?", default=".", help="Project path"
     )
 
-    # hooks claudecode hook (called by Claude Code)
+    # hooks claudecode hook (called by Claude Code PostToolUse)
     hooks_claudecode_sub.add_parser(
         "hook",
-        help="Run hook (reads JSON from stdin)"
+        help="Run PostToolUse hook (reads JSON from stdin)"
+    )
+
+    # hooks claudecode session (called by Claude Code SessionStart)
+    hooks_claudecode_sub.add_parser(
+        "session",
+        help="Run SessionStart hook (injects context)"
     )
 
     # === review command ===
@@ -2208,6 +2439,58 @@ def main() -> int:
     )
     review_parser.add_argument(
         "path", nargs="?", default=".", help="Path to review (file or directory)"
+    )
+
+    # === prewrite command ===
+    prewrite_parser = subparsers.add_parser("prewrite", help="Pre-write spec review")
+    prewrite_sub = prewrite_parser.add_subparsers(dest="prewrite_command")
+
+    # prewrite list
+    prewrite_sub.add_parser("list", help="List available templates")
+
+    # prewrite init
+    prewrite_init_parser = prewrite_sub.add_parser(
+        "init",
+        help="Initialize spec from template"
+    )
+    prewrite_init_parser.add_argument("template", help="Template name (prd, tdd, rfc, adr, security-review)")
+    prewrite_init_parser.add_argument("output", help="Output file path")
+    prewrite_init_parser.add_argument(
+        "--force", "-f", action="store_true",
+        help="Overwrite existing file"
+    )
+
+    # prewrite review
+    prewrite_review_parser = prewrite_sub.add_parser(
+        "review",
+        help="Review spec against assertions"
+    )
+    prewrite_review_parser.add_argument("path", help="Spec file to review")
+    prewrite_review_parser.add_argument(
+        "--template", "-t",
+        help="Template type (auto-detect if omitted)"
+    )
+    prewrite_review_parser.add_argument(
+        "--skills",
+        help="Comma-separated skill overrides"
+    )
+    prewrite_review_parser.add_argument(
+        "--fail-on",
+        choices=["error", "warning", "info"],
+        help="Fail on findings at or above this severity"
+    )
+    prewrite_review_parser.add_argument(
+        "--json", action="store_true",
+        help="Output as JSON"
+    )
+    prewrite_review_parser.add_argument(
+        "--model",
+        choices=["sonnet", "opus", "haiku"],
+        help="Model for LLM assertions (default: sonnet)"
+    )
+    prewrite_review_parser.add_argument(
+        "--token-budget", type=int,
+        help="Token budget for LLM assertions (default: 10000)"
     )
 
     # === pre-commit command (direct invocation) ===
@@ -2356,6 +2639,30 @@ def main() -> int:
         help="Path to test"
     )
 
+    # === system command ===
+    system_parser = subparsers.add_parser("system", help="Manage session context files")
+    system_sub = system_parser.add_subparsers(dest="system_command")
+
+    # system init
+    system_init_parser = system_sub.add_parser(
+        "init",
+        help="Create .crucible/system/ with template files"
+    )
+    system_init_parser.add_argument(
+        "path", nargs="?", default=".",
+        help="Project path (default: current directory)"
+    )
+
+    # system show
+    system_show_parser = system_sub.add_parser(
+        "show",
+        help="Show what context will be injected into sessions"
+    )
+    system_show_parser.add_argument(
+        "path", nargs="?", default=".",
+        help="Project path (default: current directory)"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -2398,11 +2705,13 @@ def main() -> int:
         elif args.hooks_command == "status":
             return cmd_hooks_status(args)
         elif args.hooks_command == "claudecode":
-            from crucible.hooks.claudecode import main_init, run_hook
+            from crucible.hooks.claudecode import main_init, run_hook, run_session_hook
             if args.claudecode_command == "init":
                 return main_init(args.path)
             elif args.claudecode_command == "hook":
                 return run_hook()
+            elif args.claudecode_command == "session":
+                return run_session_hook()
             else:
                 hooks_claudecode_parser.print_help()
                 return 0
@@ -2425,6 +2734,16 @@ def main() -> int:
             return 0
     elif args.command == "review":
         return cmd_review(args)
+    elif args.command == "prewrite":
+        if args.prewrite_command == "list":
+            return cmd_prewrite_list(args)
+        elif args.prewrite_command == "init":
+            return cmd_prewrite_init(args)
+        elif args.prewrite_command == "review":
+            return cmd_prewrite_review(args)
+        else:
+            prewrite_parser.print_help()
+            return 0
     elif args.command == "pre-commit":
         return cmd_precommit(args)
     elif args.command == "config":
@@ -2444,6 +2763,14 @@ def main() -> int:
             return cmd_ignore_test(args)
         else:
             ignore_parser.print_help()
+            return 0
+    elif args.command == "system":
+        if args.system_command == "init":
+            return cmd_system_init(args)
+        elif args.system_command == "show":
+            return cmd_system_show(args)
+        else:
+            system_parser.print_help()
             return 0
     else:
         # Default help
@@ -2468,11 +2795,18 @@ def main() -> int:
         print("  crucible hooks status           Show hook installation status")
         print("  crucible hooks claudecode init  Initialize Claude Code hooks")
         print()
+        print("  crucible system init            Create .crucible/system/ templates")
+        print("  crucible system show            Preview session context injection")
+        print()
         print("  crucible assertions list        List assertion files from all sources")
         print("  crucible assertions validate    Validate assertion files")
         print("  crucible assertions test <file> Test assertions against a file")
         print("  crucible assertions explain <r> Explain what a rule does")
         print("  crucible assertions debug       Debug applicability for a rule")
+        print()
+        print("  crucible prewrite list          List pre-write templates")
+        print("  crucible prewrite init <t> <o>  Create spec from template")
+        print("  crucible prewrite review <file> Review spec against assertions")
         print()
         print("  crucible review                 Review git changes or files")
         print("    --mode <mode>                 staged/unstaged/branch/commits (default: staged)")

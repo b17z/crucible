@@ -257,6 +257,51 @@ async def list_tools() -> list[Tool]:
                 },
             },
         ),
+        Tool(
+            name="prewrite_review",
+            description="Review a specification/PRD/TDD against pre-write assertions. Use this to validate specs before code is written. Catches: missing auth requirements, undocumented failure modes, data handling gaps, scale considerations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the spec/PRD/TDD file to review",
+                    },
+                    "template": {
+                        "type": "string",
+                        "description": "Template type (prd, tdd, rfc, adr, security-review). Auto-detected if omitted.",
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Override skill selection (default: auto-detect)",
+                    },
+                    "compliance_enabled": {
+                        "type": "boolean",
+                        "description": "Enable LLM assertions (default: true)",
+                        "default": True,
+                    },
+                    "compliance_model": {
+                        "type": "string",
+                        "enum": ["sonnet", "opus", "haiku"],
+                        "description": "Model for LLM assertions (default: sonnet)",
+                    },
+                    "token_budget": {
+                        "type": "integer",
+                        "description": "Token budget for LLM assertions (0 = unlimited, default: 10000)",
+                    },
+                },
+                "required": ["path"],
+            },
+        ),
+        Tool(
+            name="prewrite_list_templates",
+            description="List available pre-write templates for specs, PRDs, TDDs, and design documents.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -796,12 +841,78 @@ def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text="\n".join(parts))]
 
 
+def _handle_prewrite_review(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle prewrite_review tool."""
+    from crucible.enforcement.models import ComplianceConfig
+    from crucible.prewrite.review import format_prewrite_result, prewrite_review
+
+    path = arguments.get("path", "")
+    template = arguments.get("template")
+    skills = arguments.get("skills")
+
+    compliance_enabled = arguments.get("compliance_enabled", True)
+    compliance_model = arguments.get("compliance_model", "sonnet")
+    token_budget = arguments.get("token_budget", 10000)
+
+    config = ComplianceConfig(
+        enabled=compliance_enabled,
+        model=compliance_model,
+        token_budget=token_budget,
+    )
+
+    result = prewrite_review(
+        path=path,
+        template=template,
+        skills=skills,
+        compliance_config=config,
+    )
+
+    return [TextContent(type="text", text=format_prewrite_result(result))]
+
+
+def _handle_prewrite_list_templates(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle prewrite_list_templates tool."""
+    from crucible.prewrite.loader import get_all_template_names, resolve_template_path
+
+    parts: list[str] = ["# Pre-Write Templates\n"]
+
+    all_names = sorted(get_all_template_names())
+    if not all_names:
+        parts.append("No templates available.")
+    else:
+        parts.append("| Template | Source | Description |")
+        parts.append("|----------|--------|-------------|")
+
+        descriptions = {
+            "prd": "Product Requirements Document",
+            "tdd": "Technical Design Document",
+            "rfc": "Request for Comments",
+            "adr": "Architecture Decision Record",
+            "security-review": "Security-focused spec review",
+        }
+
+        for name in all_names:
+            path, source = resolve_template_path(name)
+            desc = descriptions.get(name, "Custom template")
+            parts.append(f"| `{name}` | {source} | {desc} |")
+
+        parts.append("\n## Usage\n")
+        parts.append("1. Create a spec: `crucible prewrite init <template> <output.md>`")
+        parts.append("2. Fill in the spec details")
+        parts.append("3. Review: `crucible prewrite review <output.md>`")
+
+    return [TextContent(type="text", text="\n".join(parts))]
+
+
 @server.call_tool()  # type: ignore[misc]
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     """Handle tool calls."""
     handlers = {
         # Unified review tool
         "review": _handle_review,
+        # Pre-write review
+        "prewrite_review": _handle_prewrite_review,
+        "prewrite_list_templates": _handle_prewrite_list_templates,
         # Context injection tools (call at session start)
         "get_assertions": _handle_get_assertions,
         "get_principles": _handle_get_principles,

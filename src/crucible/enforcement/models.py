@@ -61,6 +61,7 @@ class Assertion:
     applicability: Applicability | None = None
     compliance: str | None = None  # For LLM assertions (v0.5+)
     model: str | None = None  # For LLM assertions (v0.5+)
+    scope: Literal["code", "prewrite", "all"] = "code"  # What this assertion applies to
 
 
 @dataclass(frozen=True)

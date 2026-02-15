@@ -114,6 +114,44 @@ Do not deserialize untrusted data into objects that can execute code.
 
 ---
 
+## File Permissions & Path Safety
+
+### Secure File Permissions
+
+```python
+# For sensitive files (keys, tokens, credentials)
+import os
+fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)  # Owner rw only
+with os.fdopen(fd, 'w') as f:
+    f.write(secret_data)
+
+# For sensitive directories
+os.makedirs(path, mode=0o700, exist_ok=True)  # Owner rwx only
+
+# Permission reference
+# 0o600 - Owner read/write (secrets, keys)
+# 0o700 - Owner read/write/execute (sensitive dirs)
+# 0o644 - Owner rw, others read (public files)
+# 0o755 - Owner rwx, others rx (public dirs)
+```
+
+### Path Traversal Prevention
+
+```python
+# DANGEROUS - user input can escape directory
+user_file = request.args.get('file')
+path = f"/data/{user_file}"  # "../../../etc/passwd" escapes!
+
+# SAFE - resolve and validate
+from pathlib import Path
+base = Path("/data").resolve()
+user_path = (base / user_file).resolve()
+if not str(user_path).startswith(str(base)):
+    raise ValueError("Path traversal attempt")
+```
+
+---
+
 ## Risk Surface Mapping
 
 ```
@@ -128,6 +166,7 @@ Step 2: Categorize Risks
 ├── Confidentiality    → Sensitive data exposed
 ├── Auth Bypass        → Unauthorized access
 ├── Injection          → SQL, XSS, command injection
+├── Path Traversal     → Access to unintended files
 └── Denial of Service  → Resource exhaustion
 ```
 

@@ -121,3 +121,37 @@ assertions:
         - "**/test_*.py"
         - "**/*_test.py"
         - "**/tests/**"
+
+  # Medium: Insecure file permissions
+  - id: world-writable-permissions
+    type: pattern
+    pattern: "0o7[0-7]{2}|0o[0-7]7[0-7]|0o[0-7]{2}7|mode\\s*=\\s*0o777"
+    message: "World-writable permissions (o+w) - use 0o755 for dirs, 0o644 for files, or stricter"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  - id: sensitive-file-permissions
+    type: pattern
+    pattern: "(secret|key|credential|token|password|private).*open\\s*\\(|open\\s*\\(.*(secret|key|credential|token|password|private)"
+    message: "Sensitive file - consider using restrictive permissions (0o600) via os.open()"
+    severity: info
+    priority: medium
+    languages: [python]
+
+  # Medium: Path traversal
+  - id: path-traversal-dotdot
+    type: pattern
+    pattern: "Path\\s*\\([^)]*\\+[^)]*\\)|os\\.path\\.join\\s*\\([^)]*\\+[^)]*\\)|\\.\\./"
+    message: "Potential path traversal - validate paths don't escape intended directory"
+    severity: warning
+    priority: medium
+    languages: [python]
+
+  - id: user-input-in-path
+    type: pattern
+    pattern: "Path\\s*\\(\\s*(request|input|args|params|query)|open\\s*\\(\\s*(request|input|args|params|query)"
+    message: "User input in file path - sanitize and validate against path traversal"
+    severity: warning
+    priority: high
+    languages: [python]

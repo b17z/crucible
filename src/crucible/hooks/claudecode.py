@@ -1,14 +1,18 @@
 """Claude Code hooks integration.
 
-Provides PreToolUse and PostToolUse hooks for Claude Code to enforce
-code quality via Crucible reviews on file writes/edits.
+Provides PreToolUse, PostToolUse, and SessionStart hooks for Claude Code
+to enforce code quality via Crucible reviews and inject context.
 
 Usage:
-    crucible hooks claudecode init    # Generate .claude/settings.json
-    crucible hooks claudecode hook    # Run as hook (receives JSON on stdin)
+    crucible hooks claudecode init      # Generate .claude/settings.json
+    crucible hooks claudecode hook      # PostToolUse hook (receives JSON on stdin)
+    crucible hooks claudecode session   # SessionStart hook (injects context)
 
 The hook receives JSON on stdin from Claude Code:
     {"tool_name": "Write", "tool_input": {"file_path": "...", "content": "..."}}
+
+For SessionStart:
+    {"cwd": "/path/to/project", "session_type": "startup|resume"}
 
 Exit codes:
     0 = allow (optionally with JSON for structured control)
@@ -23,12 +27,13 @@ from pathlib import Path
 
 import yaml
 
-from crucible.enforcement.patterns import run_pattern_assertions
 from crucible.enforcement.assertions import load_assertions
+from crucible.enforcement.patterns import run_pattern_assertions
 
 # Config file for Claude Code hook settings
 CONFIG_FILE = Path(".crucible") / "claudecode.yaml"
 CLAUDE_SETTINGS_FILE = Path(".claude") / "settings.json"
+SYSTEM_DIR = Path(".crucible") / "system"
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,28 @@ def generate_settings_json(repo_path: str | None = None) -> str:
             ]
         })
         existing["hooks"]["PostToolUse"] = post_tool_use
+
+    # Add SessionStart hook for context injection
+    session_start = existing["hooks"].get("SessionStart", [])
+
+    # Check if crucible session hook already exists
+    crucible_session_exists = any(
+        "crucible hooks claudecode session" in hook.get("hooks", [{}])[0].get("command", "")
+        for hook in session_start
+        if isinstance(hook, dict) and "hooks" in hook
+    )
+
+    if not crucible_session_exists:
+        session_start.append({
+            "matcher": "startup|resume",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": "crucible hooks claudecode session"
+                }
+            ]
+        })
+        existing["hooks"]["SessionStart"] = session_start
 
     # Write settings
     with open(settings_path, "w") as f:
@@ -335,11 +362,182 @@ def run_hook(stdin_data: str | None = None) -> int:
     return 2  # Exit 2 = block and show to Claude
 
 
+def _generate_enforcement_summary(assertions: list) -> str:
+    """Generate markdown summary of active enforcement.
+
+    Args:
+        assertions: List of Assertion objects
+
+    Returns:
+        Markdown string summarizing what's enforced
+    """
+    parts = ["# Crucible Enforcement Active\n"]
+    parts.append("These patterns are enforced. Crucible will flag violations.\n")
+
+    # Group by priority
+    by_priority: dict[str, list] = {"critical": [], "high": [], "medium": [], "low": []}
+    for a in assertions:
+        # Only include code assertions, not prewrite
+        if getattr(a, "scope", "code") == "code":
+            priority_val = a.priority.value if hasattr(a.priority, "value") else str(a.priority)
+            if priority_val in by_priority:
+                by_priority[priority_val].append(a)
+
+    for priority in ["critical", "high", "medium"]:
+        items = by_priority[priority]
+        if items:
+            parts.append(f"\n## {priority.title()} Priority\n")
+            # Cap at 10 per priority to avoid overly long context
+            for a in items[:10]:
+                parts.append(f"- **{a.id}**: {a.message}")
+            if len(items) > 10:
+                parts.append(f"- ... and {len(items) - 10} more")
+
+    parts.append("\n\nRun `crucible review` before committing.")
+    return "\n".join(parts)
+
+
+def run_session_hook(stdin_data: str | None = None) -> int:
+    """Run SessionStart hook for Crucible context injection.
+
+    Injects enforcement context into Claude Code sessions:
+    - Active assertions (what patterns are enforced)
+    - System files (.crucible/system/*.md)
+    - Recent findings (from last review)
+
+    Args:
+        stdin_data: JSON input from Claude Code (optional, reads from stdin)
+
+    Returns:
+        Exit code (always 0, outputs JSON with additionalContext)
+    """
+    # Read from stdin if not provided
+    if stdin_data is None:
+        stdin_data = sys.stdin.read()
+
+    # Parse input
+    try:
+        input_data = json.loads(stdin_data)
+    except json.JSONDecodeError:
+        return 0  # Silent fail, don't block session
+
+    cwd = input_data.get("cwd", os.getcwd())
+    cwd_path = Path(cwd)
+
+    context_parts: list[str] = []
+
+    # 1. Generate enforcement summary from active assertions
+    try:
+        assertions, _ = load_assertions()
+        if assertions:
+            context_parts.append(_generate_enforcement_summary(assertions))
+    except Exception:
+        pass  # Don't fail session on assertion loading errors
+
+    # 2. Load static system files (.crucible/system/*.md)
+    system_dir = cwd_path / SYSTEM_DIR
+    if system_dir.exists():
+        try:
+            for md_file in sorted(system_dir.glob("*.md")):
+                content = md_file.read_text()
+                if content.strip():
+                    # Use filename (without extension) as section header
+                    header = md_file.stem.replace("-", " ").replace("_", " ").title()
+                    context_parts.append(f"## {header}\n\n{content}")
+        except OSError:
+            pass  # Ignore file read errors
+
+    # 3. Include recent findings if exists
+    from crucible.history import load_recent_findings
+
+    recent = load_recent_findings(cwd)
+    if recent:
+        context_parts.append(recent)
+
+    # Output JSON for SessionStart hook
+    if context_parts:
+        output = {
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": "\n\n---\n\n".join(context_parts)
+            }
+        }
+        print(json.dumps(output))
+
+    return 0
+
+
+def generate_system_templates(repo_path: str | None = None) -> list[str]:
+    """Generate template files in .crucible/system/.
+
+    Creates starter templates for team patterns and focus areas.
+
+    Args:
+        repo_path: Repository path
+
+    Returns:
+        List of created file paths
+    """
+    base_path = Path(repo_path) if repo_path else Path(".")
+    system_dir = base_path / SYSTEM_DIR
+
+    # Create system directory
+    system_dir.mkdir(parents=True, exist_ok=True)
+
+    created: list[str] = []
+
+    # Team patterns template
+    team_patterns_file = system_dir / "team-patterns.md"
+    if not team_patterns_file.exists():
+        team_patterns_content = """\
+# Team Patterns
+
+<!-- Add team-specific patterns and conventions here -->
+<!-- This file is automatically injected into every Claude Code session -->
+
+## Code Style
+- Follow existing patterns in the codebase
+- Keep functions focused and small
+
+## Review Guidelines
+- All code changes should be reviewed before committing
+- Run `crucible review` to check for issues
+
+## Project Conventions
+<!-- Add project-specific conventions here -->
+"""
+        team_patterns_file.write_text(team_patterns_content)
+        created.append(str(team_patterns_file))
+
+    # Focus template
+    focus_file = system_dir / "focus.md"
+    if not focus_file.exists():
+        focus_content = """\
+# Current Focus
+
+<!-- Add current priorities here -->
+<!-- This file is automatically injected into every Claude Code session -->
+
+## Active Work
+<!-- What you're currently working on -->
+
+## Known Issues
+<!-- Issues to be aware of -->
+
+## Blocked By
+<!-- Dependencies or blockers -->
+"""
+        focus_file.write_text(focus_content)
+        created.append(str(focus_file))
+
+    return created
+
+
 def main_init(repo_path: str | None = None) -> int:
     """Initialize Claude Code hooks for a project.
 
     Creates:
-    - .claude/settings.json with PostToolUse hook
+    - .claude/settings.json with PostToolUse and SessionStart hooks
     - .crucible/claudecode.yaml config template
 
     Returns:
@@ -351,8 +549,14 @@ def main_init(repo_path: str | None = None) -> int:
     print(f"Created Claude Code settings: {settings_path}")
     print(f"Created Crucible config: {config_path}")
     print()
-    print("Crucible will now review files when Claude edits them.")
+    print("Crucible hooks installed:")
+    print("  - PostToolUse: Reviews files when Claude edits them")
+    print("  - SessionStart: Injects enforcement context automatically")
+    print()
     print("Configure behavior in .crucible/claudecode.yaml")
+    print()
+    print("Optional: Create .crucible/system/*.md files for team context")
+    print("  Run 'crucible system init' to create templates")
 
     return 0
 
@@ -371,8 +575,11 @@ def main() -> int:
     init_parser = subparsers.add_parser("init", help="Initialize Claude Code hooks")
     init_parser.add_argument("path", nargs="?", default=".", help="Project path")
 
-    # hook command (called by Claude Code)
-    subparsers.add_parser("hook", help="Run hook (reads from stdin)")
+    # hook command (called by Claude Code PostToolUse)
+    subparsers.add_parser("hook", help="Run PostToolUse hook (reads from stdin)")
+
+    # session command (called by Claude Code SessionStart)
+    subparsers.add_parser("session", help="Run SessionStart hook (injects context)")
 
     args = parser.parse_args()
 
@@ -380,6 +587,8 @@ def main() -> int:
         return main_init(args.path)
     elif args.command == "hook":
         return run_hook()
+    elif args.command == "session":
+        return run_session_hook()
 
     return 0
 

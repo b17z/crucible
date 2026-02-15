@@ -1,0 +1,2 @@
+# Ignore test files that contain assertion rule names as test data
+tests/test_activation.py

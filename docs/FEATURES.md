@@ -64,8 +64,9 @@ Crucible enforces your patterns through hooks that run automatically.
 - Checks secrets, static analysis, pattern assertions
 - Fails commit if high+ severity findings
 
-**Claude Code hook** (`crucible hooks claudecode init`):
-- Runs on every `Edit` or `Write` operation
+**Claude Code hooks** (`crucible hooks claudecode init`):
+- **PostToolUse**: Runs on every `Edit` or `Write` operation, blocks violations
+- **SessionStart**: Injects enforcement context automatically at session start
 - Zero context cost (runs outside Claude's context)
 - Exit code 2 blocks the operation and shows feedback to Claude
 
@@ -232,7 +233,7 @@ check_tools()
 
 Domain-specific thinking that Claude loads based on what you're working on.
 
-### 18 Bundled Personas
+### 20 Bundled Personas
 
 | Skill | Triggers | Focus |
 |-------|----------|-------|
@@ -254,6 +255,8 @@ Domain-specific thinking that Claude loads based on what you're working on.
 | **mev-researcher** | frontrun, sandwich, flash | Slippage, manipulation, TWAP |
 | **formal-verification** | invariant, proof, certora | Invariants, specifications |
 | **incident-responder** | outage, recovery, rollback | Kill switches, blast radius |
+| **code-hygiene** | dead code, refactor, cleanup | Dead code removal, simplification |
+| **spec-reviewer** | prd, spec, tdd, rfc | Pre-write spec validation |
 
 ### Skill Resolution Cascade
 
@@ -350,12 +353,25 @@ crucible hooks status [path]      # Show hook installation status
 
 ```bash
 crucible hooks claudecode init    # Initialize Claude Code hooks
-crucible hooks claudecode hook    # Run hook (called by Claude Code)
+crucible hooks claudecode hook    # Run PostToolUse hook (called by Claude Code)
+crucible hooks claudecode session # Run SessionStart hook (injects context)
 ```
 
 This creates:
-- `.claude/settings.json` with PostToolUse hook for Edit|Write
+- `.claude/settings.json` with PostToolUse and SessionStart hooks
 - `.crucible/claudecode.yaml` for configuration
+
+### Session Context
+
+```bash
+crucible system init              # Create .crucible/system/ templates
+crucible system show              # Preview what context will be injected
+```
+
+The SessionStart hook auto-injects:
+- **Enforcement summary** - Active assertions grouped by priority
+- **System files** - Any `.crucible/system/*.md` files
+- **Recent findings** - Results from last `crucible review`
 
 ### Assertions Management
 
@@ -587,6 +603,56 @@ fixtures/large-*.json
 ```
 
 All patterns are combined. Use `!pattern` to un-ignore.
+
+---
+
+## Pre-Write Review
+
+Review specifications, PRDs, and design documents before code is written.
+
+### CLI Commands
+
+```bash
+crucible prewrite list            # List available templates
+crucible prewrite init prd my.md  # Create spec from template
+crucible prewrite review spec.md  # Review spec against assertions
+```
+
+### MCP Tools
+
+```
+prewrite_review(path="spec.md")
+→ Reviews spec against pre-write assertions
+→ Checks for missing auth requirements, failure modes, etc.
+
+prewrite_list_templates()
+→ Lists available templates: prd, tdd, rfc, adr, security-review
+```
+
+### Bundled Templates
+
+| Template | Purpose |
+|----------|---------|
+| `prd` | Product Requirements Document |
+| `tdd` | Technical Design Document |
+| `rfc` | Request for Comments |
+| `adr` | Architecture Decision Record |
+| `security-review` | Security-focused spec review |
+
+### Pre-Write Assertions
+
+Assertions with `scope: prewrite` run against documents:
+
+```yaml
+- id: spec-missing-auth
+  type: llm
+  scope: prewrite
+  compliance: |
+    Check if this specification describes user-facing functionality
+    without specifying authentication/authorization requirements.
+  message: "Spec describes user features without auth requirements"
+  severity: warning
+```
 
 ---
 

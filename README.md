@@ -183,9 +183,11 @@ See [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for the full guide.
 
 **30 Bundled Assertions** — Pattern rules for security, error handling, and smart contracts.
 
-**18 Personas** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
+**20 Personas** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
 
 **14 Knowledge Files** — Coding patterns and principles for security, testing, APIs, databases, smart contracts, etc.
+
+**5 Pre-Write Templates** — PRD, TDD, RFC, ADR, and Security Review templates for spec validation.
 
 See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for details.
 
@@ -197,7 +199,7 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 | [FEATURES.md](docs/FEATURES.md) | Complete feature reference |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
 | [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) | Override skills and knowledge for your project |
-| [SKILLS.md](docs/SKILLS.md) | All 18 personas with triggers and focus areas |
+| [SKILLS.md](docs/SKILLS.md) | All 20 personas with triggers and focus areas |
 | [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 14 knowledge files with topics covered |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 
@@ -205,6 +207,6 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # Run tests (580+ tests)
+pytest                    # Run tests (660+ tests)
 ruff check src/ --fix     # Lint
 ```

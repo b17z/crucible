@@ -200,6 +200,8 @@ include_context: false              # Include findings near changes
 1. **Explore bundled assertions**: `crucible assertions list`
 2. **Add your own rules**: `.crucible/assertions/`
 3. **Customize personas**: `crucible skills init <skill>`
-4. **Set up CI**: `crucible ci generate`
+4. **Add team context**: `crucible system init`
+5. **Review specs before code**: `crucible prewrite review spec.md`
+6. **Set up CI**: `crucible ci generate`
 
 See [FEATURES.md](FEATURES.md) for the complete reference.

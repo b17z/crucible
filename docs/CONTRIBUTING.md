@@ -36,15 +36,27 @@ src/crucible/
 │
 ├── knowledge/
 │   ├── loader.py          # Load principles with cascade resolution
-│   └── principles/        # 12 bundled knowledge files
+│   └── principles/        # 14 bundled knowledge files
 │       ├── SECURITY.md
 │       ├── TESTING.md
 │       └── ...
 │
-└── skills/                # 18 bundled persona skills
-    ├── security-engineer/SKILL.md
-    ├── web3-engineer/SKILL.md
-    └── ...
+├── skills/                # 20 bundled persona skills
+│   ├── security-engineer/SKILL.md
+│   ├── web3-engineer/SKILL.md
+│   └── ...
+│
+├── prewrite/              # Pre-write spec review
+│   ├── loader.py          # Template loading
+│   ├── review.py          # Pre-write review logic
+│   └── models.py          # PrewriteMetadata, PrewriteResult
+│
+├── templates/prewrite/    # 5 bundled spec templates
+│   ├── prd.md
+│   ├── tdd.md
+│   └── ...
+│
+└── history.py             # Session continuity
 
 tests/
 ├── test_server.py         # MCP tool tests
@@ -61,10 +73,12 @@ tests/fixtures/
 └── ...
 
 docs/
+├── QUICKSTART.md          # 5-minute setup guide
+├── FEATURES.md            # Complete feature reference
 ├── ARCHITECTURE.md        # How the pieces fit together
 ├── CUSTOMIZATION.md       # Skills + knowledge cascade
-├── SKILLS.md              # All 18 personas
-├── KNOWLEDGE.md           # All 12 knowledge files
+├── SKILLS.md              # All 20 personas
+├── KNOWLEDGE.md           # All 14 knowledge files
 └── CONTRIBUTING.md        # This document
 ```
 

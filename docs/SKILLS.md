@@ -1,6 +1,6 @@
 # Crucible Personas
 
-All 18 bundled personas.
+All 20 bundled personas.
 
 ## Overview
 
@@ -315,6 +315,40 @@ Personas are domain-specific thinking that Claude loads based on context. Each p
 
 ---
 
+### code-hygiene
+
+**Triggers:** `dead code`, `cleanup`, `refactor`, `simplify`, `hygiene`
+
+**Knowledge:** DOCUMENTATION.md
+
+**Focus:** Code cleanliness, dead code removal, simplification.
+
+**Key questions:**
+- Is there unreachable or dead code?
+- Can this be simplified?
+- Are there unused imports or variables?
+- Is the code well-organized?
+
+---
+
+### spec-reviewer
+
+**Triggers:** `prd`, `spec`, `tdd`, `design`, `requirements`, `rfc`, `adr`
+
+**Type:** Pre-write skill
+
+**Knowledge:** SECURITY.md, DOCUMENTATION.md
+
+**Focus:** Specification completeness, security requirements, failure modes.
+
+**Key questions:**
+- Are authentication/authorization requirements specified?
+- Are failure modes documented?
+- Are edge cases addressed?
+- Is the scope clear and bounded?
+
+---
+
 ## Skill Frontmatter
 
 Each skill has YAML frontmatter:
@@ -361,3 +395,5 @@ knowledge: [FILE1.md, FILE2.md]  # Optional: linked knowledge files
 | mev-researcher | Front-running, flash loans | Smart Contract |
 | formal-verification | Invariants, proofs | Smart Contract |
 | incident-responder | Recovery, rollback | All |
+| code-hygiene | Dead code, cleanup | All |
+| spec-reviewer | PRD/TDD/RFC review | Pre-Write |

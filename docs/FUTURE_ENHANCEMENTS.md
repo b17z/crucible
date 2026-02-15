@@ -39,7 +39,7 @@ Let Claude figure it out. Skills provide perspectives, Claude naturally identifi
 
 ## Additional Skills
 
-All planned personas have been implemented (18 skills). Potential future additions:
+All core personas have been implemented (20 skills). Potential future additions:
 
 - compliance-engineer (GDPR, SOC2, HIPAA)
 - ml-engineer (model deployment, inference optimization)

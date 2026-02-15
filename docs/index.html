@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crucible - Code review orchestrator for Claude Code</title>
-  <meta name="description" content="Code review orchestrator that chains static analysis, custom rules, and your team's knowledge into Claude Code. Plug in your patterns, Claude gets them automatically.">
+  <title>Crucible - Code review with enforcement for Claude Code</title>
+  <meta name="description" content="Code review with enforcement. Pattern and LLM assertions that block bad code. Pre-write spec review. Session context injection. 20 personas, 14 knowledge files. From spec to commit.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -596,7 +596,7 @@
       </div>
       <p class="disclaimer">
         Augments human review, doesn't replace it.<br>
-        Enforces via pre-commit hooks + Claude Code hooks.
+        Enforces from spec review through commit hooks.
       </p>
     </div>
   </header>
@@ -609,20 +609,21 @@
 <span class="cmd">crucible review --mode staged</span>
 
 <span class="cmd">→ Static analysis:</span>  semgrep, ruff, bandit (or slither for Solidity)
-<span class="cmd">→ Custom assertions:</span> your pattern rules from .crucible/assertions/
+<span class="cmd">→ Pattern rules:</span>    30 bundled + your .crucible/assertions/
+<span class="cmd">→ LLM assertions:</span>   Semantic checks with token budget
 <span class="cmd">→ Domain detection:</span>  python, backend, api
 <span class="cmd">→ Skills loaded:</span>     backend-engineer, security-engineer
 <span class="cmd">→ Knowledge loaded:</span>  API_DESIGN.md, SECURITY.md, DATABASE.md
 
 <span class="text-dim">Claude receives:</span>
   - Deduplicated findings from all tools
+  - Enforcement results (pattern + LLM)
   - Your team's review checklists
-  - Domain-specific patterns
-  - Institutional knowledge
+  - Domain-specific context
       </div>
       <p class="section-note">
         Git-aware: review staged changes, branch diffs, or recent commits.<br>
-        CI-ready: <code>crucible ci generate</code> creates GitHub Actions workflows.
+        Suppression: <code>// crucible-ignore: rule-id</code> inline comments.
       </p>
     </div>
   </section>
@@ -652,19 +653,53 @@
           <h3 class="card-title">PRE-COMMIT HOOK</h3>
           <p class="card-desc">crucible hooks install</p>
           <p class="card-meta">Runs on every git commit</p>
-          <p class="card-quote">Secrets + analysis + assertions</p>
+          <p class="card-quote">Blocks bad code at the gate</p>
         </div>
         <div class="card">
-          <h3 class="card-title">CLAUDE CODE HOOK</h3>
+          <h3 class="card-title">CLAUDE CODE HOOKS</h3>
           <p class="card-desc">crucible hooks claudecode init</p>
-          <p class="card-meta">Runs on Edit|Write operations</p>
-          <p class="card-quote">Zero context cost enforcement</p>
+          <p class="card-meta">PostToolUse + SessionStart</p>
+          <p class="card-quote">Blocks violations + injects context</p>
         </div>
         <div class="card">
           <h3 class="card-title">30 BUNDLED RULES</h3>
-          <p class="card-desc">security + errors + contracts</p>
+          <p class="card-desc">Pattern + LLM assertions</p>
           <p class="card-meta">eval, shell, pickle, reentrancy...</p>
           <p class="card-quote">Add your own in .crucible/assertions/</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Full Stack -->
+  <section id="stack">
+    <div class="container">
+      <h2 class="section-header">THE FULL STACK</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Enforcement at every stage. From spec to commit.</p>
+      <div class="cards">
+        <div class="card">
+          <h3 class="card-title">PRE-WRITE</h3>
+          <p class="card-desc">Review specs before code exists</p>
+          <p class="card-meta">crucible prewrite review spec.md</p>
+          <p class="card-quote">Catch drift at the source</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">SESSION START</h3>
+          <p class="card-desc">Context injected automatically</p>
+          <p class="card-meta">What's enforced + recent findings</p>
+          <p class="card-quote">Claude knows before you ask</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">WHILE-WRITE</h3>
+          <p class="card-desc">PostToolUse hook on Edit|Write</p>
+          <p class="card-meta">Violations blocked in real-time</p>
+          <p class="card-quote">Fix before commit</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">PRE-COMMIT</h3>
+          <p class="card-desc">Git hook blocks bad commits</p>
+          <p class="card-meta">crucible hooks install</p>
+          <p class="card-quote">Nothing escapes</p>
         </div>
       </div>
     </div>
@@ -683,21 +718,27 @@
         </div>
         <div class="card">
           <h3 class="card-title">ASSERTIONS</h3>
-          <p class="card-desc">Custom pattern rules</p>
+          <p class="card-desc">Pattern + LLM rules</p>
           <p class="card-meta">"Enforce your conventions"</p>
-          <p class="card-quote">.crucible/assertions/</p>
+          <p class="card-quote">30 bundled + custom</p>
         </div>
         <div class="card">
           <h3 class="card-title">SKILLS</h3>
           <p class="card-desc">Review personas</p>
           <p class="card-meta">"How to think about this"</p>
-          <p class="card-quote">18 templates. Add yours.</p>
+          <p class="card-quote">20 bundled. Add yours.</p>
         </div>
         <div class="card">
           <h3 class="card-title">KNOWLEDGE</h3>
           <p class="card-desc">Patterns and principles</p>
           <p class="card-meta">"What to look for"</p>
-          <p class="card-quote">12 templates. Add yours.</p>
+          <p class="card-quote">14 bundled. Add yours.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">PRE-WRITE</h3>
+          <p class="card-desc">Spec review templates</p>
+          <p class="card-meta">"Validate before you build"</p>
+          <p class="card-quote">5 templates. PRD, TDD, RFC...</p>
         </div>
       </div>
     </div>
@@ -726,8 +767,34 @@
         </div>
       </div>
       <p class="section-note">
-        Bundled templates (18 skills, 12 knowledge files) are starting points.<br>
+        Bundled templates (20 skills, 14 knowledge files) are starting points.<br>
         The value is YOUR patterns, loaded when relevant.
+      </p>
+    </div>
+  </section>
+
+  <!-- Session Context -->
+  <section id="session-context">
+    <div class="container">
+      <h2 class="section-header">SESSION CONTEXT</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Claude knows what's enforced before you start.</p>
+      <div class="code-block">
+<span class="comment"># SessionStart hook auto-injects:</span>
+
+<span class="cmd">→ Enforcement summary:</span>   Active assertions by priority
+<span class="cmd">→ Team context:</span>          .crucible/system/*.md files
+<span class="cmd">→ Recent findings:</span>       Issues from last review
+
+<span class="comment"># Add team context</span>
+<span class="cmd">crucible system init</span>               <span class="comment"># Create .crucible/system/ templates</span>
+
+<span class="comment"># Creates:</span>
+  .crucible/system/team-patterns.md  <span class="comment"># Team conventions</span>
+  .crucible/system/focus.md          <span class="comment"># Current priorities</span>
+      </div>
+      <p class="section-note">
+        No explicit tool calls needed. Context arrives with the session.<br>
+        Add <code>.crucible/system/*.md</code> files for team-specific context.
       </p>
     </div>
   </section>
@@ -769,16 +836,50 @@
       <h2 class="section-header">MCP NATIVE</h2>
       <p class="subtitle" style="margin-bottom: 30px;">Designed to chain with other MCPs.</p>
       <div class="code-block">
-<span class="comment"># Claude calls Crucible's MCP tools</span>
+<span class="comment"># Code review</span>
 <span class="cmd">review(path="src/")</span>                    <span class="comment"># Full review with skills + knowledge</span>
 <span class="cmd">review(mode="staged")</span>                   <span class="comment"># Git-aware: staged changes</span>
 <span class="cmd">review(mode="branch", base="main")</span>      <span class="comment"># PR diff review</span>
+
+<span class="comment"># Pre-write review</span>
+<span class="cmd">prewrite_review(path="spec.md")</span>         <span class="comment"># Review spec against assertions</span>
+<span class="cmd">prewrite_list_templates()</span>               <span class="comment"># List available templates</span>
+
+<span class="comment"># Context loading</span>
+<span class="cmd">get_assertions()</span>                        <span class="comment"># Load enforcement rules</span>
+<span class="cmd">load_knowledge(files=["SECURITY.md"])</span>   <span class="comment"># Load specific knowledge</span>
 
 <span class="comment"># Chain with other MCPs via mcpmon</span>
 <span class="cmd">mcpmon --watch ~/.crucible/ -- crucible-mcp</span>   <span class="comment"># Hot reload on changes</span>
       </div>
       <p class="section-note">
         <a href="https://b17z.github.io/mcpmon/" style="color: var(--cyan);">mcpmon</a> enables hot reload - edit skills/knowledge, changes load without restarting Claude Code.
+      </p>
+    </div>
+  </section>
+
+  <!-- Pre-Write -->
+  <section id="prewrite">
+    <div class="container">
+      <h2 class="section-header">PRE-WRITE REVIEW</h2>
+      <p class="subtitle" style="margin-bottom: 30px;">Catch drift before code exists. Review specs, PRDs, and design docs.</p>
+      <div class="code-block">
+<span class="comment"># Create spec from template</span>
+<span class="cmd">crucible prewrite init prd my-feature.md</span>
+
+<span class="comment"># Review against assertions</span>
+<span class="cmd">crucible prewrite review spec.md</span>
+
+<span class="comment"># 5 bundled templates:</span>
+  prd.md            <span class="comment"># Product requirements</span>
+  tdd.md            <span class="comment"># Technical design</span>
+  rfc.md            <span class="comment"># Request for comments</span>
+  adr.md            <span class="comment"># Architecture decision record</span>
+  security-review.md
+      </div>
+      <p class="section-note">
+        Pre-write assertions check for missing auth specs, undocumented failure modes,<br>
+        compliance gaps. Validate intent before you build.
       </p>
     </div>
   </section>
@@ -791,20 +892,25 @@
 <span class="comment"># Quick start</span>
 <span class="cmd">crucible init --with-claudemd</span>           <span class="comment"># Initialize project + minimal CLAUDE.md</span>
 <span class="cmd">crucible hooks install</span>                  <span class="comment"># Git pre-commit hook</span>
-<span class="cmd">crucible hooks claudecode init</span>          <span class="comment"># Claude Code hooks</span>
+<span class="cmd">crucible hooks claudecode init</span>          <span class="comment"># Claude Code hooks (PostToolUse + SessionStart)</span>
 
 <span class="comment"># Review</span>
 <span class="cmd">crucible review</span>                         <span class="comment"># Staged changes (default)</span>
 <span class="cmd">crucible review --mode branch</span>           <span class="comment"># Branch vs main</span>
 <span class="cmd">crucible review src/file.py --no-git</span>    <span class="comment"># Single file without git</span>
 
-<span class="comment"># Assertions</span>
-<span class="cmd">crucible assertions list</span>                <span class="comment"># List all assertion files</span>
-<span class="cmd">crucible assertions test file.py</span>        <span class="comment"># Test assertions against a file</span>
+<span class="comment"># Pre-write</span>
+<span class="cmd">crucible prewrite init prd my.md</span>        <span class="comment"># Create spec from template</span>
+<span class="cmd">crucible prewrite review spec.md</span>        <span class="comment"># Review spec against assertions</span>
 
-<span class="comment"># Customize templates</span>
+<span class="comment"># Session context</span>
+<span class="cmd">crucible system init</span>                    <span class="comment"># Create .crucible/system/ templates</span>
+<span class="cmd">crucible system show</span>                    <span class="comment"># Preview what gets injected</span>
+
+<span class="comment"># Customize</span>
 <span class="cmd">crucible skills init security-engineer</span>  <span class="comment"># Copy skill to .crucible/skills/</span>
 <span class="cmd">crucible knowledge init SECURITY</span>        <span class="comment"># Copy knowledge to .crucible/knowledge/</span>
+<span class="cmd">crucible assertions list</span>                <span class="comment"># List all assertion files</span>
       </div>
     </div>
   </section>
@@ -847,7 +953,7 @@
         This augments human review. It doesn't replace it.<br>
         Bundled templates are starting points. Plug in your own.
       </p>
-      <p class="footer-version">crucible v1.0.0</p>
+      <p class="footer-version">crucible v1.3.0</p>
       <p class="footer-family">part of: <a href="https://b17z.github.io/sage/">sage</a> | <a href="https://b17z.github.io/mcpmon/">mcpmon</a></p>
       <p class="footer-note">Not affiliated with Atlassian's Crucible.</p>
       <div class="footer-links">

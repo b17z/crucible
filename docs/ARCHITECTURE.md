@@ -60,6 +60,10 @@ The server exposes tools via `server.py`:
 │                               Runs analysis + skills + knowledge +  │
 │                               enforcement assertions                 │
 │                                                                     │
+│  Pre-write review:                                                  │
+│  ├── prewrite_review(path)    Review specs/PRDs against assertions  │
+│  └── prewrite_list_templates  List available spec templates         │
+│                                                                     │
 │  Context injection (call at session start):                         │
 │  ├── get_assertions()         Load enforcement rules                │
 │  ├── get_principles(topic)    Load engineering knowledge            │
@@ -283,7 +287,9 @@ src/crucible/
 │
 ├── hooks/
 │   ├── precommit.py       # Pre-commit hook implementation
-│   └── claudecode.py      # Claude Code PostToolUse hook
+│   └── claudecode.py      # Claude Code hooks (PostToolUse, SessionStart)
+│
+├── history.py             # Session continuity (recent findings)
 │
 ├── knowledge/
 │   ├── loader.py          # Load principles with cascade
@@ -295,10 +301,22 @@ src/crucible/
 │
 ├── skills/
 │   ├── loader.py          # Skill parsing and matching
-│   └── <skill>/SKILL.md   # 18 bundled persona skills
+│   └── <skill>/SKILL.md   # 20 bundled persona skills
 │       ├── security-engineer/
 │       ├── web3-engineer/
 │       └── ...
+│
+├── prewrite/              # Pre-write spec review
+│   ├── loader.py          # Template loading with cascade
+│   ├── review.py          # Pre-write review logic
+│   └── models.py          # PrewriteMetadata, PrewriteResult
+│
+├── templates/prewrite/    # 5 bundled spec templates
+│   ├── prd.md
+│   ├── tdd.md
+│   ├── rfc.md
+│   ├── adr.md
+│   └── security-review.md
 │
 ├── enforcement/
 │   ├── assertions.py      # Load/validate YAML assertion files
@@ -312,11 +330,12 @@ src/crucible/
 │       └── smart-contract.yaml
 
 docs/
-├── README.md              # Quick start
+├── QUICKSTART.md          # 5-minute setup guide
+├── FEATURES.md            # Complete feature reference
 ├── ARCHITECTURE.md        # This document
 ├── CUSTOMIZATION.md       # Skills + knowledge cascade
-├── SKILLS.md              # All 18 personas
-├── KNOWLEDGE.md           # All 12 files
+├── SKILLS.md              # All 20 personas
+├── KNOWLEDGE.md           # All 14 knowledge files
 └── CONTRIBUTING.md        # For contributors
 ```
 
@@ -443,6 +462,44 @@ class ToolFinding:
 ```
 
 Setup: `crucible hooks claudecode init` generates `.claude/settings.json`.
+
+---
+
+## Session Context (Activation Energy)
+
+`hooks/claudecode.py` also provides a SessionStart hook for automatic context injection:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    SESSION START HOOK FLOW                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. Claude Code starts or resumes a session                        │
+│                                                                     │
+│  2. SessionStart hook runs:                                         │
+│     crucible hooks claudecode session                               │
+│                                                                     │
+│  3. Crucible generates context:                                     │
+│     ├── Enforcement summary (active assertions by priority)         │
+│     ├── System files (.crucible/system/*.md)                        │
+│     └── Recent findings (.crucible/history/recent-findings.md)      │
+│                                                                     │
+│  4. Returns JSON with additionalContext field                       │
+│                                                                     │
+│  5. Claude receives enforcement context automatically               │
+│                                                                     │
+│  Directory structure:                                               │
+│     .crucible/                                                      │
+│     ├── system/              # Auto-injected every session          │
+│     │   ├── team-patterns.md # Team conventions                     │
+│     │   └── focus.md         # Current priorities                   │
+│     └── history/             # Session continuity                   │
+│         └── recent-findings.md  # Last review results               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+The `history.py` module manages finding persistence for session continuity.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Tests for bundled skills - validates all 19 skills have proper structure."""
+"""Tests for bundled skills - validates all 20 skills have proper structure."""
 
 import re
 
@@ -27,6 +27,7 @@ EXPECTED_SKILLS = {
     "formal-verification",
     "incident-responder",
     "code-hygiene",
+    "spec-reviewer",
 }
 
 
@@ -39,13 +40,13 @@ class TestSkillsExist:
         for skill in EXPECTED_SKILLS:
             assert skill in actual, f"Missing skill: {skill}"
 
-    def test_exactly_19_bundled_skills(self) -> None:
-        """Should have exactly 19 bundled skills."""
+    def test_exactly_20_bundled_skills(self) -> None:
+        """Should have exactly 20 bundled skills."""
         bundled = set()
         for skill_dir in SKILLS_BUNDLED.iterdir():
             if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
                 bundled.add(skill_dir.name)
-        assert len(bundled) == 19, f"Expected 19 skills, got {len(bundled)}: {bundled}"
+        assert len(bundled) == 20, f"Expected 20 skills, got {len(bundled)}: {bundled}"
 
     def test_skills_directory_exists(self) -> None:
         """Skills bundled directory should exist."""

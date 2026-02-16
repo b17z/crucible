@@ -2248,9 +2248,14 @@ def cmd_system_show(args: argparse.Namespace) -> int:
 
 def main() -> int:
     """CLI entry point."""
+    from crucible import __version__
+
     parser = argparse.ArgumentParser(
         prog="crucible",
         description="Code review orchestration",
+    )
+    parser.add_argument(
+        "--version", "-V", action="version", version=f"crucible {__version__}"
     )
     subparsers = parser.add_subparsers(dest="command")
 

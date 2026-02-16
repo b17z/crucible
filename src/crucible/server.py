@@ -221,6 +221,14 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="version",
+            description="Get Crucible version",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
             name="load_knowledge",
             description="Load knowledge/principles files without running static analysis. Useful for getting guidance on patterns, best practices, or domain-specific knowledge. Loads all 14 bundled knowledge files by default, with project/user files overriding bundled ones.",
             inputSchema={
@@ -841,6 +849,13 @@ def _handle_check_tools(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text="\n".join(parts))]
 
 
+def _handle_version(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle version tool."""
+    from crucible import __version__
+
+    return [TextContent(type="text", text=f"crucible {__version__}")]
+
+
 def _handle_prewrite_review(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle prewrite_review tool."""
     from crucible.enforcement.models import ComplianceConfig
@@ -923,6 +938,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         "delegate_slither": _handle_delegate_slither,
         "delegate_bandit": _handle_delegate_bandit,
         "check_tools": _handle_check_tools,
+        "version": _handle_version,
     }
 
     handler = handlers.get(name)

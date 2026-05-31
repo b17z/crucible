@@ -149,3 +149,17 @@ See `docs/` for:
 - SKILLS.md - All 20 personas
 - KNOWLEDGE.md - All 14 knowledge files
 - CONTRIBUTING.md - For contributors
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues at `b17z/crucible`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical defaults (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). The four state labels get created on first use by the `triage` skill; `wontfix` already exists. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` and `docs/adr/` at the repo root (not yet created; the `grill-with-docs` skill populates them lazily). See `docs/agents/domain.md`.

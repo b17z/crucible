@@ -1,7 +1,10 @@
 """Tests for tool delegation."""
 
+import subprocess
+
 from crucible.models import Domain, Severity
 from crucible.tools.delegation import (
+    _check_tool_run,
     _severity_from_ruff,
     _severity_from_semgrep,
     _validate_path,
@@ -10,6 +13,16 @@ from crucible.tools.delegation import (
     delegate_semgrep,
     get_semgrep_config,
 )
+
+
+def _make_result(returncode: int, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess:
+    """Build a synthetic CompletedProcess for _check_tool_run tests."""
+    return subprocess.CompletedProcess(
+        args=["fake-tool"],
+        returncode=returncode,
+        stdout=stdout,
+        stderr=stderr,
+    )
 
 
 class TestSemgrepConfig:
@@ -134,3 +147,62 @@ class TestPathValidation:
         result = delegate_semgrep("--help")
         assert result.is_err
         assert "cannot start with '-'" in result.error
+
+
+class TestToolRunCheck:
+    """Distinguish a successful no-findings run from a pre-arg-parse crash."""
+
+    def test_exit_zero_with_json_is_ok(self) -> None:
+        """Successful scan with no findings — exit 0, JSON body present."""
+        result = _make_result(0, stdout='{"results": []}\n')
+        check = _check_tool_run("semgrep", result, success_codes=(0, 1))
+        assert check.is_ok
+
+    def test_exit_one_with_json_is_ok(self) -> None:
+        """Scan with findings — exit 1 is a success code for many tools."""
+        result = _make_result(1, stdout='{"results": [{"check_id": "x"}]}\n')
+        check = _check_tool_run("semgrep", result, success_codes=(0, 1))
+        assert check.is_ok
+
+    def test_exit_one_with_empty_stdout_is_err(self) -> None:
+        """Regression: pre-arg-parse crash (exit 1, empty stdout) is failure.
+
+        This is the silent-crash bug that hid an opentelemetry ImportError in
+        semgrep behind a fake 'no findings' result.
+        """
+        result = _make_result(1, stdout="", stderr="ImportError: cannot import name 'LogData'")
+        check = _check_tool_run("semgrep", result, success_codes=(0, 1))
+        assert check.is_err
+        assert "no output" in check.error.lower() or "crash" in check.error.lower()
+        assert "ImportError" in check.error  # stderr must surface
+
+    def test_exit_two_is_err(self) -> None:
+        """Exit code outside success_codes is failure regardless of stdout."""
+        result = _make_result(2, stdout='{"results": []}', stderr="parse error")
+        check = _check_tool_run("bandit", result, success_codes=(0, 1))
+        assert check.is_err
+        assert "bandit failed" in check.error
+        assert "parse error" in check.error
+
+    def test_slither_tight_predicate(self) -> None:
+        """Slither uses success_codes=(0,) — exit 1 should error."""
+        result = _make_result(1, stdout="", stderr="solc not found")
+        check = _check_tool_run("slither", result, success_codes=(0,))
+        assert check.is_err
+
+    def test_zero_with_empty_stdout_is_ok(self) -> None:
+        """Exit 0 with empty stdout shouldn't error — some tools emit nothing
+        on a clean run. Only non-zero + empty triggers the crash heuristic."""
+        result = _make_result(0, stdout="", stderr="")
+        check = _check_tool_run("ruff", result, success_codes=(0, 1))
+        assert check.is_ok
+
+    def test_stderr_truncation(self) -> None:
+        """Long stderr is truncated to keep error messages manageable."""
+        long_stderr = "X" * 2000
+        result = _make_result(99, stdout="", stderr=long_stderr)
+        check = _check_tool_run("tool", result, success_codes=(0,))
+        assert check.is_err
+        # Truncation cap is 500 chars; the error message has surrounding text
+        # but the stderr portion must be bounded.
+        assert len(check.error) < 800

@@ -91,6 +91,38 @@ def _validate_path(path: str) -> Result[None, str]:
     return ok(None)
 
 
+def _check_tool_run(
+    tool_name: str,
+    result: subprocess.CompletedProcess[str],
+    success_codes: tuple[int, ...],
+) -> Result[None, str]:
+    """Distinguish a successful no-findings run from a crashed run.
+
+    Static-analysis tools commonly use a non-zero exit code to mean
+    "findings were present" — for those tools, callers pass {0, 1} as
+    success_codes. The trap: a pre-arg-parse crash (e.g. ImportError,
+    incompatible dependency) also produces a non-zero exit code with
+    empty stdout, indistinguishable from "no findings" if callers only
+    check the exit code.
+
+    A real scan always writes a JSON body to stdout, even when findings
+    are empty. Empty stdout + non-zero exit means the tool crashed
+    before scanning. Treat that as failure.
+
+    Returns ok(None) if the run looks legitimate, err(...) otherwise.
+    """
+    if result.returncode not in success_codes:
+        stderr = result.stderr.strip()[:500] if result.stderr else "(no stderr)"
+        return err(f"{tool_name} failed (exit {result.returncode}): {stderr}")
+    if result.returncode != 0 and not result.stdout.strip():
+        stderr = result.stderr.strip()[:500] if result.stderr else "(no stderr)"
+        return err(
+            f"{tool_name} exited {result.returncode} with no output — likely "
+            f"a crash before scanning. stderr: {stderr}"
+        )
+    return ok(None)
+
+
 def delegate_semgrep(
     path: str,
     config: str = "auto",
@@ -123,11 +155,12 @@ def delegate_semgrep(
     except subprocess.TimeoutExpired:
         return err(f"semgrep timed out after {timeout}s")
 
-    if result.returncode not in (0, 1):  # 1 means findings found
-        return err(f"semgrep failed: {result.stderr}")
+    check = _check_tool_run("semgrep", result, success_codes=(0, 1))
+    if check.is_err:
+        return err(check.error)
 
     try:
-        output = json.loads(result.stdout) if result.stdout else {"results": []}
+        output = json.loads(result.stdout)
     except json.JSONDecodeError as e:
         return err(f"Failed to parse semgrep output: {e}")
 
@@ -175,6 +208,10 @@ def delegate_ruff(
         return err("ruff not found. Install with: pip install ruff")
     except subprocess.TimeoutExpired:
         return err(f"ruff timed out after {timeout}s")
+
+    check = _check_tool_run("ruff", result, success_codes=(0, 1))
+    if check.is_err:
+        return err(check.error)
 
     try:
         output = json.loads(result.stdout) if result.stdout else []
@@ -251,6 +288,10 @@ def delegate_bandit(
     except subprocess.TimeoutExpired:
         return err(f"bandit timed out after {timeout}s")
 
+    check = _check_tool_run("bandit", result, success_codes=(0, 1))
+    if check.is_err:
+        return err(check.error)
+
     try:
         output = json.loads(result.stdout) if result.stdout else {"results": []}
     except json.JSONDecodeError as e:
@@ -313,6 +354,12 @@ def delegate_slither(
         return err("slither not found. Install with: pip install slither-analyzer")
     except subprocess.TimeoutExpired:
         return err(f"slither timed out after {timeout}s")
+
+    # Slither historically returns 0 even when findings are present, and uses
+    # non-zero for compile/parse failures. Tight predicate: only 0 is success.
+    check = _check_tool_run("slither", result, success_codes=(0,))
+    if check.is_err:
+        return err(check.error)
 
     try:
         output = json.loads(result.stdout) if result.stdout else {"results": {"detectors": []}}
@@ -387,9 +434,10 @@ def delegate_gitleaks(
     except subprocess.TimeoutExpired:
         return err(f"gitleaks timed out after {timeout}s")
 
-    # Exit code 1 means leaks found, 0 means clean
-    if result.returncode not in (0, 1):
-        return err(f"gitleaks failed: {result.stderr}")
+    # gitleaks: exit 0 = no leaks, 1 = leaks found, others = error.
+    check = _check_tool_run("gitleaks", result, success_codes=(0, 1))
+    if check.is_err:
+        return err(check.error)
 
     try:
         output = json.loads(result.stdout) if result.stdout.strip() else []

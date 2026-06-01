@@ -67,9 +67,29 @@ if [[ -n "$mode_value" ]]; then
 fi
 
 # --- crucible-approve ---
-# Match: `crucible-approve: <name>@<version>` — exactly one pkg per line.
-# Multiple approvals across multiple lines all get appended.
-mapfile -t approve_lines < <(echo "$prompt_text" | grep -oE '^[[:space:]]*crucible-approve:[[:space:]]*[^[:space:]]+' || true)
+# Match: `crucible-approve: <name>@<version>` where name and version are
+# composed only of characters legal in package identifiers across npm,
+# PyPI, Cargo, etc. — letters, digits, dot, underscore, hyphen,
+# at-sign, slash. This is deliberately stricter than the package
+# managers themselves accept, but it eliminates YAML-injection vectors:
+# colons, quotes, backslashes, newlines, and arbitrary characters
+# cannot reach the YAML file even by accident.
+#
+# Anything that doesn't match this pattern is silently ignored with a
+# warning to stderr. The hook never blocks, never errors.
+PKG_CHARSET='[A-Za-z0-9._/@-]'
+APPROVE_RE="^[[:space:]]*crucible-approve:[[:space:]]*${PKG_CHARSET}+\$"
+
+mapfile -t approve_lines < <(echo "$prompt_text" | grep -E "$APPROVE_RE" || true)
+
+# Surface any malformed approve lines so the user knows their input
+# didn't take effect. Only useful if there's a line that *looks* like
+# an approve command but failed strict validation.
+mapfile -t suspicious_lines < <(echo "$prompt_text" | grep -E '^[[:space:]]*crucible-approve:' | grep -vE "$APPROVE_RE" || true)
+for bad in "${suspicious_lines[@]}"; do
+    echo "crucible: ignoring malformed approve line '${bad}' — only [A-Za-z0-9._/@-] characters allowed in name/version" >&2
+done
+
 if [[ ${#approve_lines[@]} -gt 0 ]]; then
     # Bootstrap the session-scoped file with a header if it doesn't exist.
     if [[ ! -f "$APPROVED_SESSION" ]]; then
@@ -105,11 +125,25 @@ YAML_HEADER
             continue
         fi
 
+        # Defense in depth: also enforce the charset on the parsed name
+        # and version individually. The whole-line regex above should
+        # have caught anything bad already, but if the parsing logic
+        # ever changes we don't want unstrict values reaching the
+        # YAML file.
+        if ! [[ "$name" =~ ^${PKG_CHARSET}+$ && "$version" =~ ^${PKG_CHARSET}+$ ]]; then
+            echo "crucible: ignoring parsed approve '${name}@${version}' — invalid characters" >&2
+            continue
+        fi
+
         # Append a YAML entry. The session file is small and short-lived;
         # we don't dedupe — duplicate entries are harmless to the gate.
+        # Quote names that start with `@` (scoped npm packages) — bare
+        # @ is a reserved YAML indicator. Other names use double quotes
+        # too for consistency; the charset filter already guarantees no
+        # internal quotes can appear.
         cat >> "$APPROVED_SESSION" << YAML_ENTRY
-  - name: ${name}
-    version: ${version}
+  - name: "${name}"
+    version: "${version}"
     reason: session approval via crucible-approve magic comment
     approved_at: $(date -u +%Y-%m-%d)
     approved_by: session

@@ -18,7 +18,7 @@ from typing import Any
 
 import yaml
 
-from crucible.errors import Err, Ok, Result, err, ok
+from crucible.errors import Err, Result, err, ok
 
 from ._types import RawSkill
 

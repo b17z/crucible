@@ -109,10 +109,13 @@ if [[ ${#requested[@]} -eq 0 ]]; then
     exit 0
 fi
 
-# Helper: check whether a `name@version` (or `name==version` for pip) is
-# approved in either allow-list. Uses a simple `name: <name>` + `version:
-# <version>` grep — the YAML format is fixed and small enough that a
-# tolerant text scan beats pulling in yq.
+# Helper: check whether a `name@version` is approved in either allow-list.
+#
+# Uses Python's yaml.safe_load — the same parser any downstream consumer
+# of these files will use. Avoids the awk/yaml disagreement where a
+# permissive text scan would accept malformed YAML that strict parsers
+# reject. If the file is missing or invalid YAML, returns 1 (not
+# approved) silently — the gate fails closed.
 is_approved() {
     local name="$1"
     local version="$2"
@@ -120,22 +123,30 @@ is_approved() {
 
     [[ -f "$file" ]] || return 1
 
-    # Look for an entry where both name and version appear within
-    # ~6 lines of each other (one approved-deps entry block).
-    awk -v name="$name" -v version="$version" '
-        /^[[:space:]]*-[[:space:]]+name:/ {
-            n = $0; sub(/^[[:space:]]*-[[:space:]]+name:[[:space:]]*/, "", n);
-            gsub(/^["\x27 ]+|["\x27 ]+$/, "", n);
-            cur_name = n; cur_ver = "";
-        }
-        /^[[:space:]]+version:/ {
-            v = $0; sub(/^[[:space:]]+version:[[:space:]]*/, "", v);
-            gsub(/^["\x27 ]+|["\x27 ]+$/, "", v);
-            cur_ver = v;
-            if (cur_name == name && cur_ver == version) { found = 1; exit }
-        }
-        END { exit found ? 0 : 1 }
-    ' "$file"
+    python3 - "$name" "$version" "$file" << 'PY' 2>/dev/null
+import sys, yaml
+
+name, version, file = sys.argv[1], sys.argv[2], sys.argv[3]
+
+try:
+    data = yaml.safe_load(open(file)) or {}
+except yaml.YAMLError:
+    sys.exit(1)
+
+if not isinstance(data, dict):
+    sys.exit(1)
+
+approved = data.get('approved') or []
+if not isinstance(approved, list):
+    sys.exit(1)
+
+for entry in approved:
+    if not isinstance(entry, dict):
+        continue
+    if str(entry.get('name', '')) == name and str(entry.get('version', '')) == version:
+        sys.exit(0)
+sys.exit(1)
+PY
 }
 
 declare -a denied=()

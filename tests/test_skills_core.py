@@ -14,13 +14,11 @@ import pytest
 from crucible.skills_core import (
     CascadeSpec,
     RawSkill,
-    ResolvedPath,
     list_available,
     parse_frontmatter,
     read_skill,
     resolve,
 )
-
 
 # --- parse_frontmatter ---------------------------------------------------
 

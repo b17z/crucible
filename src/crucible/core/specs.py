@@ -46,7 +46,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from crucible.errors import Result, err, ok
-from crucible.skills_core import CascadeSpec, ResolvedPath, RawSkill, read_skill, resolve
+from crucible.skills_core import CascadeSpec, ResolvedPath, resolve
 
 # Phase 2 plan-A: bundled skills stay at src/crucible/skills/ for this
 # release. The new-shape skills/ at the repo root was laid down in Phase

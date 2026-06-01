@@ -45,15 +45,24 @@ Crucible v2 watches user prompts for three magic-comment commands. These
 are not slash commands — they're plain-text prefixes that
 UserPromptSubmit hooks intercept:
 
-- `crucible-mode: exploration` — bypass the spec-validator gate for this
-  session only. Auto-expires at session end. The bypass count surfaces
-  in the session summary.
-- `crucible-approve: <name>@<version>` — session-scoped approval for a
-  package install. Equivalent to the durable allow-list but doesn't
-  persist across sessions.
-- `crucible-sign: <id> [<id>...]` — confirm pending GUARDRAILS.md Signs
-  proposed at the previous Stop event. Phase 7 owns the auto-append flow;
-  the magic comment is the user's ack.
+- `crucible-approve: <name>@<version>` — **active.** Session-scoped
+  approval for a package install. The magic-comments hook writes an
+  entry into `.crucible/approved-deps.session.yaml`, which the
+  npm/pip/cargo install gate reads. Equivalent to the durable
+  allow-list but doesn't persist across sessions.
+- `crucible-mode: exploration` — **partial.** The hook writes a flag to
+  `.crucible/mode.session`. The consumer (the spec-validator gate that
+  this flag is meant to bypass) ships in Phase 4. Until then, the flag
+  is recorded but has no behavioral effect.
+- `crucible-sign: <id> [<id>...]` — **partial.** The hook appends to
+  `.crucible/inbox/signs-confirmed`. The Phase 7 GUARDRAILS.md
+  auto-append flow that consumes this list — and the Stop-event summary
+  that proposes Signs to confirm — ship in Phase 7. Until then, IDs are
+  recorded but no GUARDRAILS.md entries are written.
+
+If you rely on `crucible-mode: exploration` or `crucible-sign:` today,
+check `.crucible/mode.session` / `.crucible/inbox/signs-confirmed`
+directly — the side effect is real, but nothing else reads the file yet.
 
 Cascade resolution applies across `.crucible/`, `~/.claude/crucible/`,
 and bundled defaults. Project-local files override user-tier, which

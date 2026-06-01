@@ -11,7 +11,6 @@ Two public functions:
 from __future__ import annotations
 
 import warnings
-from typing import Literal, cast
 
 from crucible.errors import Result, err, ok
 

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from crucible.migrate import migrate_v1_to_v2
 
 
@@ -77,8 +75,6 @@ class TestMigrate:
 
         result1 = migrate_v1_to_v2(tmp_path)
         assert result1.is_ok
-        first_moved = list(result1.value.moved)
-        first_backed_up = list(result1.value.backed_up)
 
         # Snapshot final state.
         v2_path = tmp_path / ".crucible/skills/security-engineer/knowledge/security-principles.md"

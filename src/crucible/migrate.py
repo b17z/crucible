@@ -27,9 +27,8 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
 
-from crucible.errors import Result, err, ok
+from crucible.errors import Result, ok
 
 # Same mapping used by phase2_migrate.py — keep in sync.
 # Maps v1 knowledge filename → (dest persona, v2 filename).

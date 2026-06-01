@@ -89,3 +89,75 @@ refine the assertion regexes themselves. Don't ship with known-noise.
 - **Refining `world-writable-permissions` to parse octal literals correctly.**
   Lower-effort than the CLI/HTTP distinction; potentially a Phase 5
   during-coding-hook tightening rather than Verifier-tier work.
+
+## Corpus addition — Phase 2 self-review (2026-06-01)
+
+Running `crucible review --mode branch --base e78c2e5` against the
+Phase 0–2 changes surfaced one new false-positive class beyond the
+v1 cli.py findings:
+
+### Group 3 — bandit B101 firing on `assert` in tests (114 findings)
+
+**Assertion:** `bandit/B101` (LOW severity).
+
+**Finding shape:**
+> Use of assert detected. The enclosed code will be removed when
+> compiling to optimised byte code.
+
+**Counterargument:** every B101 hit is inside a `tests/` file. The
+warning is correct *in production code* (compile-time `-O` strips
+`assert`), but `pytest` uses `assert` as its primary mechanism and
+specifically does not run with `-O`. Bandit doesn't know the file is
+a test file; the noise is structural.
+
+**Generalized counterargument for the Verifier:**
+- The file is under `tests/` or matches `test_*.py` / `*_test.py`.
+- The use of `assert` is inside a function whose name starts with
+  `test_` or inside a pytest fixture.
+- pytest's runtime contract makes `assert` load-bearing here.
+
+If any of those is true, suppress the B101. Otherwise pass through.
+
+**Verifier task:** for B101 findings, check the surrounding context.
+File path contains `/tests/` or matches `test_*.py` → trivial
+counterargument, suppress. Same in `conftest.py`. The Phase 6
+benchmark should show ~114 of these suppressed cleanly.
+
+### Group 4 — bandit B404 on intentional subprocess import (1 finding)
+
+**Assertion:** `bandit/B404` (LOW severity).
+
+**Finding shape:**
+> Consider possible security implications associated with the
+> subprocess module.
+
+**Counterargument:** the entire purpose of `delegation.py` is to
+delegate to external tools (semgrep, ruff, bandit, slither, gitleaks)
+via `subprocess`. The import is the feature, not a vulnerability.
+This is a module-import-level warning that should be suppressed at
+the file level once and forgotten.
+
+**Verifier task:** flag B404 only if `subprocess` is imported in a
+file that doesn't go on to call `subprocess.run` / `subprocess.Popen`
+through `_validate_path` or equivalent input sanitization. In
+`delegation.py`, every `subprocess.run` call is upstream-protected by
+`_validate_path`. Suppress.
+
+---
+
+## Phase 2 corpus stats
+
+| Group | Rule | Count | Suppress? |
+|---|---|---|---|
+| 1 | `user-input-in-path` (cli.py argparse) | 6 | yes |
+| 2 | `world-writable-permissions` (0o755 chmod) | 1 | yes |
+| 3 | `bandit/B101` (assert in tests) | 114 | yes |
+| 4 | `bandit/B404` (subprocess import) | 1 | yes (with sanitization check) |
+
+Total false positives across Phase 0–2 dogfooding: **122**.
+
+The Phase 6 success criterion ("FP rate reduced by >50% per
+review-pass-dollar") should target suppressing ≥61 of these as the
+floor. Suppressing all 122 would be a >99% reduction on this corpus,
+which is the right ambition given that none of them require deep
+reasoning — they're all surface-pattern false positives.

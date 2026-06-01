@@ -1,0 +1,58 @@
+# Trigger patterns for security-engineer skill activation.
+# Consumed by core/trigger_router.py at Phase 4.
+#
+# Each entry is a TriggerRule with a `type` and type-specific fields:
+#   - prompt_match: regex against the user's prompt text
+#   - file_glob: glob against file paths in scope (Edit/Write/Read tool calls)
+#   - bash_match: regex against the command in a Bash tool call
+#
+# All matches activate the skill. There's no priority; activation is
+# union semantics — multiple matches don't compound.
+
+rules:
+  # Direct prompt mentions of security topics
+  - type: prompt_match
+    pattern: '\b(security|auth(n|z)?|authentication|authorization|secrets?|vulnerability|injection|xss|csrf|owasp|threat[-\s]?model|cve)\b'
+    note: classic security keywords
+
+  # Anything crypto/wallet adjacent — per handoff, state actors target this profile
+  - type: prompt_match
+    pattern: '\b(crypto|cryptocurrency|wallet|keypair|seed[-\s]?phrase|private[-\s]?key|stablecoin)\b'
+    note: crypto/fintech topics — Sapphire Sleet target profile
+
+  # Dependency surface — supply-chain-2026 in scope
+  - type: file_glob
+    pattern: '**/package.json'
+    note: lockfile + manifest reviews (phantom dep injection)
+  - type: file_glob
+    pattern: '**/package-lock.json'
+  - type: file_glob
+    pattern: '**/pyproject.toml'
+  - type: file_glob
+    pattern: '**/requirements*.txt'
+  - type: file_glob
+    pattern: '**/Cargo.toml'
+  - type: file_glob
+    pattern: '**/go.mod'
+
+  # CI/release surface — OIDC token theft TTP
+  - type: file_glob
+    pattern: '.github/workflows/**'
+  - type: file_glob
+    pattern: '.gitlab-ci.yml'
+
+  # Persistence-vector files — TeamPCP `.claude/settings.json` TTP
+  - type: file_glob
+    pattern: '.claude/settings.json'
+  - type: file_glob
+    pattern: '.mcp.json'
+  - type: file_glob
+    pattern: '.vscode/extensions.json'
+
+  # Bash commands that touch sensitive paths
+  - type: bash_match
+    pattern: '\b(npm|pnpm|yarn|pip|pip3|cargo)\s+(install|add|i)\b'
+    note: dependency install — gate via npm_install_gate hook
+  - type: bash_match
+    pattern: '~/\.(npmrc|pypirc|ssh|claude|gitconfig)'
+    note: writes to credential/config paths

@@ -341,3 +341,5 @@ docs/PLAN_1.0.md
 # v2 publisher-security: user-specific, never committed.
 .crucible/baselines/
 .crucible/approved-deps.session.yaml
+.crucible/mode.session
+.crucible/inbox/

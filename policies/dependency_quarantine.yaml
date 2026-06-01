@@ -1,0 +1,90 @@
+# Policy: dependency_quarantine
+#
+# Cross-cutting policy that requires every npm/pip/cargo/pnpm install of
+# a *new* package@version to be pre-approved either durably (in
+# .crucible/approved-deps.yaml) or session-scoped (via crucible-approve:
+# magic comment). Composes the security-engineer skill's supply-chain-2026
+# knowledge with the pre_tool_use/npm_install_gate.sh hook.
+#
+# Phase 1b ships the policy file; Phase 4+ wires the policy schema +
+# validator and the hook orchestration that consumes it.
+
+name: dependency_quarantine
+description: Block any npm/pip/pnpm/cargo install that adds a new package@version unless explicitly pre-approved.
+version: "1.0"
+severity: high
+threat_model_reference: skills/security-engineer/knowledge/supply-chain-2026.md#1-postinstall-hooks-are-the-universal-vector
+
+# Approval surfaces.
+approval:
+  patterns:
+    - name: durable
+      file: .crucible/approved-deps.yaml
+      lifetime: across sessions
+      managed_by: human (manual edit)
+    - name: session
+      file: .crucible/approved-deps.session.yaml
+      lifetime: until session end
+      managed_by: crucible-approve magic comment
+      hook: interfaces/claude_code/user_prompt_submit/magic_comments.sh
+
+  requirements:
+    - rule: Every approval entry MUST pin an exact version. No ranges.
+      rationale: Ranges defeat the audit; new transitive versions can ship malware.
+    - rule: Every approval entry MUST include a reason (one line is enough).
+      rationale: Future-you reviewing the file should see why each entry exists.
+
+# Hooks that enforce this policy.
+hooks:
+  - event: PreToolUse
+    matcher: Bash
+    handler: interfaces/claude_code/pre_tool_use/npm_install_gate.sh
+    blocking: true
+    note: exit 2 on unapproved install; the prompt to the operator includes both approval surfaces
+
+# What this policy gates.
+gated_commands:
+  - pattern: 'npm install <pkg>'
+  - pattern: 'npm i <pkg>'
+  - pattern: 'npm add <pkg>'
+  - pattern: 'pnpm add <pkg>'
+  - pattern: 'pnpm install <pkg>'
+  - pattern: 'yarn add <pkg>'
+  - pattern: 'pip install <pkg>'
+  - pattern: 'pip3 install <pkg>'
+  - pattern: 'cargo add <pkg>'
+
+# What this policy does NOT gate.
+intentional_gaps:
+  - case: '`npm install` with no args (lockfile reinstall)'
+    rationale: |
+      Lockfile reinstalls don't add new top-level dependencies. They CAN pull
+      new transitive deps if the lockfile already pins them. The defense
+      against that is reviewing the lockfile diff, which is a separate
+      review-time activity — not a PreToolUse gate.
+  - case: 'package manager commands other than install/add/i'
+    rationale: |
+      `npm run`, `npm test`, `pip freeze`, etc. do not add new dependencies
+      and are not in scope.
+
+# What activates this policy.
+activated_by:
+  skills:
+    - security-engineer
+  conditions:
+    - type: always_on
+      note: dependency hygiene is not opt-in; it applies to every session
+
+# Recovery flow.
+recovery:
+  - step: |
+      Read the package's source code and recent release history. Look at
+      the GitHub repo activity — does it match the published version?
+  - step: |
+      Confirm there are no postinstall hooks, OR that the postinstall
+      hook is benign and you've read it.
+  - step: |
+      Add to .crucible/approved-deps.yaml with an explicit reason, OR
+      use `crucible-approve: <pkg>@<version>` for a one-session approval.
+  - step: |
+      Re-run the install. The gate should now pass.

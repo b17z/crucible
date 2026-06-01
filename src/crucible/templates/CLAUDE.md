@@ -27,6 +27,34 @@ Crucible v2 sets up a few project-level files this agent should be aware of:
   convention discover the same per-repo instructions here. Don't edit it;
   edit `CLAUDE.md`.
 
+## Threat landscape (May 2026)
+
+The supply-chain threat picture changed materially in March-May 2026.
+State actors are now spearphishing high-value maintainers; AI is writing
+the malicious payloads. When reviewing any change that adds, updates, or
+executes a dependency — or touches `.claude/settings.json`, `.mcp.json`,
+`~/.npmrc`, `~/.pypirc`, `~/.ssh/`, or CI workflows — load the
+`security-engineer` skill's `knowledge/supply-chain-2026.md` knowledge
+file. It encodes the Axios compromise, Mini Shai-Hulud waves 1+2, the
+May 20 GitHub breach, and the seven cross-cutting attack patterns the
+review pass should be alert to.
+
+## Magic comments
+
+Crucible v2 watches user prompts for three magic-comment commands. These
+are not slash commands — they're plain-text prefixes that
+UserPromptSubmit hooks intercept:
+
+- `crucible-mode: exploration` — bypass the spec-validator gate for this
+  session only. Auto-expires at session end. The bypass count surfaces
+  in the session summary.
+- `crucible-approve: <name>@<version>` — session-scoped approval for a
+  package install. Equivalent to the durable allow-list but doesn't
+  persist across sessions.
+- `crucible-sign: <id> [<id>...]` — confirm pending GUARDRAILS.md Signs
+  proposed at the previous Stop event. Phase 7 owns the auto-append flow;
+  the magic comment is the user's ack.
+
 Cascade resolution applies across `.crucible/`, `~/.claude/crucible/`,
 and bundled defaults. Project-local files override user-tier, which
 overrides bundled. See `docs/CUSTOMIZATION.md` for details.

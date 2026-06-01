@@ -1,0 +1,52 @@
+# Policy: settings_integrity
+#
+# Cross-cutting policy that defines the file-integrity monitoring posture
+# for Claude Code-watched files. Composes the security-engineer skill's
+# supply-chain-2026 knowledge with the file_changed/settings_integrity.sh
+# hook.
+#
+# Phase 1b ships the policy file; Phase 4+ wires the policy schema +
+# validator and the hook orchestration that consumes it.
+
+name: settings_integrity
+description: Hash-monitor .claude/settings.json, .mcp.json, .vscode/extensions.json against baselines captured by `crucible baselines init`.
+version: "1.0"
+severity: critical
+threat_model_reference: skills/security-engineer/knowledge/supply-chain-2026.md#5-claudesettingsjson-modification-as-persistence
+
+# Files this policy watches. Matches the WATCHED_FILES tuple in
+# src/crucible/baselines.py — keep them in sync.
+watched_files:
+  - path: .claude/settings.json
+    baseline: .crucible/baselines/settings.sha256
+    rationale: TeamPCP persistence vector (CSA confirmed 2026-05-17)
+  - path: .mcp.json
+    baseline: .crucible/baselines/mcp.sha256
+    rationale: MCP-server injection vector
+  - path: .vscode/extensions.json
+    baseline: .crucible/baselines/extensions.sha256
+    rationale: VS Code extension persistence (GitHub breach 2026-05-20 TTP)
+
+# Hooks that enforce this policy.
+hooks:
+  - event: FileChanged
+    handler: interfaces/claude_code/file_changed/settings_integrity.sh
+    blocking: true
+    note: exit 2 on divergence; suspends further tool use until acknowledged
+
+# What activates this policy. Skills that reference it should declare it
+# in their triggers.yaml; the Phase 4 orchestrator wires the connection.
+activated_by:
+  skills:
+    - security-engineer
+    - meta/publisher-security
+  conditions:
+    - type: always_on
+      note: settings integrity is not opt-in; it applies to every session
+
+# Recovery flow when the policy fires.
+recovery:
+  - step: Suspend tool use immediately. Do not auto-accept.
+  - step: Inspect divergent files against a known-good source.
+  - step: If change is legitimate (user edited), re-baseline with `crucible baselines init --force`.
+  - step: If unexpected, treat as compromise. Refer to supply-chain-2026.md.

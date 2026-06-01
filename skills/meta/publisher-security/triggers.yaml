@@ -1,0 +1,38 @@
+# Trigger patterns for publisher-security skill activation.
+# Consumed by core/trigger_router.py at Phase 4.
+#
+# Activation requires BOTH the project_flag precondition AND any one of the
+# other rules. The flag gates the skill — random users on closed projects
+# don't get publisher-security nags.
+
+# Required precondition: the project must opt in.
+preconditions:
+  - type: project_flag
+    flag: "tool.crucible.publishable"
+    # Reads pyproject.toml [tool.crucible] table or package.json "crucible" key.
+
+rules:
+  # File-level triggers — release-adjacent paths
+  - type: file_glob
+    pattern: '.github/workflows/release*.yml'
+  - type: file_glob
+    pattern: '.github/workflows/publish*.yml'
+  - type: file_glob
+    pattern: 'pyproject.toml'
+  - type: file_glob
+    pattern: 'package.json'
+  - type: file_glob
+    pattern: 'CHANGELOG*.md'
+
+  # Prompt-level triggers
+  - type: prompt_match
+    pattern: '\b(publish|release|tag|version[-\s]?bump|cut[-\s]?a[-\s]?release)\b'
+
+  # Pre-commit trigger — running on a release-touching change
+  - type: file_glob
+    pattern: 'src/**/__init__.py'
+    note: version constants often live here
+
+  # Bash triggers — direct publish commands
+  - type: bash_match
+    pattern: '\b(npm publish|twine upload|cargo publish|gh release create)\b'

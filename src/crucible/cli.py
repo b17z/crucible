@@ -2187,6 +2187,57 @@ def cmd_baselines_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_migrate_v1_to_v2(args: argparse.Namespace) -> int:
+    """Migrate .crucible/ overrides from v1 to v2 shape. Idempotent.
+
+    See src/crucible/migrate.py for the full behavior model.
+    """
+    from crucible.migrate import migrate_v1_to_v2
+
+    project_root = Path(args.path).resolve() if args.path else Path.cwd()
+    result = migrate_v1_to_v2(project_root)
+    if result.is_err:
+        print(f"Error: {result.error}")
+        return 1
+
+    report = result.value
+
+    if not report.changed and not report.conflicts and not report.unmapped:
+        print(f"Nothing to migrate in {project_root / '.crucible'}.")
+        return 0
+
+    print(f"Migration report for {project_root}:")
+    if report.moved:
+        print(f"\n  Moved ({len(report.moved)} files):")
+        for src, dest in report.moved:
+            src_rel = src.relative_to(project_root)
+            dest_rel = dest.relative_to(project_root)
+            print(f"    {src_rel}  →  {dest_rel}")
+
+    if report.skipped_already_done:
+        print(f"\n  Already migrated ({len(report.skipped_already_done)} files; sources removed):")
+        for src in report.skipped_already_done:
+            print(f"    {src.relative_to(project_root)}")
+
+    if report.backed_up:
+        print(f"\n  Backed up ({len(report.backed_up)} files) under .crucible.v1-backup/.")
+
+    if report.conflicts:
+        print(f"\n  Conflicts ({len(report.conflicts)} files — manual resolution required):")
+        for src, dest, reason in report.conflicts:
+            print(f"    {src.relative_to(project_root)}")
+            print(f"      destination: {dest.relative_to(project_root)}")
+            print(f"      reason:      {reason}")
+
+    if report.unmapped:
+        print(f"\n  Unmapped ({len(report.unmapped)} files — custom user files not moved):")
+        for src in report.unmapped:
+            print(f"    {src.relative_to(project_root)}")
+        print("    Move these manually into the appropriate skills/<persona>/ folder.")
+
+    return 1 if report.conflicts else 0
+
+
 # --- System commands ---
 
 SYSTEM_DIR = Path(".crucible") / "system"
@@ -2696,6 +2747,22 @@ def main() -> int:
         help="Overwrite an existing .crucible/baselines/ directory"
     )
 
+    # === migrate command ===
+    migrate_parser = subparsers.add_parser(
+        "migrate",
+        help="Migrate .crucible/ overrides between Crucible versions"
+    )
+    migrate_sub = migrate_parser.add_subparsers(dest="migrate_command")
+
+    migrate_v1_v2_parser = migrate_sub.add_parser(
+        "v1-to-v2",
+        help="Migrate v1-shape .crucible/ overrides to v2 nested layout. Idempotent."
+    )
+    migrate_v1_v2_parser.add_argument(
+        "path", nargs="?", default=".",
+        help="Project path (default: current directory)"
+    )
+
     # === system command ===
     system_parser = subparsers.add_parser("system", help="Manage session context files")
     system_sub = system_parser.add_subparsers(dest="system_command")
@@ -2826,6 +2893,12 @@ def main() -> int:
             return cmd_baselines_init(args)
         else:
             baselines_parser.print_help()
+            return 0
+    elif args.command == "migrate":
+        if args.migrate_command == "v1-to-v2":
+            return cmd_migrate_v1_to_v2(args)
+        else:
+            migrate_parser.print_help()
             return 0
     elif args.command == "system":
         if args.system_command == "init":

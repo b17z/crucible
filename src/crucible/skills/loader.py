@@ -116,39 +116,65 @@ def parse_skill_frontmatter(content: str) -> Result[SkillMetadata, str]:
     )
 
 
-def resolve_skill_path(skill_name: str) -> tuple[Path | None, str]:
-    """Find skill directory with cascade priority.
+def _current_skills_spec():
+    """Build a CascadeSpec from the module's current SKILLS_* constants.
 
-    Returns (path, source) where source is 'project', 'user', or 'bundled'.
+    Reading the constants at call time (rather than import time) means
+    test code that patches them — e.g. ``patch('crucible.skills.loader.SKILLS_PROJECT', tmp_path)`` —
+    still flows through to the cascade resolver.
     """
-    # 1. Project-level (highest priority)
-    project_path = SKILLS_PROJECT / skill_name / "SKILL.md"
-    if project_path.exists():
-        return project_path, "project"
+    from crucible.skills_core import CascadeSpec
 
-    # 2. User-level
-    user_path = SKILLS_USER / skill_name / "SKILL.md"
-    if user_path.exists():
-        return user_path, "user"
+    return CascadeSpec(
+        project_dir=SKILLS_PROJECT,
+        user_dir=SKILLS_USER,
+        bundled_dir=SKILLS_BUNDLED,
+        is_folder=True,
+        suffix=None,
+    )
 
-    # 3. Bundled (lowest priority)
-    bundled_path = SKILLS_BUNDLED / skill_name / "SKILL.md"
-    if bundled_path.exists():
-        return bundled_path, "bundled"
 
-    return None, ""
+def resolve_skill_path(skill_name: str) -> tuple[Path | None, str]:
+    """Find skill SKILL.md file with cascade priority.
+
+    Returns (path-to-SKILL.md, source) where source is 'project', 'user',
+    or 'bundled'. Returns (None, "") if not found.
+
+    Phase 2: delegates to ``skills_core.resolve``. The v1 module-level
+    SKILLS_BUNDLED/SKILLS_USER/SKILLS_PROJECT constants are read at call
+    time, so test patches of those constants still take effect.
+    """
+    from crucible.skills_core import resolve
+
+    spec = _current_skills_spec()
+    result = resolve(spec, skill_name)
+    if result.is_err:
+        return None, ""
+    resolved = result.value
+    skill_md = resolved.path / "SKILL.md"
+    if not skill_md.exists():
+        return None, ""
+    return skill_md, resolved.source
 
 
 def get_all_skill_names() -> set[str]:
-    """Get all available skill names from all sources."""
+    """Get all available skill names from all sources.
+
+    Phase 2: delegates to skills_core.list_available. Filters out names
+    lacking a SKILL.md (skills_core's list_available counts all folders;
+    v1 contract requires SKILL.md presence).
+    """
+    from crucible.skills_core import list_available
+
+    spec = _current_skills_spec()
+    candidates = list_available(spec)
     names: set[str] = set()
-
-    for source_dir in [SKILLS_BUNDLED, SKILLS_USER, SKILLS_PROJECT]:
-        if source_dir.exists():
-            for item in source_dir.iterdir():
-                if item.is_dir() and (item / "SKILL.md").exists():
-                    names.add(item.name)
-
+    for base in (SKILLS_PROJECT, SKILLS_USER, SKILLS_BUNDLED):
+        if not base.exists():
+            continue
+        for name in candidates:
+            if (base / name / "SKILL.md").exists():
+                names.add(name)
     return names
 
 

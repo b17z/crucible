@@ -1,0 +1,119 @@
+version: "1.0"
+name: prewrite
+description: Pre-write assertions for specs and design documents
+
+assertions:
+  # Authentication/Authorization gaps
+  - id: spec-missing-auth
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification describes user-facing functionality
+      without specifying authentication/authorization requirements.
+      Flag if: users can access features but auth isn't mentioned.
+      Do NOT flag if: the spec is for internal tooling, CLI tools,
+      or explicitly says no auth is needed with justification.
+    message: "Spec describes user features without auth requirements"
+    severity: warning
+    priority: high
+
+  # Missing failure modes
+  - id: spec-no-failure-modes
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification describes a system or feature
+      without addressing what happens when components fail.
+      Flag if: happy path only, no error handling mentioned.
+      Look for: error states, retry logic, fallback behavior,
+      graceful degradation, timeout handling.
+    message: "Spec doesn't address failure modes"
+    severity: warning
+    priority: medium
+
+  # Data handling gaps
+  - id: spec-missing-data-handling
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification involves user data without
+      specifying how data is stored, protected, or deleted.
+      Flag if: data is collected but storage/protection/deletion
+      is not addressed.
+      Look for: encryption, retention policies, access controls,
+      data classification, compliance requirements.
+    message: "Spec involves data without data handling requirements"
+    severity: warning
+    priority: high
+
+  # Scale considerations
+  - id: spec-missing-scale-consideration
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification describes a feature that could
+      have different behavior at scale (10x, 100x users) without
+      mentioning scale considerations.
+      Flag if: the feature involves user-generated content, storage,
+      or computation that grows with usage.
+      Do NOT flag for: simple CRUD features, static content, admin tools.
+    message: "Spec doesn't address scale implications"
+    severity: info
+    priority: low
+
+  # Missing success criteria
+  - id: spec-no-success-criteria
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification defines measurable success criteria.
+      Flag if: the spec describes what to build but not how to know
+      if it worked.
+      Look for: metrics, acceptance criteria, definition of done,
+      key results, success indicators.
+    message: "Spec lacks measurable success criteria"
+    severity: info
+    priority: medium
+
+  # Vague scope
+  - id: spec-vague-scope
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification has a clearly bounded scope.
+      Flag if: the scope uses vague terms like "improve", "better",
+      "faster" without specific, measurable targets.
+      Flag if: it's unclear what is in scope vs out of scope.
+    message: "Spec scope is vague or unbounded"
+    severity: warning
+    priority: medium
+
+  # Missing dependencies
+  - id: spec-missing-dependencies
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification identifies its dependencies
+      on other systems, teams, or features.
+      Flag if: the spec requires changes to other systems or
+      coordination with other teams but doesn't list them.
+      Do NOT flag for: self-contained features with no external deps.
+    message: "Spec doesn't identify dependencies"
+    severity: info
+    priority: low
+
+  # Missing version
+  - id: spec-no-version
+    type: llm
+    scope: prewrite
+    compliance: |
+      Check if this specification has a version identifier.
+      Look for: version field in YAML frontmatter, version number
+      in the title or header, or explicit version mention.
+      Flag if: no version is present. Specs should be versioned
+      to track changes over time and ensure implementations
+      reference a specific version.
+      Do NOT flag if: this is clearly a draft or WIP document.
+    message: "Spec lacks version identifier"
+    severity: info
+    priority: low

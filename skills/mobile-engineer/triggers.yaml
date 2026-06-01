@@ -1,0 +1,8 @@
+# Trigger patterns for mobile-engineer skill activation.
+# Consumed by core/trigger_router.py at Phase 4.
+# Migrated from the v1 SKILL.md `triggers:` field as prompt_match rules.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(mobile|ios|android|react\ native|flutter|app|bundle\ size|offline)\b'
+    note: migrated from v1 SKILL.md triggers field

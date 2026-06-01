@@ -38,6 +38,10 @@ crucible = [
     "skills/**/*.md",
     "knowledge/principles/*.md",
     "enforcement/bundled/*.yaml",
+    "templates/*.md",
+    "templates/*.yaml",
+    "templates/prewrite/*.md",
+    "skills_core/SPEC.md",
 ]
 
 [tool.ruff]

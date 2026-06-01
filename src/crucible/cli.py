@@ -1857,6 +1857,13 @@ include_context: false
     (crucible_dir / "review.yaml").write_text(review_config)
     print(f"Created {crucible_dir / 'review.yaml'}")
 
+    # v2 approved-deps starter (publisher-security plumbing)
+    approved_deps_path = crucible_dir / "approved-deps.yaml"
+    if not approved_deps_path.exists():
+        template = Path(__file__).parent / "templates" / "approved-deps.yaml"
+        approved_deps_path.write_text(template.read_text())
+        print(f"Created {approved_deps_path}")
+
     if not args.minimal:
         # Get recommended skills
         recommended = _get_recommended_skills(stack)
@@ -1877,16 +1884,19 @@ include_context: false
             print(f"Warning: {claudemd_path} exists, skipping (use --force to overwrite)")
         else:
             project_name = project_path.name
-            claudemd_content = f"""# {project_name}
-
-Use Crucible for code review: `crucible review`
-
-For full engineering principles and patterns, run:
-- `crucible knowledge list` - see available knowledge
-- `crucible skills list` - see available review personas
-"""
+            template = Path(__file__).parent / "templates" / "CLAUDE.md"
+            claudemd_content = template.read_text().replace("{project_name}", project_name)
             claudemd_path.write_text(claudemd_content)
             print(f"Created {claudemd_path}")
+
+        # AGENTS.md as cross-tool pointer (per v2 plan: generated file, not symlink)
+        agents_path = project_path / "AGENTS.md"
+        if agents_path.exists() and not args.force:
+            print(f"Warning: {agents_path} exists, skipping (use --force to overwrite)")
+        else:
+            template = Path(__file__).parent / "templates" / "AGENTS.md"
+            agents_path.write_text(template.read_text())
+            print(f"Created {agents_path}")
 
     print(f"\nInitialized {crucible_dir}")
     print("\nNext steps:")
@@ -2151,6 +2161,30 @@ def cmd_ignore_test(args: argparse.Namespace) -> int:
     else:
         print(f"✗ {path} would be INCLUDED in review")
         return 1
+
+
+def cmd_baselines_init(args: argparse.Namespace) -> int:
+    """Capture file-integrity baselines under .crucible/baselines/.
+
+    Watched files: .claude/settings.json, .mcp.json, .vscode/extensions.json.
+    See src/crucible/baselines.py for the threat model.
+    """
+    from crucible.baselines import BASELINES_DIR, init_baselines
+
+    result = init_baselines(force=args.force)
+    if result.is_err:
+        print(f"Error: {result.error}")
+        return 1
+
+    entries = result.value
+    print(f"Baselines captured in {BASELINES_DIR}/")
+    for entry in entries:
+        if entry.file_existed:
+            print(f"  {entry.name:<12} {entry.watched_path}  sha256={entry.sha256[:12]}…")
+        else:
+            print(f"  {entry.name:<12} {entry.watched_path}  (absent — recorded as MISSING)")
+    print(f"  {'manifest':<12} ({len(entries)} entries; tamper anchor)")
+    return 0
 
 
 # --- System commands ---
@@ -2644,6 +2678,24 @@ def main() -> int:
         help="Path to test"
     )
 
+    # === baselines command ===
+    baselines_parser = subparsers.add_parser(
+        "baselines",
+        help="Manage file-integrity baselines (.crucible/baselines/)"
+    )
+    baselines_sub = baselines_parser.add_subparsers(dest="baselines_command")
+
+    # baselines init
+    baselines_init_parser = baselines_sub.add_parser(
+        "init",
+        help="Capture sha256 baselines for .claude/settings.json, .mcp.json, .vscode/extensions.json"
+    )
+    baselines_init_parser.add_argument(
+        "--force", "-f",
+        action="store_true",
+        help="Overwrite an existing .crucible/baselines/ directory"
+    )
+
     # === system command ===
     system_parser = subparsers.add_parser("system", help="Manage session context files")
     system_sub = system_parser.add_subparsers(dest="system_command")
@@ -2768,6 +2820,12 @@ def main() -> int:
             return cmd_ignore_test(args)
         else:
             ignore_parser.print_help()
+            return 0
+    elif args.command == "baselines":
+        if args.baselines_command == "init":
+            return cmd_baselines_init(args)
+        else:
+            baselines_parser.print_help()
             return 0
     elif args.command == "system":
         if args.system_command == "init":

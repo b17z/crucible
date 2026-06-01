@@ -1,0 +1,24 @@
+# Approved dependencies for the npm_install_gate hook.
+#
+# This file is the durable allow-list (Pattern A) consumed by
+# interfaces/claude_code/pre_tool_use/npm_install_gate.sh in Phase 1b.
+#
+# Anything listed here passes the install gate for any session, without
+# requiring an in-session `crucible-approve:` magic-comment confirmation
+# (Pattern B, which writes to .crucible/approved-deps.session.yaml).
+#
+# Format:
+#   approved:
+#     - name: <package-name>          # e.g., "lodash", "@scope/pkg", "requests"
+#       version: <exact-version>      # e.g., "4.17.21" — pinned, no ranges
+#       reason: <one-liner>           # why this was approved
+#       approved_at: YYYY-MM-DD       # date
+#       approved_by: <handle>         # who reviewed it
+#
+# Conventions:
+#   - Pin to an exact version. Ranges defeat the audit.
+#   - Reason should be specific enough to justify re-review later
+#     (e.g., "migration script utility" beats "common").
+#   - Remove entries when no longer used; the file should stay short.
+
+approved: []

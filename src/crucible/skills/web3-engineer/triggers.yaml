@@ -1,0 +1,12 @@
+# Trigger patterns for web3-engineer skill activation.
+# Consumed by core/trigger_router.py at Phase 4.
+# Migrated from the v1 SKILL.md `triggers:` field as prompt_match rules.
+
+# Auto-activate this skill whenever the smart_contract domain is detected.
+# Matches the v1 always_run_for_domains: [smart_contract] contract.
+always_run_for_domains: [smart_contract]
+
+rules:
+  - type: prompt_match
+    pattern: '\b(solidity|smart_contract|web3|ethereum|evm|defi|vyper|foundry|hardhat|blockchain)\b'
+    note: migrated from v1 SKILL.md triggers field

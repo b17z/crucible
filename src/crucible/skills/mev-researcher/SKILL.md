@@ -1,8 +1,7 @@
 ---
-version: "1.0"
-triggers: [mev, frontrun, sandwich, flashloan, arbitrage, mempool, searcher]
-always_run_for_domains: [smart_contract]
-knowledge: [SMART_CONTRACT.md, SECURITY.md]
+name: mev-researcher
+description: You are reviewing smart contract code for MEV (Maximal Extractable Value) vulnerabilities. Your focus is on protecting users from value extraction.
+version: "2.0"
 ---
 
 # MEV Researcher
@@ -63,6 +62,14 @@ Verify these criteria:
 - [ ] Commit-reveal for sensitive actions
 - [ ] Flash loan attack surface analyzed
 - [ ] Private mempool option considered for sensitive txs
+
+
+## Knowledge
+
+This skill references:
+
+- `web3-engineer/knowledge/smart-contract.md` (lives under the web3-engineer skill — cross-reference)
+- `security-engineer/knowledge/security-principles.md` (lives under the security-engineer skill — cross-reference)
 
 ## Output Format
 

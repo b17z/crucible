@@ -20,6 +20,31 @@ SKILLS_USER = Path.home() / ".claude" / "crucible" / "skills"
 SKILLS_PROJECT = Path(".crucible") / "skills"
 
 
+# Reverse-map for the v2-shim: v2 knowledge filenames → v1 names.
+# The v1 knowledge loader still uses the flat src/crucible/knowledge/principles/
+# location with uppercase filenames. v2 nests them under skills with
+# kebab-case names. The shim translates so v1 callers loading knowledge
+# by name (e.g. SECURITY.md) keep working.
+# Files not in this map pass through unchanged (e.g. new v2-only knowledge
+# like supply-chain-2026.md has no v1 counterpart).
+_V2_KNOWLEDGE_TO_V1 = {
+    "api-design.md": "API_DESIGN.md",
+    "commits.md": "COMMITS.md",
+    "database.md": "DATABASE.md",
+    "documentation.md": "DOCUMENTATION.md",
+    "error-handling.md": "ERROR_HANDLING.md",
+    "functional-programming.md": "FP.md",
+    "gitignore.md": "GITIGNORE.md",
+    "observability.md": "OBSERVABILITY.md",
+    "precommit.md": "PRECOMMIT.md",
+    "security-principles.md": "SECURITY.md",
+    "smart-contract.md": "SMART_CONTRACT.md",
+    "system-design.md": "SYSTEM_DESIGN.md",
+    "testing.md": "TESTING.md",
+    "type-safety.md": "TYPE_SAFETY.md",
+}
+
+
 @dataclass(frozen=True)
 class SkillMetadata:
     """Parsed skill frontmatter metadata."""
@@ -178,12 +203,191 @@ def get_all_skill_names() -> set[str]:
     return names
 
 
+def _extract_keywords_from_pattern(pattern: str) -> list[str]:
+    """Extract flat-string keywords from a v2 prompt_match regex pattern.
+
+    v2 patterns look like '\\b(security|auth(n|z)?|owasp)\\b'. The v1
+    contract returns flat keyword strings used for set-intersection
+    matching against domain tags. This extracts top-level alternations
+    and individual word tokens.
+
+    Approximation, not exact regex semantics — but covers every pattern
+    Crucible's bundled triggers.yaml files actually use.
+
+    Algorithm:
+      1. Scan the pattern, tracking paren depth.
+      2. For each top-level paren group, collect the inside.
+      3. Split that group on top-level pipes (depth=0 inside the group).
+      4. Strip each piece of regex metachars + character classes; keep
+         what's left if it's a plain word.
+    """
+    import re
+
+    keywords: list[str] = []
+
+    # Manual paren-depth scan to extract top-level groups
+    i = 0
+    while i < len(pattern):
+        if pattern[i] == "\\" and i + 1 < len(pattern):
+            i += 2  # skip escape pair
+            continue
+        if pattern[i] == "(":
+            # Find matching close paren
+            depth = 1
+            j = i + 1
+            while j < len(pattern) and depth > 0:
+                if pattern[j] == "\\" and j + 1 < len(pattern):
+                    j += 2
+                    continue
+                if pattern[j] == "(":
+                    depth += 1
+                elif pattern[j] == ")":
+                    depth -= 1
+                j += 1
+            if depth == 0:
+                group_content = pattern[i + 1 : j - 1]
+                # Split on top-level pipes (depth=0 within the group)
+                pieces: list[str] = []
+                buf = ""
+                depth = 0
+                k = 0
+                while k < len(group_content):
+                    c = group_content[k]
+                    if c == "\\" and k + 1 < len(group_content):
+                        buf += c + group_content[k + 1]
+                        k += 2
+                        continue
+                    if c == "(":
+                        depth += 1
+                        buf += c
+                    elif c == ")":
+                        depth -= 1
+                        buf += c
+                    elif c == "|" and depth == 0:
+                        pieces.append(buf)
+                        buf = ""
+                    else:
+                        buf += c
+                    k += 1
+                if buf:
+                    pieces.append(buf)
+
+                for piece in pieces:
+                    # Strip character classes [..] and any nested groups.
+                    cleaned = re.sub(r"\[[^\]]*\]\??", "", piece)
+                    cleaned = re.sub(r"\([^)]*\)\??", "", cleaned)
+                    # Strip remaining regex metachars + leading/trailing whitespace.
+                    cleaned = re.sub(r"[\\^$.?*+|]", "", cleaned).strip()
+                    cleaned = cleaned.lower()
+                    cleaned = re.sub(r"[^a-z0-9_-]", "", cleaned)
+                    if cleaned and len(cleaned) >= 2:
+                        keywords.append(cleaned)
+                i = j
+                continue
+        i += 1
+
+    # Also capture bare \bword\b patterns that aren't in alternation groups.
+    for word in re.findall(r"\\b([a-z][a-z0-9_-]+)\\b", pattern.lower()):
+        if word not in keywords:
+            keywords.append(word)
+
+    return keywords
+
+
+def _read_v2_skill_metadata(skill_md_path: Path) -> tuple[tuple[str, ...], bool, tuple[str, ...], tuple[str, ...]]:
+    """Read v2 sibling files (triggers.yaml, knowledge/) and return data in
+    the shape v1 SkillMetadata expects.
+
+    Returns (triggers, always_run, always_run_for_domains, knowledge) where:
+      - triggers: flat keyword strings extracted from triggers.yaml's
+        prompt_match patterns (plus any explicit flat strings).
+      - always_run: True iff triggers.yaml has a rule like '{type: always_on}'
+        or '{always_run: true}'.
+      - always_run_for_domains: from a special 'always_run_for_domains'
+        list in triggers.yaml (rare; default empty).
+      - knowledge: filenames in <skill>/knowledge/*.md, preserving case.
+
+    Returns empty tuples / False if any v2 file is missing or malformed.
+    The v1 caller treats this as "no triggers / no knowledge" without
+    erroring.
+    """
+    import yaml
+
+    skill_dir = skill_md_path.parent
+
+    triggers: list[str] = []
+    always_run = False
+    always_run_for_domains: tuple[str, ...] = ()
+
+    triggers_yaml = skill_dir / "triggers.yaml"
+    if triggers_yaml.exists():
+        try:
+            data = yaml.safe_load(triggers_yaml.read_text()) or {}
+        except yaml.YAMLError:
+            data = {}
+        if isinstance(data, dict):
+            rules = data.get("rules") or []
+            if isinstance(rules, list):
+                for rule in rules:
+                    if not isinstance(rule, dict):
+                        continue
+                    rtype = rule.get("type")
+                    if rtype == "always_on":
+                        always_run = True
+                    elif rtype == "prompt_match":
+                        pat = rule.get("pattern", "")
+                        if isinstance(pat, str):
+                            triggers.extend(_extract_keywords_from_pattern(pat))
+                    # file_glob / bash_match patterns aren't v1-shaped
+                    # triggers; v1 only cared about flat-string set-intersection.
+            # Backward-compat: top-level always_run / always_run_for_domains
+            # in triggers.yaml take precedence if present.
+            if data.get("always_run") is True:
+                always_run = True
+            ar4d = data.get("always_run_for_domains") or []
+            if isinstance(ar4d, list):
+                always_run_for_domains = tuple(str(d) for d in ar4d)
+
+    # Knowledge: enumerate sibling knowledge/*.md filenames.
+    # Map v2 filenames back to v1 names where applicable, so downstream
+    # callers that look up files via crucible.knowledge.loader (which
+    # still uses the v1 flat bundled location) find the right content.
+    # Files not in the reverse-map pass through under their v2 name.
+    knowledge_files: list[str] = []
+    knowledge_dir = skill_dir / "knowledge"
+    if knowledge_dir.is_dir():
+        for child in sorted(knowledge_dir.iterdir()):
+            if child.is_file() and child.suffix == ".md":
+                v1_name = _V2_KNOWLEDGE_TO_V1.get(child.name, child.name)
+                knowledge_files.append(v1_name)
+
+    # Dedupe and preserve order
+    seen: set[str] = set()
+    unique_triggers: list[str] = []
+    for t in triggers:
+        if t not in seen:
+            seen.add(t)
+            unique_triggers.append(t)
+
+    return (
+        tuple(unique_triggers),
+        always_run,
+        always_run_for_domains,
+        tuple(knowledge_files),
+    )
+
+
 @lru_cache(maxsize=64)
 def _load_skill_cached(skill_name: str, path_str: str) -> tuple[SkillMetadata, str] | str:
     """Internal cached skill loader.
 
     Returns tuple on success, error string on failure.
     Using path_str as cache key to invalidate on path changes.
+
+    v2 shim: reads triggers + always_run + knowledge from v2 sibling
+    files (triggers.yaml, knowledge/) and merges them with whatever
+    happens to be in the SKILL.md frontmatter. Lets v1 callers keep
+    working against v2-shape content.
     """
     path = Path(path_str)
     content = path.read_text()
@@ -192,13 +396,23 @@ def _load_skill_cached(skill_name: str, path_str: str) -> tuple[SkillMetadata, s
     if result.is_err:
         return f"Failed to parse skill '{skill_name}': {result.error}"
 
+    # Read v2 sibling files
+    v2_triggers, v2_always_run, v2_ar4d, v2_knowledge = _read_v2_skill_metadata(path)
+
+    # v1 frontmatter wins if present (some skills may still have v1 shape
+    # during the transition); fall back to v2 siblings otherwise.
+    triggers = result.value.triggers or v2_triggers
+    always_run = result.value.always_run or v2_always_run
+    always_run_for_domains = result.value.always_run_for_domains or v2_ar4d
+    knowledge = result.value.knowledge or v2_knowledge
+
     metadata = SkillMetadata(
         name=skill_name,
         version=result.value.version,
-        triggers=result.value.triggers,
-        always_run=result.value.always_run,
-        always_run_for_domains=result.value.always_run_for_domains,
-        knowledge=result.value.knowledge,
+        triggers=triggers,
+        always_run=always_run,
+        always_run_for_domains=always_run_for_domains,
+        knowledge=knowledge,
     )
 
     return (metadata, content)

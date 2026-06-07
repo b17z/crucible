@@ -225,11 +225,18 @@ class TestSkillMetadata:
         assert "version:" in content
 
     def test_skill_has_triggers(self) -> None:
-        """Skills should have trigger keywords."""
-        skill_path = SKILLS_BUNDLED / "security-engineer" / "SKILL.md"
-        content = skill_path.read_text()
-        assert "triggers:" in content
-        assert "security" in content.lower()
+        """Skills should have trigger keywords.
+
+        v2: triggers live in a sibling triggers.yaml. Falls back to v1
+        inline `triggers:` for any v1-shape skill that hasn't migrated."""
+        skill_dir = SKILLS_BUNDLED / "security-engineer"
+        text = (skill_dir / "SKILL.md").read_text()
+        triggers_yaml = skill_dir / "triggers.yaml"
+        if triggers_yaml.exists():
+            text += "\n" + triggers_yaml.read_text()
+        else:
+            assert "triggers:" in text  # v1 fallback
+        assert "security" in text.lower()
 
 
 class TestLoadReviewConfig:

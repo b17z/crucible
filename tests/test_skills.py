@@ -76,9 +76,25 @@ class TestSkillMetadata:
         assert "version:" in content, f"{skill_name}: Missing version field"
 
     def test_has_triggers(self, skill_content: tuple[str, str]) -> None:
-        """Each skill should have trigger keywords."""
+        """Each skill should have trigger keywords.
+
+        v2: triggers live in a sibling triggers.yaml file (with explicit
+        rule types like prompt_match/file_glob/bash_match), not as a flat
+        list in the SKILL.md frontmatter. v1-style inline triggers also
+        accepted for skills that haven't migrated.
+        """
         skill_name, content = skill_content
-        assert "triggers:" in content, f"{skill_name}: Missing triggers field"
+        if "triggers:" in content:
+            return  # v1-shape inline triggers
+        # v2-shape: sibling triggers.yaml exists with non-empty rules
+        triggers_yaml = SKILLS_BUNDLED / skill_name / "triggers.yaml"
+        assert triggers_yaml.exists(), (
+            f"{skill_name}: Missing triggers field (no inline `triggers:` in "
+            f"SKILL.md and no {triggers_yaml.name} sibling)"
+        )
+        assert "rules:" in triggers_yaml.read_text(), (
+            f"{skill_name}: triggers.yaml exists but lacks a `rules:` key"
+        )
 
     def test_has_title(self, skill_content: tuple[str, str]) -> None:
         """Each skill should have a markdown title."""
@@ -95,10 +111,18 @@ class TestSkillMetadata:
         assert match, f"{skill_name}: Invalid version format"
 
     def test_triggers_is_list(self, skill_content: tuple[str, str]) -> None:
-        """Triggers should be a YAML list."""
+        """Triggers should be a YAML list (v1) or rules list in
+        triggers.yaml (v2)."""
         skill_name, content = skill_content
-        # Should match either [a, b, c] or multiline list format
-        assert re.search(r"triggers:\s*\[", content), f"{skill_name}: Triggers should be a list"
+        if re.search(r"triggers:\s*\[", content):
+            return  # v1 inline list
+        # v2-shape
+        triggers_yaml = SKILLS_BUNDLED / skill_name / "triggers.yaml"
+        assert triggers_yaml.exists(), f"{skill_name}: no triggers.yaml sibling"
+        text = triggers_yaml.read_text()
+        assert re.search(r"^rules:", text, re.MULTILINE), (
+            f"{skill_name}: triggers.yaml missing `rules:` list at top level"
+        )
 
 
 class TestSkillContent:
@@ -173,27 +197,42 @@ class TestSkillCategories:
 
 
 class TestSkillTriggers:
-    """Test that skill triggers are appropriate."""
+    """Test that skill triggers are appropriate.
+
+    v2: keywords now live in triggers.yaml (regex patterns) rather than
+    the SKILL.md frontmatter. Each test reads both files and asserts the
+    keyword is reachable in either location.
+    """
+
+    @staticmethod
+    def _skill_text(skill_name: str) -> str:
+        """Concatenate SKILL.md body and triggers.yaml — either is a valid
+        keyword surface in v2. Used for substring assertions."""
+        skill_dir = SKILLS_BUNDLED / skill_name
+        parts = [(skill_dir / "SKILL.md").read_text()]
+        triggers = skill_dir / "triggers.yaml"
+        if triggers.exists():
+            parts.append(triggers.read_text())
+        return "\n".join(parts)
 
     def test_security_engineer_triggers(self) -> None:
         """Security engineer should trigger on security-related keywords."""
-        content = (SKILLS_BUNDLED / "security-engineer" / "SKILL.md").read_text()
-        assert "security" in content
-        assert "auth" in content.lower()
+        text = self._skill_text("security-engineer").lower()
+        assert "security" in text
+        assert "auth" in text
 
     def test_web3_engineer_triggers(self) -> None:
         """Web3 engineer should trigger on blockchain keywords."""
-        content = (SKILLS_BUNDLED / "web3-engineer" / "SKILL.md").read_text()
-        assert "solidity" in content.lower()
-        assert "smart_contract" in content.lower() or "ethereum" in content.lower()
+        text = self._skill_text("web3-engineer").lower()
+        assert "solidity" in text
+        assert "smart_contract" in text or "smart-contract" in text or "ethereum" in text
 
     def test_backend_engineer_triggers(self) -> None:
         """Backend engineer should trigger on backend keywords."""
-        content = (SKILLS_BUNDLED / "backend-engineer" / "SKILL.md").read_text()
-        assert "backend" in content.lower() or "api" in content.lower()
+        text = self._skill_text("backend-engineer").lower()
+        assert "backend" in text or "api" in text
 
     def test_devops_engineer_triggers(self) -> None:
         """DevOps engineer should trigger on infra keywords."""
-        content = (SKILLS_BUNDLED / "devops-engineer" / "SKILL.md").read_text()
-        content_lower = content.lower()
-        assert "devops" in content_lower or "infrastructure" in content_lower or "deploy" in content_lower
+        text = self._skill_text("devops-engineer").lower()
+        assert "devops" in text or "infrastructure" in text or "deploy" in text

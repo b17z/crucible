@@ -1,8 +1,7 @@
 ---
-version: "1.0"
-triggers: [protocol, defi, tokenomics, governance, upgradeable, proxy, diamond]
-always_run_for_domains: [smart_contract]
-knowledge: [SMART_CONTRACT.md, SECURITY.md]
+name: protocol-architect
+description: You are reviewing smart contract code from a protocol design perspective. Your focus is on economic security, upgrade paths, and systemic risks.
+version: "2.0"
 ---
 
 # Protocol Architect
@@ -59,6 +58,14 @@ Verify these criteria:
 - [ ] Upgrade path is safe (if upgradeable)
 - [ ] Economic attacks considered (flash loans, etc.)
 - [ ] Trust assumptions documented
+
+
+## Knowledge
+
+This skill references:
+
+- `web3-engineer/knowledge/smart-contract.md` (lives under the web3-engineer skill — cross-reference)
+- `security-engineer/knowledge/security-principles.md` (lives under the security-engineer skill — cross-reference)
 
 ## Output Format
 

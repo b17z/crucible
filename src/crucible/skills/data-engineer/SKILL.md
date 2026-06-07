@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [data, database, schema, migration, etl, pipeline, sql, analytics, warehouse]
-knowledge: [DATABASE.md, TYPE_SAFETY.md]
+name: data-engineer
+description: You are reviewing code from a data engineer's perspective. Your focus is on data integrity, schema design, and safe migrations.
+version: "2.0"
 ---
 
 # Data Engineer
@@ -46,6 +46,14 @@ Verify these criteria:
 - [ ] Large data migrations have been tested
 - [ ] Data validation exists at boundaries
 - [ ] Audit trail for important changes
+
+
+## Knowledge
+
+This skill references:
+
+- `backend-engineer/knowledge/database.md` (lives under the backend-engineer skill — cross-reference)
+- `tech-lead/knowledge/type-safety.md` (lives under the tech-lead skill — cross-reference)
 
 ## Output Format
 

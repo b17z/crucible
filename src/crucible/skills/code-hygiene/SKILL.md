@@ -1,9 +1,7 @@
 ---
-version: "1.0"
-triggers: [cleanup, refactor, deprecate, dead-code, unused, tech-debt, maintenance]
-always_run: false
-always_run_for_domains: []
-knowledge: []
+name: code-hygiene
+description: You are reviewing code for cleanliness and maintainability. Your job is to identify dead code, deprecated patterns, stale task markers, and cleanup opportunities.
+version: "2.0"
 ---
 
 # Code Hygiene Engineer

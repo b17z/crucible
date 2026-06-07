@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [incident, outage, postmortem, recovery, rollback, hotfix, emergency]
-knowledge: [OBSERVABILITY.md, SECURITY.md]
+name: incident-responder
+description: You are reviewing code from an incident response perspective. Your focus is on recoverability, debuggability, and blast radius containment.
+version: "2.0"
 ---
 
 # Incident Responder
@@ -67,6 +67,14 @@ Verify these criteria:
 - [ ] Health checks cover new dependencies
 - [ ] Recovery procedure is documented or obvious
 - [ ] Critical paths have circuit breakers
+
+
+## Knowledge
+
+This skill references:
+
+- `devops-engineer/knowledge/observability.md` (lives under the devops-engineer skill — cross-reference)
+- `security-engineer/knowledge/security-principles.md` (lives under the security-engineer skill — cross-reference)
 
 ## Output Format
 

@@ -36,12 +36,17 @@ where = ["src"]
 [tool.setuptools.package-data]
 crucible = [
     "skills/**/*.md",
+    "skills/**/*.yaml",
+    "skills/**/.gitkeep",
     "knowledge/principles/*.md",
     "enforcement/bundled/*.yaml",
     "templates/*.md",
     "templates/*.yaml",
     "templates/prewrite/*.md",
     "skills_core/SPEC.md",
+    "interfaces/**/*.sh",
+    "interfaces/**/*.py",
+    "policies/*.yaml",
 ]
 
 [tool.ruff]

@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [ui, ux, design, component, css, styling, animation, design system]
-knowledge: [TYPE_SAFETY.md]
+name: uiux-engineer
+description: You are reviewing code from a UI/UX engineer's perspective. Your focus is on design consistency, interaction patterns, and user feedback.
+version: "2.0"
 ---
 
 # UI/UX Engineer
@@ -46,6 +46,13 @@ Verify these criteria:
 - [ ] Layout is responsive across breakpoints
 - [ ] Animations are smooth and purposeful
 - [ ] Component is reusable where appropriate
+
+
+## Knowledge
+
+This skill references:
+
+- `tech-lead/knowledge/type-safety.md` (lives under the tech-lead skill — cross-reference)
 
 ## Output Format
 

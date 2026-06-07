@@ -1,8 +1,7 @@
 ---
-version: "1.0"
-triggers: [gas, optimization, solidity, evm, storage, calldata, assembly]
-always_run_for_domains: [smart_contract]
-knowledge: [SMART_CONTRACT.md]
+name: gas-optimizer
+description: You are reviewing smart contract code with a focus on gas optimization.
+version: "2.0"
 ---
 
 # Gas Optimizer
@@ -65,6 +64,13 @@ Verify these criteria:
 - [ ] Unchecked math where overflow is impossible
 - [ ] Events are not emitted in tight loops
 - [ ] Loop termination uses `!=` not `<`
+
+
+## Knowledge
+
+This skill references:
+
+- `web3-engineer/knowledge/smart-contract.md` (lives under the web3-engineer skill — cross-reference)
 
 ## Output Format
 

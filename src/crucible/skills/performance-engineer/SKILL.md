@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [performance, optimization, latency, throughput, profiling, caching, slow, benchmark]
-knowledge: [SYSTEM_DESIGN.md, DATABASE.md, OBSERVABILITY.md]
+name: performance-engineer
+description: You are reviewing code from a performance engineer's perspective. Your focus is on latency, throughput, and resource efficiency.
+version: "2.0"
 ---
 
 # Performance Engineer
@@ -44,6 +44,15 @@ Verify these criteria:
 - [ ] Memory usage is bounded
 - [ ] Benchmarks exist for critical paths
 - [ ] No premature optimization (but no obvious waste either)
+
+
+## Knowledge
+
+This skill references:
+
+- `tech-lead/knowledge/system-design.md` (lives under the tech-lead skill — cross-reference)
+- `backend-engineer/knowledge/database.md` (lives under the backend-engineer skill — cross-reference)
+- `devops-engineer/knowledge/observability.md` (lives under the devops-engineer skill — cross-reference)
 
 ## Output Format
 

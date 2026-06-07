@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [formal verification, invariant, specification, proof, certora, halmos, symbolic]
-knowledge: [SMART_CONTRACT.md, TESTING.md]
+name: formal-verification
+description: You are reviewing code with a focus on formal correctness. Your goal is to identify properties that should be formally verified and potential invariant violations.
+version: "2.0"
 ---
 
 # Formal Verification Engineer
@@ -62,6 +62,14 @@ Verify these criteria:
 - [ ] State transitions maintain invariants
 - [ ] Existing formal specs still pass (if any)
 - [ ] Complex logic has specification comments
+
+
+## Knowledge
+
+This skill references:
+
+- `web3-engineer/knowledge/smart-contract.md` (lives under the web3-engineer skill — cross-reference)
+- `tech-lead/knowledge/testing.md` (lives under the tech-lead skill — cross-reference)
 
 ## Output Format
 

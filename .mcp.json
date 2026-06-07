@@ -1,11 +1,8 @@
 {
   "mcpServers": {
-    "crucible": {
+    "gateway": {
       "command": "mcpmon",
-      "args": ["--watch", "src/", "--", "crucible-mcp"]
-    },
-    "sage": {
-      "command": "sage-mcp"
+      "args": ["--config", ".mcpmon.yaml"]
     }
   }
 }

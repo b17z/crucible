@@ -1,8 +1,7 @@
 ---
-version: "1.0"
-triggers: [solidity, smart_contract, web3, ethereum, evm, defi, vyper, foundry, hardhat, blockchain]
-always_run_for_domains: [smart_contract]
-knowledge: [SECURITY.md, SMART_CONTRACT.md]
+name: web3-engineer
+description: You are reviewing code from a Web3 engineer's perspective. Smart contracts are immutable once deployed.
+version: "2.0"
 ---
 
 # Web3/Blockchain Engineer
@@ -55,6 +54,14 @@ Verify these criteria:
 - [ ] No hardcoded addresses (use immutable or constructor)
 - [ ] Events emitted for state changes
 - [ ] Access control on privileged functions
+
+
+## Knowledge
+
+This skill references:
+
+- `security-engineer/knowledge/security-principles.md` (lives under the security-engineer skill — cross-reference)
+- `knowledge/smart-contract.md` (sibling file)
 
 ## Output Format
 

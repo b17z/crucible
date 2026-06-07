@@ -410,12 +410,19 @@ class TestSpecReviewerSkill:
         assert source == "bundled"
 
     def test_skill_has_triggers(self) -> None:
-        """Spec-reviewer skill should have relevant triggers."""
+        """Spec-reviewer skill should have relevant triggers.
+
+        v2: keyword surface includes triggers.yaml alongside SKILL.md."""
         from crucible.cli import resolve_skill
 
         path, _ = resolve_skill("spec-reviewer")
-        content = path.read_text()
+        text = path.read_text()
+        triggers_yaml = path.parent / "triggers.yaml"
+        if triggers_yaml.exists():
+            text += "\n" + triggers_yaml.read_text()
+        else:
+            assert "triggers:" in text  # v1 fallback
 
-        assert "triggers:" in content
-        assert "spec" in content.lower()
-        assert "prd" in content.lower()
+        text_lower = text.lower()
+        assert "spec" in text_lower
+        assert "prd" in text_lower

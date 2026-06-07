@@ -127,37 +127,54 @@ def cmd_skills_install(args: argparse.Namespace) -> int:
     return 0
 
 
+def _list_skill_names(root: Path) -> list[str]:
+    """Find every skill under `root`, including those nested in namespace
+    folders like `meta/` and `pre-write/`.
+
+    A "skill" is any directory containing a SKILL.md. Names are reported
+    relative to `root` (e.g. "security-engineer", "meta/but-for-real",
+    "pre-write/prd"). Namespace folders (dirs with no SKILL.md of their
+    own) are recursed into one extra level.
+    """
+    if not root.exists():
+        return []
+    names: list[str] = []
+    for entry in sorted(root.iterdir()):
+        if not entry.is_dir() or entry.name.startswith(".") or entry.name == "__pycache__":
+            continue
+        if (entry / "SKILL.md").exists():
+            names.append(entry.name)
+        else:
+            # Namespace folder (meta/, pre-write/): recurse one level.
+            for sub in sorted(entry.iterdir()):
+                if sub.is_dir() and (sub / "SKILL.md").exists():
+                    names.append(f"{entry.name}/{sub.name}")
+    return names
+
+
 def cmd_skills_list(args: argparse.Namespace) -> int:
     """List available and installed skills."""
     print("Bundled skills:")
-    if SKILLS_BUNDLED.exists():
-        for skill_dir in sorted(SKILLS_BUNDLED.iterdir()):
-            if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
-                print(f"  - {skill_dir.name}")
+    bundled = _list_skill_names(SKILLS_BUNDLED)
+    if bundled:
+        for name in bundled:
+            print(f"  - {name}")
     else:
         print("  (none)")
 
     print("\nUser skills (~/.claude/crucible/skills/):")
-    if SKILLS_USER.exists():
-        found = False
-        for skill_dir in sorted(SKILLS_USER.iterdir()):
-            if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
-                print(f"  - {skill_dir.name}")
-                found = True
-        if not found:
-            print("  (none)")
+    user = _list_skill_names(SKILLS_USER)
+    if user:
+        for name in user:
+            print(f"  - {name}")
     else:
         print("  (none)")
 
     print("\nProject skills (.crucible/skills/):")
-    if SKILLS_PROJECT.exists():
-        found = False
-        for skill_dir in sorted(SKILLS_PROJECT.iterdir()):
-            if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
-                print(f"  - {skill_dir.name}")
-                found = True
-        if not found:
-            print("  (none)")
+    project = _list_skill_names(SKILLS_PROJECT)
+    if project:
+        for name in project:
+            print(f"  - {name}")
     else:
         print("  (none)")
 

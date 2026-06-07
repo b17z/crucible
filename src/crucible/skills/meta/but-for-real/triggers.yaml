@@ -1,0 +1,18 @@
+# Trigger patterns for but-for-real skill activation.
+# Consumed by core/trigger_router.py at Phase 4.
+#
+# This is a meta-skill: it activates on the AGENT's own completion-claim
+# language, not on a domain. The intent is to interrupt premature "done"
+# with a verification demand. In a review pipeline (Phase 6) it pairs
+# naturally with the Verifier.
+
+rules:
+  # The agent (or user) declaring work finished
+  - type: prompt_match
+    pattern: '\b(should work( now)?|this fixes|fixed it|all (tests? )?(pass|passing|green)|ready (to ship|for (the )?next phase|to merge)|done|good to go|that(''s| is) it|wrapped up|ship it)\b'
+    note: completion-claim language — demand proof before accepting
+
+  # Explicit invocation
+  - type: prompt_match
+    pattern: '\b(but[- ]for[- ]real|prove it|are you sure|double[- ]check|skeptical (pass|review)|verify (this|that) actually)\b'
+    note: user asking for the skeptical second pass directly

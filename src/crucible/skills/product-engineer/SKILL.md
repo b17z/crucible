@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [product, feature, user, ux, requirements, metrics, analytics]
-knowledge: [API_DESIGN.md, ERROR_HANDLING.md]
+name: product-engineer
+description: You are reviewing code from a product engineer's perspective. Your focus is on user value, feature completeness, and measurable outcomes.
+version: "2.0"
 ---
 
 # Product Engineer
@@ -44,6 +44,14 @@ Verify these criteria:
 - [ ] User receives feedback on actions
 - [ ] Feature can be feature-flagged if needed
 - [ ] Analytics events are in place
+
+
+## Knowledge
+
+This skill references:
+
+- `backend-engineer/knowledge/api-design.md` (lives under the backend-engineer skill — cross-reference)
+- `backend-engineer/knowledge/error-handling.md` (lives under the backend-engineer skill — cross-reference)
 
 ## Output Format
 

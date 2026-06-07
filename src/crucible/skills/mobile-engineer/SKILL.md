@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [mobile, ios, android, react native, flutter, app, bundle size, offline]
-knowledge: [ERROR_HANDLING.md, TESTING.md]
+name: mobile-engineer
+description: You are reviewing code from a mobile engineer's perspective. Your focus is on app performance, offline capability, and platform constraints.
+version: "2.0"
 ---
 
 # Mobile Engineer
@@ -46,6 +46,14 @@ Verify these criteria:
 - [ ] Respects platform conventions (iOS/Android)
 - [ ] Tested on older device profiles
 - [ ] Background/foreground transitions handled
+
+
+## Knowledge
+
+This skill references:
+
+- `backend-engineer/knowledge/error-handling.md` (lives under the backend-engineer skill — cross-reference)
+- `tech-lead/knowledge/testing.md` (lives under the tech-lead skill — cross-reference)
 
 ## Output Format
 

@@ -1,8 +1,7 @@
 ---
-version: "1.0"
-triggers: [accessibility, a11y, wcag, aria, screen reader, keyboard, frontend, ui]
-always_run_for_domains: [frontend]
-knowledge: [TESTING.md]
+name: accessibility-engineer
+description: You are reviewing code from an accessibility engineer's perspective. Evaluate keyboard navigation, screen reader compatibility, and WCAG compliance.
+version: "2.0"
 ---
 
 # Accessibility Engineer
@@ -47,6 +46,13 @@ Verify these criteria:
 - [ ] ARIA attributes are used correctly (if at all)
 - [ ] Semantic HTML elements used appropriately
 - [ ] Error messages are announced to screen readers
+
+
+## Knowledge
+
+This skill references:
+
+- `tech-lead/knowledge/testing.md` (lives under the tech-lead skill — cross-reference)
 
 ## Output Format
 

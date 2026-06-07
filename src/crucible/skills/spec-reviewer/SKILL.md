@@ -1,8 +1,7 @@
 ---
-version: "1.0"
-triggers: [prd, spec, tdd, design, requirements, rfc, adr, specification, proposal]
-always_run: false
-knowledge: [SECURITY.md]
+name: spec-reviewer
+description: You are reviewing a specification, PRD, or design document before code is written.
+version: "2.0"
 ---
 
 # Spec Reviewer
@@ -45,6 +44,13 @@ Verify these criteria:
 - [ ] Success criteria defined
 - [ ] Dependencies identified
 - [ ] Edge cases enumerated
+
+
+## Knowledge
+
+This skill references:
+
+- `security-engineer/knowledge/security-principles.md` (lives under the security-engineer skill — cross-reference)
 
 ## Output Format
 

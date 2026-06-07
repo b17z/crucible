@@ -1,7 +1,7 @@
 ---
-version: "1.0"
-triggers: [integration, customer, configuration, sdk, api client, onboarding, enterprise]
-knowledge: [API_DESIGN.md, DOCUMENTATION.md, ERROR_HANDLING.md]
+name: fde-engineer
+description: You are reviewing code from a field engineer's perspective. Your focus is on customer deployability, configurability, and integration ease.
+version: "2.0"
 ---
 
 # Field/Solutions Engineer
@@ -45,6 +45,15 @@ Verify these criteria:
 - [ ] Backward compatible or migration path documented
 - [ ] Logs are useful for customer support
 - [ ] Rate limits and quotas are clear
+
+
+## Knowledge
+
+This skill references:
+
+- `backend-engineer/knowledge/api-design.md` (lives under the backend-engineer skill — cross-reference)
+- `tech-lead/knowledge/documentation.md` (lives under the tech-lead skill — cross-reference)
+- `backend-engineer/knowledge/error-handling.md` (lives under the backend-engineer skill — cross-reference)
 
 ## Output Format
 

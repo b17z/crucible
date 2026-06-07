@@ -145,6 +145,31 @@ through `_validate_path` or equivalent input sanitization. In
 
 ---
 
+### Group 5 — no-todo-without-issue firing on assertion strings (3 findings)
+
+**Assertion:** `no-todo-without-issue` (INFO severity).
+
+**Locations:** `tests/test_skills.py:158,161` — inside the
+`test_no_placeholder_content` test, which asserts skills contain no
+TODO/placeholder text. The assertion's own message strings
+("Contains TODO placeholder") and the literal `"todo"` it greps for
+trip the pattern matcher.
+
+**Counterargument:** the flagged lines are a test that *checks for*
+TODO comments. The word "TODO" appears because the test is about
+TODOs, not because there's an unresolved TODO. A pattern that flags
+any occurrence of the token "todo" can't distinguish "a TODO comment"
+from "code that mentions TODOs". The right scope is: flag `# TODO`
+style comments lacking an issue ref, not string literals.
+
+**Verifier task:** for `no-todo-without-issue`, check whether the
+match is inside a string literal or a comment. String-literal
+occurrences (especially in test assertions about TODOs) are
+suppressible. Only an actual `# TODO`/`// TODO` comment without an
+adjacent issue reference is a real finding.
+
+---
+
 ## Phase 2 corpus stats
 
 | Group | Rule | Count | Suppress? |
@@ -153,11 +178,12 @@ through `_validate_path` or equivalent input sanitization. In
 | 2 | `world-writable-permissions` (0o755 chmod) | 1 | yes |
 | 3 | `bandit/B101` (assert in tests) | 114 | yes |
 | 4 | `bandit/B404` (subprocess import) | 1 | yes (with sanitization check) |
+| 5 | `no-todo-without-issue` (string literal, not comment) | 3 | yes |
 
-Total false positives across Phase 0–2 dogfooding: **122**.
+Total false positives across Phase 0–2 dogfooding: **125**.
 
 The Phase 6 success criterion ("FP rate reduced by >50% per
-review-pass-dollar") should target suppressing ≥61 of these as the
-floor. Suppressing all 122 would be a >99% reduction on this corpus,
+review-pass-dollar") should target suppressing ≥63 of these as the
+floor. Suppressing all 125 would be a >99% reduction on this corpus,
 which is the right ambition given that none of them require deep
 reasoning — they're all surface-pattern false positives.

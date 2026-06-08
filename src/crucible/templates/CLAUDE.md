@@ -6,6 +6,27 @@ For full engineering principles and patterns, run:
 - `crucible knowledge list` - see available knowledge
 - `crucible skills list` - see available review personas
 
+## Progressive skill loading (three tiers)
+
+Crucible skills load in three tiers to keep context cost low — don't
+pull a skill's full body until you need it:
+
+- **Tier 1 (discovery):** `crucible skills discover` — or the
+  `discover_skills` MCP tool with no argument — lists every skill's name
+  and one-line description. Cheap; call it at session start to see what
+  review perspectives exist (~4 KB for ~27 skills vs ~120 KB to load all
+  bodies).
+- **Tier 2 (activation):** `crucible skills discover <name>` (or
+  `discover_skills` with a `skill` argument) loads one skill's full
+  SKILL.md body plus the names of its knowledge files. Do this when a
+  skill is actually relevant to the task.
+- **Tier 3 (knowledge):** load a specific knowledge file only when the
+  activated skill points you to it (e.g. `security-engineer` →
+  `knowledge/supply-chain-2026.md` when reviewing dependency changes).
+
+Namespaced skills use a `prefix/name` identity — e.g. `meta/but-for-real`,
+`pre-write/prd`. Pass that full name to discover/activate.
+
 ## Crucible v2 plumbing in this project
 
 Crucible v2 sets up a few project-level files this agent should be aware of:

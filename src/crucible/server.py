@@ -266,6 +266,31 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="discover_skills",
+            description=(
+                "Progressive skill discovery. Without a skill name, returns a "
+                "cheap Tier-1 listing (name + description for every available "
+                "skill) — call this at session start to see what review "
+                "perspectives exist without loading their full bodies. With a "
+                "skill name, returns Tier-2 (the full SKILL.md body plus the "
+                "names of its knowledge/assertion files). Three-tier loading "
+                "keeps context cost low."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "skill": {
+                        "type": "string",
+                        "description": (
+                            "Skill to activate (Tier 2), e.g. 'security-engineer' "
+                            "or 'meta/but-for-real'. Omit to get the Tier-1 listing "
+                            "of all skills."
+                        ),
+                    },
+                },
+            },
+        ),
+        Tool(
             name="prewrite_review",
             description="Review a specification/PRD/TDD against pre-write assertions. Use this to validate specs before code is written. Catches: missing auth requirements, undocumented failure modes, data handling gaps, scale considerations.",
             inputSchema={
@@ -723,6 +748,51 @@ def _handle_load_knowledge(arguments: dict[str, Any]) -> list[TextContent]:
     return [TextContent(type="text", text="\n".join(output_parts))]
 
 
+def _handle_discover_skills(arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle discover_skills tool - progressive (Tier 1 / Tier 2) skill loading."""
+    from crucible.core.disclosure import (
+        activate_skill,
+        discover_skill,
+        discover_skills,
+        discovery_digest,
+    )
+
+    skill_name = arguments.get("skill")
+
+    # Tier 1: no skill named → cheap listing of everything.
+    if not skill_name:
+        summaries = discover_skills()
+        digest = discovery_digest(summaries)
+        digest += (
+            f"\n\n---\n{len(summaries)} skills available. "
+            "Call discover_skills with a `skill` name to load one's full body (Tier 2)."
+        )
+        return [TextContent(type="text", text=digest)]
+
+    # Tier 2: named skill → frontmatter + body + sibling file names.
+    summary_result = discover_skill(skill_name)
+    if summary_result.is_err:
+        return [TextContent(type="text", text=f"Skill '{skill_name}' not found: {summary_result.error}")]
+
+    activated_result = activate_skill(summary_result.value)
+    if activated_result.is_err:
+        return [TextContent(type="text", text=f"Failed to activate '{skill_name}': {activated_result.error}")]
+
+    act = activated_result.value
+    parts = [f"# Skill: {act.summary.name}\n"]
+    if act.summary.description:
+        parts.append(f"_{act.summary.description}_\n")
+    parts.append(act.body)
+    if act.knowledge_files:
+        parts.append(
+            f"\n---\n**Knowledge files** (Tier 3, load on demand via load_knowledge): "
+            f"{', '.join(act.knowledge_files)}"
+        )
+    if act.assertion_files:
+        parts.append(f"**Assertion files:** {', '.join(act.assertion_files)}")
+    return [TextContent(type="text", text="\n".join(parts))]
+
+
 def _handle_get_assertions(arguments: dict[str, Any]) -> list[TextContent]:
     """Handle get_assertions tool - load active enforcement rules."""
     include_compliance = arguments.get("include_compliance", True)
@@ -930,6 +1000,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         "prewrite_list_templates": _handle_prewrite_list_templates,
         # Context injection tools (call at session start)
         "get_assertions": _handle_get_assertions,
+        "discover_skills": _handle_discover_skills,
         "get_principles": _handle_get_principles,
         "load_knowledge": _handle_load_knowledge,
         # Direct tool access

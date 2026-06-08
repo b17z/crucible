@@ -261,6 +261,52 @@ def cmd_skills_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_skills_discover(args: argparse.Namespace) -> int:
+    """Progressive discovery: Tier-1 listing or Tier-2 body for one skill."""
+    from crucible.core.disclosure import (
+        activate_skill,
+        discover_skill,
+        discover_skills,
+    )
+
+    skill_name = getattr(args, "skill", None)
+
+    # Tier 1 — listing
+    if not skill_name:
+        summaries = discover_skills()
+        if not summaries:
+            print("No skills available.")
+            return 0
+        print(f"Available skills ({len(summaries)}) — Tier 1 discovery:\n")
+        width = max(len(s.name) for s in summaries)
+        for s in summaries:
+            desc = (s.description or "").strip()
+            print(f"  {s.name:<{width}}  {desc}")
+        print("\nRun `crucible skills discover <name>` to load a skill's full body.")
+        return 0
+
+    # Tier 2 — activate one
+    summary_result = discover_skill(skill_name)
+    if summary_result.is_err:
+        print(f"Skill '{skill_name}' not found: {summary_result.error}")
+        return 1
+    activated = activate_skill(summary_result.value)
+    if activated.is_err:
+        print(f"Failed to activate '{skill_name}': {activated.error}")
+        return 1
+
+    act = activated.value
+    print(f"# {act.summary.name}")
+    if act.summary.description:
+        print(f"# {act.summary.description}\n")
+    print(act.body)
+    if act.knowledge_files:
+        print(f"\n[knowledge files: {', '.join(act.knowledge_files)}]")
+    if act.assertion_files:
+        print(f"[assertion files: {', '.join(act.assertion_files)}]")
+    return 0
+
+
 # --- Knowledge commands ---
 
 
@@ -2394,6 +2440,16 @@ def main() -> int:
     )
     show_parser.add_argument("skill", help="Name of the skill to show")
 
+    # skills discover
+    discover_parser = skills_sub.add_parser(
+        "discover",
+        help="Progressive discovery: Tier-1 listing, or Tier-2 body for one skill"
+    )
+    discover_parser.add_argument(
+        "skill", nargs="?",
+        help="Skill to activate (Tier 2). Omit for the Tier-1 listing of all skills."
+    )
+
     # === knowledge command ===
     knowledge_parser = subparsers.add_parser("knowledge", help="Manage engineering knowledge")
     knowledge_sub = knowledge_parser.add_subparsers(dest="knowledge_command")
@@ -2823,6 +2879,8 @@ def main() -> int:
             return cmd_skills_init(args)
         elif args.skills_command == "show":
             return cmd_skills_show(args)
+        elif args.skills_command == "discover":
+            return cmd_skills_discover(args)
         else:
             skills_parser.print_help()
             return 0

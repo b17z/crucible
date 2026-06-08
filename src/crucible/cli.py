@@ -2250,6 +2250,41 @@ def cmd_baselines_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_triggers_match(args: argparse.Namespace) -> int:
+    """Print skills that activate for a prompt / file path(s) / bash command.
+
+    The route.sh hook shells out to this with --names-only to decide which
+    skills to surface for a given prompt.
+    """
+    from crucible.core.trigger_router import Event, match_event
+
+    prompt = getattr(args, "prompt", None)
+    files = tuple(getattr(args, "files", None) or ())
+    bash = getattr(args, "bash", None)
+
+    if not (prompt or files or bash):
+        print("Provide at least one of --prompt, --file, --bash")
+        return 1
+
+    event = Event(prompt=prompt, file_paths=files, bash_command=bash)
+    matches = match_event(event)
+
+    if getattr(args, "names_only", False):
+        for m in matches:
+            print(m.skill_name)
+        return 0
+
+    if not matches:
+        print("No skills activated.")
+        return 0
+    print(f"Activated skills ({len(matches)}):")
+    for m in matches:
+        print(f"  {m.skill_name}")
+        for rule in m.matched_rules:
+            print(f"      via {rule}")
+    return 0
+
+
 def cmd_migrate_v1_to_v2(args: argparse.Namespace) -> int:
     """Migrate .crucible/ overrides from v1 to v2 shape. Idempotent.
 
@@ -2836,6 +2871,28 @@ def main() -> int:
         help="Project path (default: current directory)"
     )
 
+    # === triggers command ===
+    triggers_parser = subparsers.add_parser(
+        "triggers",
+        help="Trigger routing: match a prompt/file/command to activated skills"
+    )
+    triggers_sub = triggers_parser.add_subparsers(dest="triggers_command")
+
+    match_parser = triggers_sub.add_parser(
+        "match",
+        help="Print skills that activate for a prompt / file path / bash command"
+    )
+    match_parser.add_argument("--prompt", help="Prompt text to match")
+    match_parser.add_argument(
+        "--file", action="append", dest="files", default=None,
+        help="File path in scope (repeatable)"
+    )
+    match_parser.add_argument("--bash", help="Bash command to match")
+    match_parser.add_argument(
+        "--names-only", action="store_true",
+        help="Print only skill names, one per line (for hook consumption)"
+    )
+
     # === system command ===
     system_parser = subparsers.add_parser("system", help="Manage session context files")
     system_sub = system_parser.add_subparsers(dest="system_command")
@@ -2974,6 +3031,12 @@ def main() -> int:
             return cmd_migrate_v1_to_v2(args)
         else:
             migrate_parser.print_help()
+            return 0
+    elif args.command == "triggers":
+        if args.triggers_command == "match":
+            return cmd_triggers_match(args)
+        else:
+            triggers_parser.print_help()
             return 0
     elif args.command == "system":
         if args.system_command == "init":

@@ -1,0 +1,16 @@
+# Trigger patterns for spec-validator skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on feature-request language. The route.sh hook then performs the
+# actual spec-presence check and applies the exploration-mode bypass.
+# Deliberately does NOT match bug-fix / refactor / question language —
+# those don't need a spec.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(implement|build|create|add)\s+(a\s+|an\s+|the\s+)?(feature|capability|endpoint|command|page|screen|flow|integration|module|service|api|system)\b'
+    note: explicit feature-request phrasing
+
+  - type: prompt_match
+    pattern: "\\b(let'?s|please|can you|i want (you )?to|we (need|want) to)\\s+(make|build|add|implement|create)\\b"
+    note: conversational feature requests

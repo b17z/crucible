@@ -154,11 +154,59 @@ def generate_settings_json(repo_path: str | None = None) -> str:
         })
         existing["hooks"]["SessionStart"] = session_start
 
+    # --- v2 hook scripts (Phase 1b + Phase 4) ---
+    # These ship as package files under interfaces/claude_code/. Register
+    # each idempotently against its event. A registration is identified by
+    # the script's basename appearing in the command, so re-running init
+    # never duplicates.
+    _register_v2_hooks(existing["hooks"])
+
     # Write settings
     with open(settings_path, "w") as f:
         json.dump(existing, f, indent=2)
 
     return str(settings_path)
+
+
+def _v2_hook_path(*parts: str) -> str:
+    """Absolute path to a bundled v2 hook script."""
+    base = Path(__file__).resolve().parent.parent / "interfaces" / "claude_code"
+    return str(base.joinpath(*parts))
+
+
+# (event, matcher, [path parts]) for every v2 hook script.
+# matcher is None for events that don't take one (PreCompact/PostCompact).
+_V2_HOOKS: list[tuple[str, str | None, tuple[str, ...]]] = [
+    ("UserPromptSubmit", None, ("user_prompt_submit", "magic_comments.sh")),
+    ("UserPromptSubmit", None, ("user_prompt_submit", "route.sh")),
+    ("PreToolUse", "Bash", ("pre_tool_use", "npm_install_gate.sh")),
+    ("FileChanged", ".claude/settings.json|.mcp.json|.vscode/extensions.json",
+     ("file_changed", "settings_integrity.sh")),
+    ("PreCompact", None, ("pre_compact", "protect.sh")),
+    ("PostCompact", None, ("post_compact", "reinject.sh")),
+]
+
+
+def _register_v2_hooks(hooks: dict) -> None:
+    """Idempotently register the v2 hook scripts into a settings hooks dict."""
+    for event, matcher, parts in _V2_HOOKS:
+        script = parts[-1]
+        path = _v2_hook_path(*parts)
+        entries = hooks.get(event, [])
+
+        already = any(
+            script in (h["hooks"][0].get("command", "") if h.get("hooks") else "")
+            for h in entries
+            if isinstance(h, dict)
+        )
+        if already:
+            continue
+
+        entry: dict = {"hooks": [{"type": "command", "command": f"bash {path}"}]}
+        if matcher is not None:
+            entry["matcher"] = matcher
+        entries.append(entry)
+        hooks[event] = entries
 
 
 def generate_config_template(repo_path: str | None = None) -> str:
@@ -397,6 +445,67 @@ def _generate_enforcement_summary(assertions: list) -> str:
     return "\n".join(parts)
 
 
+def _session_integrity_note(cwd_path: Path) -> str | None:
+    """Return a warning if file-integrity baselines diverge, else None.
+
+    Mirrors the FileChanged hook's logic at a high level: if
+    .crucible/baselines/ exists, check each watched file against its
+    baseline. We only WARN here (SessionStart shouldn't block the
+    session); the blocking enforcement is the FileChanged hook.
+    """
+    from crucible.baselines import BASELINES_DIR, WATCHED_FILES, hash_file
+
+    baselines_dir = cwd_path / BASELINES_DIR
+    if not baselines_dir.exists():
+        return None  # not opted in
+
+    diverged: list[str] = []
+    missing_baselines: list[str] = []
+    for name, rel_watched in WATCHED_FILES:
+        baseline = baselines_dir / f"{name}.sha256"
+        watched = cwd_path / rel_watched
+        if not baseline.exists():
+            missing_baselines.append(name)
+            continue
+        expected = baseline.read_text().strip()
+        actual = hash_file(watched) if watched.exists() else "MISSING"
+        if expected != actual:
+            diverged.append(name)
+
+    if not diverged and not missing_baselines:
+        return None
+
+    lines = ["## ⚠️ Settings integrity"]
+    if diverged:
+        lines.append(
+            f"These watched files diverge from their baseline: "
+            f"{', '.join(diverged)}. Investigate before trusting this session — "
+            f"see the supply-chain-2026 knowledge. Re-baseline with "
+            f"`crucible baselines init --force` only if the change is known-good."
+        )
+    if missing_baselines:
+        lines.append(
+            f"Baseline(s) missing: {', '.join(missing_baselines)}. "
+            f"The baselines directory exists but these are gone — suspicious."
+        )
+    return "\n".join(lines)
+
+
+def _session_policy_note() -> str | None:
+    """Return a one-line summary of bundled policies, if any."""
+    policies_dir = Path(__file__).resolve().parent.parent / "policies"
+    if not policies_dir.exists():
+        return None
+    names = sorted(p.stem for p in policies_dir.glob("*.yaml"))
+    if not names:
+        return None
+    return (
+        "## Active policies\n\n"
+        + ", ".join(names)
+        + " — cross-cutting enforcement composing the security skills."
+    )
+
+
 def run_session_hook(stdin_data: str | None = None) -> int:
     """Run SessionStart hook for Crucible context injection.
 
@@ -453,6 +562,34 @@ def run_session_hook(stdin_data: str | None = None) -> int:
     recent = load_recent_findings(cwd)
     if recent:
         context_parts.append(recent)
+
+    # 4. Tier 1 skill discovery — cheap listing of available skills.
+    try:
+        from crucible.core.disclosure import discover_skills, discovery_digest
+
+        summaries = discover_skills()
+        if summaries:
+            context_parts.append(discovery_digest(summaries))
+    except Exception:
+        pass  # Never fail the session on discovery errors.
+
+    # 5. Settings-integrity check — surface a baseline divergence at
+    #    session start (the FileChanged hook catches mid-session changes;
+    #    this catches a change that happened while CC wasn't running).
+    try:
+        integrity_note = _session_integrity_note(cwd_path)
+        if integrity_note:
+            context_parts.append(integrity_note)
+    except Exception:
+        pass
+
+    # 6. Active policy summary.
+    try:
+        policy_note = _session_policy_note()
+        if policy_note:
+            context_parts.append(policy_note)
+    except Exception:
+        pass
 
     # Output JSON for SessionStart hook
     if context_parts:

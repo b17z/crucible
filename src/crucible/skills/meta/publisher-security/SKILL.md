@@ -1,6 +1,6 @@
 ---
 name: publisher-security
-description: Self-applied review for projects that publish to PyPI / npm — hardware keys, CI hardening, release runbook, IR pre-staging. Activates only when [tool.crucible].publishable is set.
+description: Self-applied review for projects that publish to PyPI / npm — hardware keys, CI hardening, release runbook, IR pre-staging. Use when working on release-adjacent files (release/publish workflows, pyproject.toml, package.json, CHANGELOG) or a prompt about publishing/releasing/tagging/version-bumping, AND the project has opted in via [tool.crucible].publishable. Do NOT use for internal/closed projects (it stays dormant without the flag) or for reviewing application code — it reviews the release supply chain, not features.
 version: "2.0"
 ---
 

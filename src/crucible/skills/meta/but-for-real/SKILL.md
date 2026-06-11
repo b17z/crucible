@@ -1,6 +1,6 @@
 ---
 name: but-for-real
-description: Force a skeptical second pass before declaring work done. Activates on completion claims ("should work now", "tests pass", "ready to ship") and demands proof, not assertion.
+description: Force a skeptical second pass before declaring work done. Use when about to claim a change is complete, fixed, passing, or ready to ship — it activates on completion claims ("should work now", "tests pass", "ready for the next phase") and demands proof (commands run, output seen, edge cases broken), not assertion. Do NOT use for adversarially driving a running product (use break-it), security review (use security-engineer), or shaping how code is written (use coding-discipline) — this is verification of your own work before claiming done.
 version: "2.0"
 ---
 

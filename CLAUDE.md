@@ -171,5 +171,8 @@ Crucible ships meta-skills that shape *how* the agent works, discoverable via `c
 - **`meta/coding-discipline`** — think before coding, simplicity first, surgical changes, goal-driven execution. Adapted from Andrej Karpathy's observations on LLM coding pitfalls (via `multica-ai/andrej-karpathy-skills`). Activates on implementation/editing intent.
 - **`meta/but-for-real`** — force a skeptical second pass before declaring work done.
 - **`meta/spec-validator`** — gate feature requests on a spec; bypassable per-session with `crucible-mode: exploration`.
+- **`meta/writing-good-skills`** — author/refactor a SKILL.md using mid-2026 practitioner consensus (description-as-trigger, the 8 antipatterns, the 3 eval pillars). Use it whenever creating or reviewing a skill.
+- **`meta/break-it`** — adversarially QA a *running* product/agent by driving it like confused, impatient, over-trusting, or hostile users. The runtime counterpart to `but-for-real`. Ships persona/tour + agent-failure-mode references.
+- **`meta/challenge`** — pressure-test a strategy/plan/thesis as a skeptical reviewer demanding tradeoffs and evidence (vs `but-for-real`, which verifies finished work).
 
-When writing or changing code in this repo, `meta/coding-discipline` applies: minimum code that solves the problem, surgical diffs, verify against success criteria.
+When writing or changing code in this repo, `meta/coding-discipline` applies: minimum code that solves the problem, surgical diffs, verify against success criteria. When authoring a skill, `meta/writing-good-skills` applies.

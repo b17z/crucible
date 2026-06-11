@@ -1,6 +1,6 @@
 ---
 name: security-engineer
-description: Review code from a security engineer's perspective — threat modeling, input validation, auth/authz, secrets handling, supply-chain risks
+description: Review code from a security engineer's perspective — threat modeling, input validation, auth/authz, secrets handling, supply-chain risks. Use when a diff/file/PR touches authentication, input handling, secrets, shell exec, external APIs, dependencies/lockfiles, or CI workflows; when reviewing anything that writes to ~/.npmrc, ~/.pypirc, ~/.ssh/, .claude/settings.json, or .mcp.json; or on a prompt like "is this safe", "security review this", "check for vulnerabilities". Catches injection, missing ACLs, secret leaks, prompt-injection boundaries, shell argument injection, and supply-chain TTPs. Do NOT use for performance, code style, or architecture — those belong to performance-engineer and tech-lead.
 version: "2.0"
 ---
 
@@ -54,6 +54,7 @@ Verify these criteria:
 This skill ships with companion knowledge in its `knowledge/` directory:
 
 - `supply-chain-2026.md` — May 2026 threat landscape: Axios compromise, Mini Shai-Hulud waves 1+2, GitHub breach via VS Code extension, CVE-2026-3854. Load when reviewing dependency changes, CI workflows, or anything in `~/.claude/`, `~/.npmrc`, `~/.pypirc`, `~/.ssh/`.
+- `agent-and-shell-security.md` — red flags for AI-agent/bot products (internal corpus exposure, bot identity gating, prompt-injection boundary escapes, agent-as-service auth, external tool routing) and shell/CLI helpers (argument injection, path traversal, symlink TOCTOU, subprocess hygiene, GNU-vs-BSD + bash-3.2 gotchas). Load when reviewing an agent/bot entry point or a shell script that takes user input.
 
 Knowledge files are tier 3 (loaded on demand). Pull them in when their topic is in scope; don't load them speculatively at session start.
 

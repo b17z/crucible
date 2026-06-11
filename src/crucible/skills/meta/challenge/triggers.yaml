@@ -1,0 +1,11 @@
+# Trigger patterns for challenge activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on requests for adversarial critique of a PLAN/STRATEGY/THESIS.
+# Distinct from but-for-real (verifying finished work) and from a
+# collaborative grill/interview (helping articulate a half-formed plan).
+
+rules:
+  - type: prompt_match
+    pattern: "\\b(challenge (me|this|my)|pressure[- ]test|poke holes|stress[- ]test (my|this|the) (plan|strategy|thesis|proposal|idea)|devil'?s advocate|push back on|red[- ]team (my|this) (plan|strategy|idea)|critique (my|this) (plan|strategy|proposal))\\b"
+    note: explicit adversarial-critique-of-a-plan intent

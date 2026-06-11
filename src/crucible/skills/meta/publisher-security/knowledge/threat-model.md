@@ -25,7 +25,7 @@ Adversary capabilities to assume when reviewing release infrastructure for any p
 ## CI/CD pipeline compromise
 
 - **OIDC token theft from CI runner memory mid-job** (May 11 2026 Mini Shai-Hulud TTP)
-- **Stolen CI/CD token** with credential reuse (Grafana / "CoinbaseCartel" extortion case)
+- **Stolen CI/CD token** with credential reuse (the Grafana codebase-exfiltration-via-CI-token extortion case)
 
 ## Persistence
 

@@ -1,0 +1,18 @@
+# Trigger patterns for writing-good-skills activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires when authoring/refactoring/reviewing a SKILL.md. Deliberately
+# narrow — skill-authoring is a specific task, not general prompt work.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(write|author|create|refactor|review|evaluate|improve)\s+(a\s+|an\s+|this\s+|the\s+|my\s+)?skill\b'
+    note: explicit skill-authoring intent
+
+  - type: prompt_match
+    pattern: '\b(SKILL\.md|skill[- ]?file|skill frontmatter|skill description|writing-good-skills)\b'
+    note: references to the skill format itself
+
+  - type: file_glob
+    pattern: '**/SKILL.md'
+    note: editing any SKILL.md file

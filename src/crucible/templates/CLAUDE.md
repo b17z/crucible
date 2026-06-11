@@ -41,6 +41,13 @@ agent works:
   against success criteria.
 - **`meta/but-for-real`** — skeptical second pass before declaring done.
 - **`meta/spec-validator`** — gate feature requests on a spec.
+- **`meta/writing-good-skills`** — author/refactor a SKILL.md to mid-2026
+  practitioner consensus. Use when creating or reviewing a skill.
+- **`meta/break-it`** — adversarially QA a *running* product/agent by
+  driving it like confused/impatient/hostile users (runtime counterpart
+  to `but-for-real`).
+- **`meta/challenge`** — pressure-test a strategy/plan as a skeptical
+  reviewer demanding tradeoffs and evidence.
 
 ## Crucible v2 plumbing in this project
 

@@ -71,11 +71,16 @@ Load this knowledge when reviewing **any** of:
 - **Effect:** any authenticated user with push access could execute arbitrary commands on backend storage nodes, with **cross-tenant repo access**
 - **Status:** patched on GitHub.com; self-hosted GHES instances may remain vulnerable
 
-### Background — Grafana / "CoinbaseCartel"
+### Background — Grafana CI/CD token extortion
 
-- Grafana internal codebase exfiltrated via stolen CI/CD token
-- Threat group named "CoinbaseCartel" attempted extortion
-- The name suggests Coinbase-adjacent target preference among threat actors. Anyone with a public-facing developer brand at a crypto company should treat themselves as in scope.
+- Grafana's internal codebase was exfiltrated via a stolen CI/CD token.
+- A threat group attempted extortion off the stolen source.
+- Takeaway: a single leaked CI/CD token is enough to exfiltrate a whole
+  internal codebase. Anyone with a public-facing developer brand —
+  especially in crypto/fintech, where threat-actor interest is highest —
+  should treat themselves as in scope. Scope and rotate CI tokens
+  aggressively; a build token should never be able to read the whole repo
+  history if it only needs to publish.
 
 ## Cross-cutting attack patterns
 

@@ -1,0 +1,15 @@
+# Trigger patterns for break-it activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on adversarial-QA intent against a RUNNING product/agent.
+# Distinct from but-for-real (static self-review of a diff) — break-it
+# is about driving the live app like a real, confused, or hostile user.
+
+rules:
+  - type: prompt_match
+    pattern: "\\b(break it|break this|qa (this|the)|stress[- ]test|find (the )?rough edges|test like a (clueless|confused|real) user|adversarial(ly)? (qa|test)|exploratory test)\\b"
+    note: explicit break-it / adversarial-QA intent
+
+  - type: prompt_match
+    pattern: "\\b(put a vp'?s hat on|drive (it|the (app|agent)) like|misuse (it|the agent)|triangle.*square hole)\\b"
+    note: persona-driven / emergent-misuse framing

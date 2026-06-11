@@ -1,6 +1,6 @@
 ---
 name: coding-discipline
-description: Behavioral guidelines that reduce common LLM coding mistakes — think before coding, simplicity first, surgical changes, goal-driven execution. Bias toward caution over speed.
+description: Behavioral guidelines that reduce common LLM coding mistakes — think before coding, simplicity first, surgical changes, goal-driven execution. Use when writing, implementing, refactoring, fixing, or editing code, especially a non-trivial change to existing code. Enforces minimum code that solves the problem, diffs that trace to the request, and verification against success criteria. Biases toward caution over speed. Do NOT use for pure questions, code review, or architecture discussion — it shapes how a change is written, not whether to make it.
 version: "2.0"
 ---
 

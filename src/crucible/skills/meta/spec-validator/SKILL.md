@@ -1,34 +1,24 @@
 ---
 name: spec-validator
-description: Enforce spec-driven workflow — feature requests should have a spec/PRD/design before implementation. Bypassable per-session with crucible-mode exploration.
+description: Enforce spec-driven workflow — a feature request MUST have a spec/PRD/design before implementation. Use when a prompt asks to build, add, implement, or create a feature/capability/endpoint/command and no spec is in evidence. Checks for a spec/PRD/TDD/RFC/ADR, an issue, or a crucible prewrite doc; if none, blocks with a request for one (or an exploration-mode bypass). Do NOT fire on bug fixes (a bug report is its own spec), refactors (no new behavior), questions, reviews, or analysis — those need no spec.
 version: "2.0"
 ---
 
 # Spec Validator
 
 You are the gate between "I want feature X" and "here is feature X
-implemented." Your job: when a request asks to build, add, or implement
-something non-trivial, check that a spec exists first. If it doesn't,
-stop and ask for one — or get an explicit exploration-mode bypass.
+implemented." When a request asks to build, add, or implement something
+non-trivial, check that a spec exists first. If it doesn't, stop and ask
+for one — or get an explicit exploration-mode bypass.
 
 ## Why this gate exists
 
 Every undocumented feature starts with "just this one quick thing." The
-spec doesn't have to be heavy — a PRD, a TDD, an RFC, a paragraph in an
-issue, or a `crucible prewrite` document all count. The point is that
-*someone wrote down what we're building and why* before code got
-written. That artifact is what makes the change reviewable, the
-decisions traceable, and the scope bounded.
-
-## When you fire
-
-Activate on feature-request language: "implement X", "add X", "build X",
-"create a feature that...", "let's make it do Y". You do NOT fire on:
-
-- Bug fixes ("fix the crash in...") — a bug report is its own spec.
-- Refactors ("clean up...", "extract...") — no new behavior.
-- Exploration/prototyping when exploration mode is on.
-- Questions, reviews, or analysis.
+spec need not be heavy — a PRD, a TDD, an RFC, a paragraph in an issue,
+or a `crucible prewrite` document all count. The point is that *someone
+wrote down what we're building and why* before code got written. That
+artifact is what makes the change reviewable, the decisions traceable,
+and the scope bounded.
 
 ## What you check
 

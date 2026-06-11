@@ -27,6 +27,21 @@ pull a skill's full body until you need it:
 Namespaced skills use a `prefix/name` identity — e.g. `meta/but-for-real`,
 `pre-write/prd`. Pass that full name to discover/activate.
 
+### Behavioral meta-skills
+
+Beyond review personas, Crucible ships meta-skills that shape *how* the
+agent works:
+
+- **`meta/coding-discipline`** — think before coding, simplicity first,
+  surgical changes, goal-driven execution. Adapted from Andrej
+  Karpathy's observations on LLM coding pitfalls
+  (`multica-ai/andrej-karpathy-skills`). It activates on
+  implementation/editing intent; when writing or changing code, follow
+  it: minimum code that solves the problem, surgical diffs, verify
+  against success criteria.
+- **`meta/but-for-real`** — skeptical second pass before declaring done.
+- **`meta/spec-validator`** — gate feature requests on a spec.
+
 ## Crucible v2 plumbing in this project
 
 Crucible v2 sets up a few project-level files this agent should be aware of:

@@ -1,0 +1,12 @@
+# Trigger patterns for coding-discipline skill activation.
+# Consumed by core/trigger_router.py.
+#
+# This skill applies whenever code is being written or changed — its
+# whole point is to shape *how* the change happens. Fire on
+# implementation/editing intent broadly, but not on pure questions,
+# reviews, or discussion (where the guidelines don't bite).
+
+rules:
+  - type: prompt_match
+    pattern: '\b(implement|write|add|build|create|refactor|fix|change|update|modify|edit|rewrite|extract|rename|migrate)\b'
+    note: implementation / editing intent — the guidelines apply

@@ -7,5 +7,10 @@
 
 See [`CLAUDE.md`](./CLAUDE.md) for the canonical version.
 
+In particular, Crucible's behavioral meta-skills apply here —
+`meta/coding-discipline` (adapted from Andrej Karpathy's observations on
+LLM coding pitfalls), `meta/but-for-real`, and `meta/spec-validator`.
+See `CLAUDE.md` for what each one does.
+
 If you regenerate or sync, `CLAUDE.md` is the source of truth; this file
 is a pointer, not a copy.

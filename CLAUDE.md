@@ -163,3 +163,13 @@ Canonical defaults (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context layout — one `CONTEXT.md` and `docs/adr/` at the repo root (not yet created; the `grill-with-docs` skill populates them lazily). See `docs/agents/domain.md`.
+
+### Bundled behavioral skills
+
+Crucible ships meta-skills that shape *how* the agent works, discoverable via `crucible skills discover` (Tier 1) and activated by `core/trigger_router.py`:
+
+- **`meta/coding-discipline`** — think before coding, simplicity first, surgical changes, goal-driven execution. Adapted from Andrej Karpathy's observations on LLM coding pitfalls (via `multica-ai/andrej-karpathy-skills`). Activates on implementation/editing intent.
+- **`meta/but-for-real`** — force a skeptical second pass before declaring work done.
+- **`meta/spec-validator`** — gate feature requests on a spec; bypassable per-session with `crucible-mode: exploration`.
+
+When writing or changing code in this repo, `meta/coding-discipline` applies: minimum code that solves the problem, surgical diffs, verify against success criteria.

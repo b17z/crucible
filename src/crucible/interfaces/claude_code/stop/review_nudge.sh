@@ -180,7 +180,13 @@ for trigger in triggers:
     note = trigger.get("note")
     if not isinstance(paths, list) or not paths or not note:
         continue
-    min_lines = trigger.get("min_changed_lines") or 0
+
+    # Malformed trigger values are skipped silently, matching the silent-on-malformed contract.
+    raw_min_lines = trigger.get("min_changed_lines")
+    try:
+        min_lines = int(raw_min_lines) if raw_min_lines else 0
+    except (TypeError, ValueError):
+        continue
 
     matching_files = [
         f for f in changed

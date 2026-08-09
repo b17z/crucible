@@ -224,6 +224,53 @@ assert_exit_zero "no-match-multi-exit"
 assert_stderr_empty "no-match-multi-silent"
 teardown
 
+# --- type-malformed-min-lines-silent: one trigger with non-int min_changed_lines
+# is skipped silently, another valid trigger that matches fires normally ---
+init_repo
+write_review_md $'---\ntriggers:\n  - paths: ["*.py"]\n    min_changed_lines: ten\n    note: "Malformed trigger"\n  - paths: ["*.txt"]\n    note: "Valid trigger"\n---\n# Review\n'
+git add REVIEW.md
+git -c user.email=t@t -c user.name=t commit -q -m "add review.md"
+echo "print('hi')" > foo.py
+git add foo.py
+echo "hello" > bar.txt
+git add bar.txt
+run_hook
+assert_exit_zero "type-malformed-min-lines-exit"
+assert_stderr_contains "Valid trigger" "type-malformed-matches-valid"
+assert_stderr_contains "REVIEW.md trigger matched" "type-malformed-valid-suffix"
+# Ensure exactly 1 crucible line (malformed skipped, only valid triggered)
+COUNT=$(echo "$STDERR_OUT" | grep -c '^crucible:' || true)
+if [[ "$COUNT" != 1 ]]; then
+    echo "FAIL [type-malformed-count]: expected 1 crucible: line, got $COUNT"
+    FAILED=$((FAILED + 1))
+fi
+# Make sure no Traceback appears in stderr
+if [[ "$STDERR_OUT" == *"Traceback"* ]]; then
+    echo "FAIL [type-malformed-no-traceback]: stderr contains Traceback"
+    echo "  got: $STDERR_OUT"
+    FAILED=$((FAILED + 1))
+fi
+teardown
+
+# --- two-matches-exactly-two-lines: both triggers match, expect exactly 2 nudges ---
+init_repo
+write_review_md $'---\ntriggers:\n  - paths: ["*.py"]\n    note: "Python change"\n  - paths: ["*.txt"]\n    note: "Text change"\n---\n# Review\n'
+git add REVIEW.md
+git -c user.email=t@t -c user.name=t commit -q -m "add review.md"
+echo "print('hi')" > foo.py
+git add foo.py
+echo "hello" > bar.txt
+git add bar.txt
+run_hook
+assert_exit_zero "two-matches-exit"
+COUNT=$(echo "$STDERR_OUT" | grep -c '^crucible:' || true)
+if [[ "$COUNT" != 2 ]]; then
+    echo "FAIL [two-matches-exactly-two-lines]: expected 2 crucible: lines, got $COUNT"
+    echo "  got: $STDERR_OUT"
+    FAILED=$((FAILED + 1))
+fi
+teardown
+
 if [[ "$FAILED" -gt 0 ]]; then
     echo "$FAILED test(s) failed"
     exit 1

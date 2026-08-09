@@ -205,6 +205,13 @@ _V2_HOOKS: list[tuple[str, str | None, tuple[str, ...]]] = [
     ("PreToolUse", "Bash", ("pre_tool_use", "bash_deny.sh")),
     ("FileChanged", ".claude/settings.json|.mcp.json|.vscode/extensions.json",
      ("file_changed", "settings_integrity.sh")),
+    ("FileChanged", ".claude/settings.json|.mcp.json|.vscode/extensions.json",
+     ("file_changed", "config_diff.sh")),
+    # Integrity recheck on config reloads and subagent completions: a
+    # subagent (or anything that touched config) re-verifies the watched
+    # files. Same script, different trigger; silent when clean.
+    ("ConfigChange", None, ("file_changed", "settings_integrity.sh")),
+    ("SubagentStop", None, ("file_changed", "settings_integrity.sh")),
     ("PreCompact", None, ("pre_compact", "protect.sh")),
     ("PostCompact", None, ("post_compact", "reinject.sh")),
 ]

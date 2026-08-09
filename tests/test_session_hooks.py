@@ -63,6 +63,40 @@ class TestIntegrityNote:
         assert "missing" in note.lower()
 
 
+class TestBaselineSnapshots:
+    def test_init_writes_snapshots(self, tmp_path: Path, monkeypatch) -> None:
+        from crucible.baselines import init_baselines
+
+        monkeypatch.chdir(tmp_path)
+        claude = tmp_path / ".claude"
+        claude.mkdir()
+        (claude / "settings.json").write_text('{"hooks": {}}')
+
+        result = init_baselines()
+        assert result.is_ok
+
+        bl = tmp_path / ".crucible" / "baselines"
+        assert (bl / "settings.snapshot").read_text() == '{"hooks": {}}'
+        # Absent watched files get no snapshot
+        assert not (bl / "mcp.snapshot").exists()
+        assert not (bl / "extensions.snapshot").exists()
+
+    def test_force_reinit_refreshes_and_prunes(self, tmp_path: Path, monkeypatch) -> None:
+        from crucible.baselines import init_baselines
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".mcp.json").write_text('{"mcpServers": {}}')
+        assert init_baselines().is_ok
+
+        bl = tmp_path / ".crucible" / "baselines"
+        assert (bl / "mcp.snapshot").exists()
+
+        # Watched file removed → force re-init prunes the stale snapshot
+        (tmp_path / ".mcp.json").unlink()
+        assert init_baselines(force=True).is_ok
+        assert not (bl / "mcp.snapshot").exists()
+
+
 class TestPolicyNote:
     def test_lists_bundled_policies(self) -> None:
         note = _session_policy_note()

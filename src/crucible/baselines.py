@@ -94,9 +94,15 @@ def init_baselines(force: bool = False) -> Result[list[BaselineEntry], str]:
     entries: list[BaselineEntry] = []
     for name, watched in WATCHED_FILES:
         baseline_path = BASELINES_DIR / f"{name}.sha256"
+        # Content snapshot alongside the hash so the FileChanged config_diff
+        # hook can show WHAT changed, not just that something did. Advisory
+        # only — the block decision rests on the manifest-covered hashes, so
+        # a tampered snapshot can mislabel a diff but never unblock.
+        snapshot_path = BASELINES_DIR / f"{name}.snapshot"
         if watched.exists():
             sha = hash_file(watched)
             baseline_path.write_text(f"{sha}\n")
+            snapshot_path.write_bytes(watched.read_bytes())
             entries.append(
                 BaselineEntry(
                     name=name,
@@ -108,6 +114,8 @@ def init_baselines(force: bool = False) -> Result[list[BaselineEntry], str]:
             )
         else:
             baseline_path.write_text("MISSING\n")
+            # A stale snapshot from a prior init would misreport the diff.
+            snapshot_path.unlink(missing_ok=True)
             entries.append(
                 BaselineEntry(
                     name=name,

@@ -385,6 +385,40 @@ class TestSettingsGenerator:
         assert len(deny_entries) == 1
         assert deny_entries[0]["matcher"] == "Bash"
 
+    def test_generate_settings_json_registers_config_diff(self, tmp_path: Path) -> None:
+        """config_diff.sh registers under FileChanged alongside settings_integrity."""
+        generate_settings_json(str(tmp_path))
+        settings_path = generate_settings_json(str(tmp_path))  # run twice
+
+        with open(settings_path) as f:
+            settings = json.load(f)
+
+        file_changed = settings["hooks"]["FileChanged"]
+        diff_entries = [
+            h for h in file_changed
+            if isinstance(h, dict) and h.get("hooks")
+            and "config_diff.sh" in h["hooks"][0].get("command", "")
+        ]
+        assert len(diff_entries) == 1
+        assert ".mcp.json" in diff_entries[0]["matcher"]
+
+    def test_generate_settings_json_integrity_recheck_events(self, tmp_path: Path) -> None:
+        """settings_integrity.sh also registers under ConfigChange and
+        SubagentStop (no matcher) for mid-session rechecks."""
+        settings_path = generate_settings_json(str(tmp_path))
+
+        with open(settings_path) as f:
+            settings = json.load(f)
+
+        for event in ("ConfigChange", "SubagentStop"):
+            entries = [
+                h for h in settings["hooks"].get(event, [])
+                if isinstance(h, dict) and h.get("hooks")
+                and "settings_integrity.sh" in h["hooks"][0].get("command", "")
+            ]
+            assert len(entries) == 1, f"missing integrity recheck under {event}"
+            assert "matcher" not in entries[0]
+
 
 class TestSystemTemplates:
     """Tests for system template generation."""

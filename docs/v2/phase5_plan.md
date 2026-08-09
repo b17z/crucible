@@ -100,3 +100,12 @@ the watched files. Zero new script code; silent when clean.
 2. 5b pretool pre-check (python + CLI + registration + tests)
 3. 5c snapshots + config_diff (+ tests)
 4. 5d/5e registrations + inherit.sh + route.sh persistence (+ tests)
+
+## Follow-up found during verification
+
+- **mcp 2.0 migration**: mcp 2.0 removed the `Server.list_tools` decorator
+  API server.py uses; fresh installs were pulling 2.0.0 and breaking at
+  import. Capped to `<2.0.0` in f653bb0 (1.29.0 passes the full suite).
+  Migrate server.py to the 2.x API, then lift the cap. (A GitHub issue
+  should be filed for this — creation was not permitted from the agent
+  session that found it.)

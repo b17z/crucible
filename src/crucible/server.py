@@ -416,12 +416,21 @@ def _format_review_output(
         parts.append("")
 
     # Findings
+    active_tools = [f for f in findings if not f.suppressed]
+    suppressed_tools = [f for f in findings if f.suppressed]
+
     parts.append("## Static Analysis Findings\n")
-    if findings:
-        parts.append(_format_findings(findings))
+    if active_tools:
+        parts.append(_format_findings(active_tools))
     else:
         parts.append("No issues found.")
     parts.append("")
+
+    if suppressed_tools:
+        parts.append(f"*Suppressed: {len(suppressed_tools)}*")
+        for f in suppressed_tools:
+            parts.append(f"- {f.location} {f.tool}/{f.rule} — {f.suppression_reason}")
+        parts.append("")
 
     # Enforcement assertions
     if enforcement_findings is not None:
@@ -659,6 +668,14 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
             enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
                 run_enforcement(path, compliance_config=compliance_config)
             )
+
+    # Verify findings against known false-positive shapes (fail-open on error)
+    from crucible.verify import run_verification
+
+    all_findings, enforcement_findings, verify_errors = run_verification(
+        all_findings, enforcement_findings
+    )
+    tool_errors.extend(verify_errors)
 
     # Compute severity summary
     severity_counts = compute_severity_counts(all_findings)

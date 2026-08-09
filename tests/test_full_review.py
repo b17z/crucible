@@ -198,6 +198,39 @@ class TestUnifiedReview:
             assert "Line too long" in text
 
 
+class TestReviewVerifierIntegration:
+    """The review MCP tool should run the verifier before rendering output."""
+
+    def test_b101_in_tests_suppressed(self, tmp_path: Path) -> None:
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        test_file = tests_dir / "test_a.py"
+        test_file.write_text("assert True\n")
+
+        mock_findings = [
+            ToolFinding(
+                tool="bandit",
+                rule="B101",
+                severity=Severity.LOW,
+                message="assert used",
+                location=f"{test_file}:1",
+            ),
+        ]
+
+        with (
+            patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok(mock_findings)),
+        ):
+            result = _handle_review({"path": str(tests_dir)})
+            text = result[0].text
+
+        assert "Suppressed" in text
+        assert "B101" not in text.split("Suppressed")[0]
+
+
 class TestSeverityCountsSkipSuppressed:
     def test_suppressed_not_counted(self) -> None:
         import dataclasses

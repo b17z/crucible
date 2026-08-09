@@ -152,3 +152,33 @@ class TestPolicyNoteValidation:
         note = _session_policy_note()
         assert note is not None
         assert "⚠" not in note
+
+
+class TestReviewConventionsInjection:
+    def test_injects_body_without_frontmatter(self, tmp_path: Path, monkeypatch, capsys) -> None:
+        import json
+
+        from crucible.hooks.claudecode import run_session_hook
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "REVIEW.md").write_text(
+            "---\ntriggers:\n  - paths: ['src/**']\n    note: n\n---\n"
+            "# Review Conventions\n\n## Severity bar\nHigh blocks.\n"
+        )
+        code = run_session_hook(json.dumps({"cwd": str(tmp_path)}))
+        assert code == 0
+        out = capsys.readouterr().out
+        payload = json.loads(out)
+        ctx = payload["hookSpecificOutput"]["additionalContext"]
+        assert "Severity bar" in ctx
+        assert "triggers:" not in ctx  # frontmatter stripped
+
+    def test_no_review_md_no_section(self, tmp_path: Path, monkeypatch, capsys) -> None:
+        import json
+
+        from crucible.hooks.claudecode import run_session_hook
+
+        monkeypatch.chdir(tmp_path)
+        run_session_hook(json.dumps({"cwd": str(tmp_path)}))
+        out = capsys.readouterr().out
+        assert "Review Conventions" not in out

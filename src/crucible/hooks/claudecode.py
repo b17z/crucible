@@ -690,6 +690,20 @@ def run_session_hook(stdin_data: str | None = None) -> int:
         except OSError:
             pass  # Ignore file read errors
 
+    # Review conventions (REVIEW.md body, frontmatter stripped)
+    review_md = cwd_path / "REVIEW.md"
+    if review_md.exists():
+        try:
+            text = review_md.read_text()
+            if text.startswith("---"):
+                closing = text.find("\n---", 3)
+                if closing != -1:
+                    text = text[closing + 4:]
+            if text.strip():
+                context_parts.append(text.strip())
+        except OSError:
+            pass
+
     # 3. Include recent findings if exists
     from crucible.history import load_recent_findings
 

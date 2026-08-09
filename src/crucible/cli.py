@@ -2087,6 +2087,15 @@ include_context: false
             agents_path.write_text(template.read_text())
             print(f"Created {agents_path}")
 
+        # REVIEW.md: review conventions + advisory trigger frontmatter (v2 phase 7)
+        review_path = project_path / "REVIEW.md"
+        if review_path.exists() and not args.force:
+            print(f"Warning: {review_path} exists, skipping (use --force to overwrite)")
+        else:
+            template = Path(__file__).parent / "templates" / "REVIEW.md"
+            review_path.write_text(template.read_text())
+            print(f"Created {review_path}")
+
     print(f"\nInitialized {crucible_dir}")
     print("\nNext steps:")
     print("  1. Customize skills:     crucible skills init <skill>")

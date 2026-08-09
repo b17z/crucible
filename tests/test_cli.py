@@ -791,6 +791,30 @@ class TestInitCommand:
         captured = capsys.readouterr()
         assert "solidity" in captured.out.lower()
 
+    def test_init_creates_review_md(self, tmp_path: Path) -> None:
+        """Should create REVIEW.md alongside AGENTS.md when --with-claudemd is set."""
+        from argparse import Namespace
+
+        from crucible.cli import cmd_init
+
+        args = Namespace(
+            path=str(tmp_path), force=False, minimal=True, with_claudemd=True
+        )
+        result = cmd_init(args)
+
+        assert result == 0
+        review_path = tmp_path / "REVIEW.md"
+        assert review_path.exists()
+        assert review_path.read_text().startswith("---")
+
+        # Second run with a modified file should not overwrite it.
+        review_path.write_text("custom content")
+        args2 = Namespace(
+            path=str(tmp_path), force=False, minimal=True, with_claudemd=True
+        )
+        cmd_init(args2)
+        assert review_path.read_text() == "custom content"
+
 
 class TestCiGenerateCommand:
     """Test crucible ci generate command."""

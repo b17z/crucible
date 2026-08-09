@@ -68,7 +68,7 @@ time keeps mistakes small and easy to spot.
 
 **`meta/coding-discipline`** is the set of habits that keeps this step
 honest: minimum code that solves the problem, changes that trace back
-to what you actually asked for, nothing spec­ulative bolted on. `crucible
+to what you actually asked for, nothing speculative bolted on. `crucible
 skills discover coding-discipline` shows the full list. It activates
 automatically any time code is being written or changed.
 
@@ -110,8 +110,13 @@ growing with you.
 Not everything needs all six steps. If you're just poking at an idea
 for five minutes — trying something in a scratch file to see if it's
 even possible — steps 3 through 5 (spec, disciplined build, formal
-proof) are overkill. Say so explicitly: add `crucible-mode: exploration`
-to your message, and the spec gate steps aside so you can sketch freely.
+proof) are overkill. Say so explicitly by typing the words
+`crucible-mode: exploration` anywhere in your next message, and the
+spec gate steps aside so you can sketch freely:
+
+> "Just exploring today — crucible-mode: exploration. Can we try
+> wiring the meetup date up to a public calendar link instead of a
+> text file, just to see if it's even possible?"
 
 The rule of thumb: a tiny experiment you might throw away skips steps
 3–5. Anything you intend to keep, show someone, or build on top of

@@ -92,7 +92,7 @@ means when something's wrong, you know exactly where to look.
 You don't need to say anything special here — `meta/coding-discipline`
 activates automatically whenever code is being written or changed. It
 keeps the agent's changes matched to what you actually asked for:
-minimum code that solves the problem, nothing spec­ulative bolted on
+minimum code that solves the problem, nothing speculative bolted on
 top. `crucible skills discover coding-discipline` shows the full list
 of habits it enforces.
 
@@ -149,8 +149,13 @@ Not everything needs all six steps. If you're just poking at an idea
 for five minutes — trying something in a scratch file to see whether
 it's even possible — steps 3 through 5 (writing a spec, disciplined
 building, formal proof) are more ceremony than the moment calls for.
-Say so explicitly by adding `crucible-mode: exploration` to your
-message, and the spec check steps aside so you can sketch freely.
+Say so explicitly by typing the words `crucible-mode: exploration`
+anywhere in your next message, and the spec check steps aside so you
+can sketch freely:
+
+> "Just exploring today — crucible-mode: exploration. Can we try
+> wiring the meetup date up to a public Google Calendar link instead
+> of a text file, just to see if it's even possible?"
 
 Rule of thumb: a tiny experiment you might throw away skips steps 3–5.
 Anything you intend to keep, show someone, or build on top of later

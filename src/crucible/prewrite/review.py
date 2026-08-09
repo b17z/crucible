@@ -94,9 +94,9 @@ def _run_prewrite_assertion(
 
     # Model mapping
     model_ids = {
-        "sonnet": "claude-sonnet-4-20250514",
-        "opus": "claude-opus-4-20250514",
-        "haiku": "claude-haiku-4-20250514",
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "haiku": "claude-haiku-4-5",
     }
     model_id = model_ids.get(model, model_ids["sonnet"])
 

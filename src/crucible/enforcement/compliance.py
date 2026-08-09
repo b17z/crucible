@@ -27,9 +27,9 @@ from crucible.enforcement.patterns import matches_glob, matches_language
 
 # Model ID mapping
 MODEL_IDS = {
-    "sonnet": "claude-sonnet-4-20250514",
-    "opus": "claude-opus-4-20250514",
-    "haiku": "claude-haiku-4-20250514",
+    "sonnet": "claude-sonnet-5",
+    "opus": "claude-opus-5",
+    "haiku": "claude-haiku-4-5",
 }
 
 # System prompt for compliance checking

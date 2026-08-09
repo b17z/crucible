@@ -59,3 +59,35 @@ class TestListCandidates:
         write_candidate("good", "i", "r", "s", base_path=str(tmp_path))
         pending, _ = list_candidates(base_path=str(tmp_path))
         assert len(pending) == 1
+
+
+class TestSignsEndToEnd:
+    def test_deny_to_guardrails(self, tmp_path: Path, monkeypatch) -> None:
+        """write_candidate -> manual ack -> Stop hook -> GUARDRAILS Sign 1."""
+        import subprocess
+
+        monkeypatch.chdir(tmp_path)
+        sign_id = write_candidate(
+            "bash_deny:pipe-to-shell",
+            "Do not run commands matching `pipe-to-shell`",
+            "blocked by the bash deny-list",
+            "bash_deny.sh",
+            base_path=str(tmp_path),
+        )
+        signs_dir = tmp_path / ".crucible" / "inbox" / "signs"
+        acked = signs_dir / "acked"
+        acked.mkdir()
+        (signs_dir / f"{sign_id}.yaml").rename(acked / f"{sign_id}.yaml")
+
+        # Resolve the hook from the installed package location (editable
+        # install points at the repo checkout):
+        import crucible
+
+        hook = Path(crucible.__file__).parent / "interfaces" / "claude_code" / "stop" / "append_signs.sh"
+        result = subprocess.run(["/bin/bash", str(hook)], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+        content = (tmp_path / "GUARDRAILS.md").read_text()
+        assert "### Sign 1 — " in content
+        assert "pipe-to-shell" in content
+        assert not list(acked.glob("*.yaml"))

@@ -435,6 +435,22 @@ class TestSettingsGenerator:
         assert len(entries) == 1
         assert "matcher" not in entries[0]
 
+    def test_generate_settings_json_registers_stop_hooks(self, tmp_path: Path) -> None:
+        """append_signs.sh registers under Stop with no matcher."""
+        generate_settings_json(str(tmp_path))
+        settings_path = generate_settings_json(str(tmp_path))  # idempotent
+
+        with open(settings_path) as f:
+            settings = json.load(f)
+
+        entries = [
+            h for h in settings["hooks"].get("Stop", [])
+            if isinstance(h, dict) and h.get("hooks")
+            and "append_signs.sh" in h["hooks"][0].get("command", "")
+        ]
+        assert len(entries) == 1
+        assert "matcher" not in entries[0]
+
 
 class TestSystemTemplates:
     """Tests for system template generation."""

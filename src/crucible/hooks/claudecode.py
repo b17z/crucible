@@ -221,6 +221,10 @@ _V2_HOOKS: list[tuple[str, str | None, tuple[str, ...]]] = [
     ("SubagentStart", None, ("subagent_start", "inherit.sh")),
     ("PreCompact", None, ("pre_compact", "protect.sh")),
     ("PostCompact", None, ("post_compact", "reinject.sh")),
+    # GUARDRAILS.md auto-append: acknowledged candidate Signs (Task 6
+    # layout, .crucible/inbox/signs/acked/) get rendered into the
+    # project's GUARDRAILS.md at end of session.
+    ("Stop", None, ("stop", "append_signs.sh")),
 ]
 
 

@@ -98,3 +98,12 @@ def test_inherit_shell_suite() -> None:
         f"inherit shell suite failed (exit {result.returncode}):\n"
         f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
+
+
+@pytest.mark.skipif(not Path("/bin/bash").exists() and not shutil.which("bash"), reason="no bash available")
+def test_append_signs_shell_suite() -> None:
+    result = _run_shell_suite("test_append_signs.sh")
+    assert result.returncode == 0, (
+        f"append_signs shell suite failed (exit {result.returncode}):\n"
+        f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )

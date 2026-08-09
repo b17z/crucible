@@ -34,6 +34,60 @@ given milestone, just say so and move on — nothing blocks on it.
 
 ---
 
+## Check your toolbox first
+
+If you've never done software work on this computer, the basics may
+be missing. You need two tools: `git` (keeps a history of your work)
+and `uv` (installs Python tools into their own clean space). Check
+both — paste each line and see whether it prints a version number:
+
+```bash
+git --version
+uv --version
+```
+
+If both print versions, skip ahead to Setup. If either is missing:
+
+**macOS.** Install Homebrew first — it's how Macs get developer
+tools, and installing it also pulls in git's prerequisites. Paste
+this into the Terminal app yourself, not into your agent (it asks
+for your Mac login password, which an agent can't type for you):
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+The script explains what it will do and pauses before doing it. When
+it finishes, it prints a short "Next steps" note — paste those lines
+too (they put `brew` on your PATH). Then install both tools:
+
+```bash
+brew install git uv
+```
+
+**Windows.** In a terminal: `winget install --id Git.Git`, then the
+uv installer from https://docs.astral.sh/uv (one PowerShell line).
+
+**Linux.** Install git with your package manager (for example
+`sudo apt install git`), then uv with its official script:
+`curl -LsSf https://astral.sh/uv/install.sh | sh`.
+
+Two rules that keep this safe: your agent should never run `sudo` —
+the only password moments are the Homebrew installer or your Linux
+package manager, and you run those yourself in your own terminal.
+And when Claude Code asks you to approve a command, that's the
+guardrail working, not something going wrong: approve it once you
+understand what it's for, and if a command the agent needs keeps
+getting refused, run it yourself in the Terminal and paste back what
+it printed.
+
+Why `uv` and not plain `pip`? Modern systems protect their built-in
+Python ("externally managed"), so bare `pip install` often fails with
+a confusing error. `uv` installs tools into their own space and puts
+them on your PATH — no fighting the system.
+
+---
+
 ## Setup
 
 These commands are copy-pasteable as written. If you're starting from
@@ -48,8 +102,14 @@ git init
 Install Crucible from GitHub (it isn't published on PyPI yet):
 
 ```bash
-pip install "git+https://github.com/b17z/crucible.git"
+uv tool install "git+https://github.com/b17z/crucible.git"
 ```
+
+If `crucible --version` doesn't work afterwards, run
+`uv tool update-shell` and open a fresh terminal. (Already a
+developer with a working Python environment? `pip install
+"git+https://github.com/b17z/crucible.git"` into your venv works
+too.)
 
 Initialize Crucible in your project, with a minimal `CLAUDE.md` so
 Claude Code knows it's there:
@@ -163,14 +223,32 @@ your vault path if you're using one.
 I'm starting a new project called <PROJECT-NAME>. Here's what I need
 you to do, in order:
 
+0. Before anything else, check my toolbox — I may not have a dev
+   environment at all. Run `git --version` and `uv --version`. If
+   either is missing, help me install the basics first. On macOS:
+   have me install Homebrew myself in the Terminal app (the official
+   one-line command from https://brew.sh — it asks for my Mac
+   password, which you can't type for me), have me paste its "Next
+   steps" PATH lines when it finishes, then run `brew install git uv`
+   yourself. On Windows: `winget install --id Git.Git` plus the uv
+   installer from https://docs.astral.sh/uv. On Linux: git via my
+   package manager, uv via its official install script. Never run
+   `sudo` yourself. Verify both tools print versions before moving
+   on. As you work, the app will ask me to approve commands — tell
+   me plainly what each one is for, and if a command you need keeps
+   getting refused, give me the exact command to run myself and I'll
+   paste back what it printed.
+
 1. If this directory isn't already a project, set it up: create the
    project directory if it doesn't exist, `cd` into it, and run
    `git init` if it isn't already a git repository.
 
 2. Install Crucible from GitHub and initialize it:
-   pip install "git+https://github.com/b17z/crucible.git"
+   uv tool install "git+https://github.com/b17z/crucible.git"
    crucible init --with-claudemd
    crucible hooks claudecode init
+   If `crucible --version` fails after the install, run
+   `uv tool update-shell` and ask me to open a fresh session.
 
 3. Read the spec at <SPEC-FILE>. Do not start building yet. If
    <SPEC-FILE> doesn't exist yet, don't invent it — help me write it

@@ -1,0 +1,11 @@
+# Trigger patterns for teach-me skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on explicit multi-session learning requests. User-invocable by
+# design (upstream had disable-model-invocation: true) — keep the
+# pattern narrow so it doesn't fire on every mention of "learn".
+
+rules:
+  - type: prompt_match
+    pattern: '\b(teach me|i want to learn|help me learn|i want to get better at|walk me through learning)\b'
+    note: explicit request to be taught a topic over multiple sessions

@@ -195,3 +195,29 @@ class TestUnionAndRobustness:
         )
         m = match_prompt("check this", project_root=tmp_path, spec=spec)
         assert [x.skill_name for x in m] == ["meta/checker"]
+
+
+class TestBundledEngineeringLoopSkills:
+    """Real bundled tree (no spec override) — one positive trigger match
+    per adapted skill from THIRD-PARTY-NOTICES.md, confirming each
+    triggers.yaml actually routes on a realistic prompt."""
+
+    def test_brainstorming_matches(self) -> None:
+        m = match_prompt("let's build a new feature for exporting reports")
+        assert "meta/brainstorming" in [x.skill_name for x in m]
+
+    def test_systematic_debugging_matches(self) -> None:
+        m = match_prompt("this test is failing and I don't know why")
+        assert "meta/systematic-debugging" in [x.skill_name for x in m]
+
+    def test_tdd_matches(self) -> None:
+        m = match_prompt("let's do this test-first, red-green-refactor")
+        assert "meta/tdd" in [x.skill_name for x in m]
+
+    def test_wait_what_matches(self) -> None:
+        m = match_prompt("wait, what? I don't understand that explanation")
+        assert "meta/wait-what" in [x.skill_name for x in m]
+
+    def test_teach_me_matches(self) -> None:
+        m = match_prompt("teach me how databases work")
+        assert "meta/teach-me" in [x.skill_name for x in m]

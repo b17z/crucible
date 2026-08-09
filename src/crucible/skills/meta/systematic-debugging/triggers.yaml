@@ -1,0 +1,16 @@
+# Trigger patterns for systematic-debugging skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on bug/failure/unexpected-behavior language, BEFORE fixes are
+# proposed. The whole point of the skill is to interrupt guess-and-check
+# with root-cause investigation, so trigger broadly on "something is
+# broken" language rather than narrow keywords.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(bug|broken|failing|fails?|failure|crash(es|ing)?|error|exception|traceback|stack trace)\b'
+    note: something is broken — investigate root cause before fixing
+
+  - type: prompt_match
+    pattern: '\b(unexpected behavior|not working|doesn.?t work|weird|flaky|intermittent|regression)\b'
+    note: unexpected-behavior language

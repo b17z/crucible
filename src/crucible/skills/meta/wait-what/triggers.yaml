@@ -1,0 +1,11 @@
+# Trigger patterns for wait-what skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on user confusion signals about the agent's own last message —
+# not general codebase confusion, not a request to learn a new topic
+# (that's teach-me).
+
+rules:
+  - type: prompt_match
+    pattern: "\\b(wait,? what|i don.?t understand|explain that simply|explain (this|that) (simply|like i.?m five|in plain english)|you lost me|in plain english|plain language please)\\b"
+    note: user confusion about the agent's last message — re-pitch it

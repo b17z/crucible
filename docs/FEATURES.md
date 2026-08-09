@@ -236,7 +236,7 @@ check_tools()
 
 Domain-specific thinking that Claude loads based on what you're working on.
 
-### Bundled Skills (32: 20 personas + meta + pre-write)
+### Bundled Skills (37: 20 personas + meta + pre-write)
 
 | Skill | Triggers | Focus |
 |-------|----------|-------|

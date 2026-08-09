@@ -19,6 +19,11 @@ BUNDLED = [
     "policies/dependency_quarantine.yaml",
     "policies/settings_integrity.yaml",
     "policies/bash_denylist.yaml",
+    "skills/meta/brainstorming/SKILL.md",
+    "skills/meta/systematic-debugging/SKILL.md",
+    "skills/meta/tdd/SKILL.md",
+    "skills/meta/wait-what/SKILL.md",
+    "skills/meta/teach-me/SKILL.md",
 ]
 
 

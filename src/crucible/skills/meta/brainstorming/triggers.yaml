@@ -1,0 +1,20 @@
+# Trigger patterns for brainstorming skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on creative/feature-request intent BEFORE implementation starts —
+# the point is to gate code behind a presented, approved design. Overlaps
+# with spec-validator's trigger surface by design: spec-validator checks
+# whether a spec exists, brainstorming is how you produce one.
+
+rules:
+  - type: prompt_match
+    pattern: "\\b(let'?s build|help me build|i want to build|build (a|an|the)\\b.*\\b(feature|app|tool|system|service))\\b"
+    note: explicit "let's build" framing
+
+  - type: prompt_match
+    pattern: '\b(creating|building|adding|designing)\s+(a\s+|an\s+|the\s+)?(feature|capability|component|endpoint|command|page|screen|flow|integration|module|service|system)\b'
+    note: creative/feature work naming its target
+
+  - type: prompt_match
+    pattern: '\b(brainstorm|design (this|a|an)|what should (this|it) look like|how should (this|we) (build|structure|design))\b'
+    note: explicit design/brainstorm request

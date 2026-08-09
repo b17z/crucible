@@ -87,7 +87,7 @@ src/crucible/
 │   └── models.py          # PrewriteMetadata, PrewriteResult
 ├── templates/prewrite/    # 5 bundled spec templates
 ├── knowledge/             # 14 bundled knowledge files
-└── skills/                # 32 bundled persona skills
+└── skills/                # 37 bundled persona skills
 ```
 
 ## Patterns
@@ -150,7 +150,7 @@ See `docs/` for:
 - FEATURES.md - Complete feature reference
 - ARCHITECTURE.md - How pieces fit together
 - CUSTOMIZATION.md - Skill/knowledge/assertion cascade
-- SKILLS.md - All 32 bundled skills
+- SKILLS.md - All 37 bundled skills
 - KNOWLEDGE.md - All 14 knowledge files
 - CONTRIBUTING.md - For contributors
 
@@ -172,11 +172,18 @@ Single-context layout — one `CONTEXT.md` and `docs/adr/` at the repo root (not
 
 Crucible ships meta-skills that shape *how* the agent works, discoverable via `crucible skills discover` (Tier 1) and activated by `core/trigger_router.py`:
 
-- **`meta/coding-discipline`** — think before coding, simplicity first, surgical changes, goal-driven execution. Adapted from Andrej Karpathy's observations on LLM coding pitfalls (via `multica-ai/andrej-karpathy-skills`). Activates on implementation/editing intent.
+- **`meta/coding-discipline`** — think before coding, simplicity first, surgical changes, goal-driven execution. Adapted from Andrej Karpathy's observations on LLM coding pitfalls. Activates on implementation/editing intent.
 - **`meta/but-for-real`** — force a skeptical second pass before declaring work done.
 - **`meta/spec-validator`** — gate feature requests on a spec; bypassable per-session with `crucible-mode: exploration`.
 - **`meta/writing-good-skills`** — author/refactor a SKILL.md using mid-2026 practitioner consensus (description-as-trigger, the 8 antipatterns, the 3 eval pillars). Use it whenever creating or reviewing a skill.
 - **`meta/break-it`** — adversarially QA a *running* product/agent by driving it like confused, impatient, over-trusting, or hostile users. The runtime counterpart to `but-for-real`. Ships persona/tour + agent-failure-mode references.
 - **`meta/challenge`** — pressure-test a strategy/plan/thesis as a skeptical reviewer demanding tradeoffs and evidence (vs `but-for-real`, which verifies finished work).
+- **`meta/brainstorming`** — hard-gates implementation behind a presented, approved design; one-question-at-a-time dialogue, YAGNI, spec self-review. Adapted from obra/superpowers.
+- **`meta/systematic-debugging`** — root-cause-first debugging in four phases; blocks fixes proposed before Phase 1 completes. Adapted from obra/superpowers.
+- **`meta/tdd`** — the red-green-refactor loop: seams, anti-patterns (implementation-coupled, tautological, horizontal slicing), one slice at a time. Adapted from mattpocock/skills.
+- **`meta/wait-what`** — re-pitch an unclear message in plain language instead of repeating it louder. Adapted from mattpocock/skills.
+- **`meta/teach-me`** — stateful, multi-session teaching workspace (mission, resources, learning records, glossary, lessons); vault-aware via `.crucible/teach.yaml`. Adapted from mattpocock/skills.
 
 When writing or changing code in this repo, `meta/coding-discipline` applies: minimum code that solves the problem, surgical diffs, verify against success criteria. When authoring a skill, `meta/writing-good-skills` applies.
+
+Full attribution (MIT license texts, source URLs) for the adapted skills above lives in `THIRD-PARTY-NOTICES.md`.

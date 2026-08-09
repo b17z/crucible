@@ -1,0 +1,15 @@
+# Trigger patterns for tdd skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on test-first implementation intent. Deliberately narrower than
+# coding-discipline: only when tests or the red-green-refactor loop are
+# named explicitly, not on every edit.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(red[- ]green[- ]refactor|test[- ]first|tdd)\b'
+    note: explicit TDD framing
+
+  - type: prompt_match
+    pattern: '\b(write (a |the )?(failing )?test(s)? (first|before)|integration tests?)\b'
+    note: test-first / integration-test request

@@ -183,7 +183,7 @@ See [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for the full guide.
 
 **42 Bundled Assertions** — Pattern rules for security, error handling, and smart contracts.
 
-**32 Bundled Skills (20 personas + meta + pre-write)** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
+**37 Bundled Skills (20 personas + meta + pre-write)** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
 
 **14 Knowledge Files** — Coding patterns and principles for security, testing, APIs, databases, smart contracts, etc.
 
@@ -199,7 +199,7 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 | [FEATURES.md](docs/FEATURES.md) | Complete feature reference |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
 | [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) | Override skills and knowledge for your project |
-| [SKILLS.md](docs/SKILLS.md) | All 32 bundled skills with triggers and focus areas |
+| [SKILLS.md](docs/SKILLS.md) | All 37 bundled skills with triggers and focus areas |
 | [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 14 knowledge files with topics covered |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 

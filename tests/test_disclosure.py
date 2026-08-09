@@ -261,6 +261,15 @@ class TestProgressiveCost:
             f"Tier 1 ({tier1_cost}) not <10% of full ({full_cost})"
         )
 
+    def test_bundled_skill_count(self) -> None:
+        """Pin the bundled skill count. Update deliberately when skills are
+        added or removed — this is a tripwire, not a ceiling."""
+        summaries = discover_skills()  # default SKILLS_SPEC = bundled tree
+        assert len(summaries) == 37, (
+            f"Expected 37 bundled skills, got {len(summaries)}: "
+            f"{sorted(s.name for s in summaries)}"
+        )
+
     def test_real_bundled_tree_beats_30pct_target(self) -> None:
         """Phase 3 success criterion: >30% context reduction via Tier 1,
         measured against the ACTUAL bundled skill tree (no tmp_path).

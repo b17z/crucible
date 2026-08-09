@@ -78,6 +78,7 @@ fail_on: high
 run_assertions: true
 run_llm_assertions: false  # Off by default (slow)
 llm_token_budget: 5000
+verify: true                # Deterministic false-positive verifier (suppresses known-FP shapes)
 exclude:
   - "*.md"
 ```
@@ -88,6 +89,7 @@ on_finding: deny           # deny, warn, allow
 severity_threshold: error  # error, warning, info
 run_assertions: true
 run_llm_assertions: false
+verify: true                # Deterministic false-positive verifier (suppresses known-FP shapes)
 exclude:
   - "**/*.md"
   - "**/test_*.py"

@@ -169,6 +169,7 @@ fail_on: high                       # critical, high, medium, low, info
 run_assertions: true                # Pattern assertions (fast, free)
 run_llm_assertions: false           # LLM assertions (slow, costs $)
 llm_token_budget: 5000              # Token limit for LLM assertions
+verify: true                        # Deterministic false-positive verifier (suppresses known-FP shapes)
 exclude:
   - "*.md"
   - "tests/**"
@@ -181,6 +182,7 @@ on_finding: deny                    # deny, warn, allow
 severity_threshold: error           # error, warning, info
 run_assertions: true
 run_llm_assertions: false
+verify: true                        # Deterministic false-positive verifier (suppresses known-FP shapes)
 exclude:
   - "**/*.md"
   - "**/test_*.py"

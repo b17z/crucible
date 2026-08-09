@@ -187,6 +187,53 @@ assert_exit_zero "fallback-title-exit"
 assert_file_contains GUARDRAILS.md "### Sign 1 — some_fallback_trigger" "fallback-title-uses-trigger"
 cd /; rm -rf "$SCRATCH"
 
+# --- new sign inserted at end of Signs section, before a later heading ---
+SCRATCH=$(mktemp -d); cd "$SCRATCH"
+mkdir -p .crucible/inbox/signs/acked
+write_candidate .crucible/inbox/signs/acked "sec12345" "some:trigger" \
+    "Do not do the thing under test at all" "it broke once in section test" "section_hook.sh"
+cat > GUARDRAILS.md << 'EOF'
+# GUARDRAILS.md
+
+## Signs
+
+### Sign 1 — Some earlier sign
+
+- **Trigger:** something
+- **Instruction:** do not do the thing
+- **Reason:** it broke once
+- **Provenance:** 2026-01-01, session-abc
+
+## Appendix
+
+KEEP-LAST
+EOF
+run_hook
+assert_exit_zero "section-insertion-exit"
+assert_file_contains GUARDRAILS.md "### Sign 2 — " "section-insertion-sign-2-added"
+if ! awk '/### Sign 2/{s2=NR} /## Appendix/{ap=NR} END{exit !(s2 && ap && s2<ap)}' GUARDRAILS.md; then
+    echo "FAIL [section-insertion-order]: Sign 2 should appear before ## Appendix"
+    FAILED=$((FAILED + 1))
+fi
+if [[ "$(tail -n 1 GUARDRAILS.md)" != "KEEP-LAST" ]]; then
+    echo "FAIL [section-insertion-keep-last]: KEEP-LAST should still be the file's last content after ## Appendix"
+    FAILED=$((FAILED + 1))
+fi
+cd /; rm -rf "$SCRATCH"
+
+# --- atomic write leaves no temp artifacts behind ---
+SCRATCH=$(mktemp -d); cd "$SCRATCH"
+mkdir -p .crucible/inbox/signs/acked
+write_candidate .crucible/inbox/signs/acked "atom1234" "some:trigger" \
+    "Do not do the atomic thing at all please" "it broke once in atomic test" "atomic_hook.sh"
+run_hook
+assert_exit_zero "atomic-write-exit"
+if [[ "$(ls GUARDRAILS.md.* 2>/dev/null | wc -l)" -ne 0 ]]; then
+    echo "FAIL [atomic-write-no-partial]: temp artifacts left behind in project dir"
+    FAILED=$((FAILED + 1))
+fi
+cd /; rm -rf "$SCRATCH"
+
 if [[ "$FAILED" -gt 0 ]]; then
     echo "$FAILED test(s) failed"
     exit 1

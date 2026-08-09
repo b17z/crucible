@@ -33,6 +33,7 @@ TEMPLATE="$SCRIPT_DIR/../../../templates/GUARDRAILS.md"
 python3 - "$ACKED_DIR" "$TEMPLATE" << 'PY'
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -42,6 +43,8 @@ template_path = Path(sys.argv[2])
 
 PLACEHOLDER = "_(none yet — Crucible appends here on user `crucible-sign:` acknowledgement)_"
 SIGN_HEADING_RE = re.compile(r"^### Sign (\d+)", re.MULTILINE)
+SIGNS_HEADING_RE = re.compile(r"^## Signs\s*$", re.MULTILINE)
+NEXT_H2_RE = re.compile(r"^## ", re.MULTILINE)
 
 
 def load_candidate(path: Path) -> dict | None:
@@ -108,17 +111,44 @@ for _path, data in candidates:
     blocks.append(render_sign(next_number, data))
     next_number += 1
 
+if PLACEHOLDER in content:
+    content = content.replace(PLACEHOLDER, "").rstrip("\n") + "\n"
+
 appended = "\n" + "\n".join(blocks)
 
-if PLACEHOLDER in content:
-    content = content.replace(PLACEHOLDER, "").rstrip("\n") + "\n" + appended
+# Insert at the end of the "## Signs" section: immediately before the
+# next "## " heading after it, if one exists. Otherwise append at EOF.
+insertion_point = None
+signs_match = SIGNS_HEADING_RE.search(content)
+if signs_match:
+    next_heading_match = NEXT_H2_RE.search(content, signs_match.end())
+    if next_heading_match:
+        insertion_point = next_heading_match.start()
+
+if insertion_point is not None:
+    before = content[:insertion_point].rstrip("\n") + "\n"
+    after = content[insertion_point:]
+    content = before + appended.rstrip("\n") + "\n\n" + after
 else:
     content = content.rstrip("\n") + "\n" + appended
 
 if not content.endswith("\n"):
     content += "\n"
 
-guardrails_path.write_text(content)
+tmp_fd = tempfile.NamedTemporaryFile(
+    mode="w",
+    dir=guardrails_path.resolve().parent,
+    prefix=guardrails_path.name + ".",
+    suffix=".tmp",
+    delete=False,
+)
+try:
+    tmp_fd.write(content)
+    tmp_fd.close()
+    Path(tmp_fd.name).replace(guardrails_path)
+except BaseException:
+    Path(tmp_fd.name).unlink(missing_ok=True)
+    raise
 
 for path, _data in candidates:
     try:

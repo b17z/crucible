@@ -79,6 +79,18 @@ Includes a "when to break the loop" note (tiny experiments skip steps 3-5;
 Triggers: "I'm new", "first project", "where do I start", "help me build my
 first", plus user-invocable.
 
+Plus `knowledge/the-loop-at-scale.md`: the same principles at multi-agent
+scale, distilled from the user's own SDD field notes (2026-08-09) — the
+controller never implements; fresh-context workers per task (no
+contamination, workers can disagree with the plan); an independent reviewer
+because the author can't grade their own homework; fix loops that are
+scoped re-reviews with a max-round breaker and controller adjudication;
+artifacts handed as files, never pasted into context; a ledger + git as the
+recovery record that survives compaction; never pre-judging the reviewer;
+never fixing as the controller. Framed as "where the six-step loop grows up
+to" with the concrete payoff pattern (bugs that would have shipped from a
+single-pass implementation get caught and reproduced before merge).
+
 ## 3. Attribution
 
 - Root `THIRD-PARTY-NOTICES.md`: full MIT license text for
@@ -94,7 +106,10 @@ Plain-language quickstart: what the loop is, the six steps with one worked
 non-technical example (e.g. "a page that shows my running club's next
 meetup") walked through each step, how to invoke each skill, and the vault
 setup for teach-me. Linked from README's docs list and `crucible init`
-output (one line added).
+output (one line added). Closes with a short "The loop at scale" section —
+same principles when agents do the building (independent review, fix
+rounds, the recovery ledger) — pointing at the engineering-loop skill's
+knowledge file for the full machine.
 
 ## Acceptance criteria
 

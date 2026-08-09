@@ -1,0 +1,12 @@
+# Trigger patterns for build-along-course skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on explicit requests to grow or add to the piecewise HTML
+# course. User-invocable by design; meta/engineering-loop step 6 also
+# offers this skill by name after a proven milestone rather than
+# relying on the prompt matching here.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(course module|build-along course|add (this|it) to the course|turn this into a course|teach me how this works as we build)\b'
+    note: explicit request to grow the piecewise HTML course by one module

@@ -25,6 +25,14 @@ BUNDLED = [
     "skills/meta/wait-what/SKILL.md",
     "skills/meta/teach-me/SKILL.md",
     "skills/meta/engineering-loop/SKILL.md",
+    "skills/meta/build-along-course/SKILL.md",
+    "skills/meta/build-along-course/references/styles.css",
+    "skills/meta/build-along-course/references/course.js",
+    "skills/meta/build-along-course/references/base.html",
+    "skills/meta/build-along-course/references/footer.html",
+    "skills/meta/build-along-course/references/module-template.html",
+    "skills/meta/build-along-course/references/assemble.sh",
+    "skills/meta/build-along-course/references/content-guide.md",
 ]
 
 

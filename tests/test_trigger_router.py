@@ -225,3 +225,7 @@ class TestBundledEngineeringLoopSkills:
     def test_engineering_loop_matches(self) -> None:
         m = match_prompt("I'm new to coding, help me build my first app")
         assert "meta/engineering-loop" in [x.skill_name for x in m]
+
+    def test_build_along_course_matches(self) -> None:
+        m = match_prompt("let's add this to the course")
+        assert "meta/build-along-course" in [x.skill_name for x in m]

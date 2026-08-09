@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!--
+  Build-Along Course — document shell.
+  Original to crucible. Written into course/base.html at scaffold time
+  with exactly three substitutions, then left alone:
+
+    1. COURSE_TITLE       -> the <title> text and header <h1> text.
+    2. the accent <style>  block below -> one palette's three CSS
+       custom properties (--accent, --accent-soft, --accent-ink),
+       chosen by course.yaml's `accent:` value.
+    3. NAV_DOTS            -> the <ul class="nav-dots"> list items,
+       one per module, appended in module order.
+
+  Everything else in this file ships verbatim. Palette options (pick
+  one per project, name it in course.yaml's `accent:` field):
+
+    coral (default) --accent:#d97757; --accent-soft:#f4e3da; --accent-ink:#7a3a1d;
+    teal            --accent:#2f8f7e; --accent-soft:#dbeee9; --accent-ink:#1c5147;
+    amber           --accent:#c98a1f; --accent-soft:#f5e7c9; --accent-ink:#7a5510;
+
+  No external stylesheets, fonts, or scripts are loaded — styles.css
+  and course.js are local siblings copied at scaffold time, and the
+  system font stack in styles.css needs no @font-face at all.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>COURSE_TITLE</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root {
+      --accent: #d97757;
+      --accent-soft: #f4e3da;
+      --accent-ink: #7a3a1d;
+    }
+  </style>
+</head>
+<body>
+  <header class="course-header">
+    <h1>COURSE_TITLE</h1>
+    <ul class="nav-dots">
+NAV_DOTS
+    </ul>
+  </header>
+  <main>

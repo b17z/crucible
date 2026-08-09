@@ -1,0 +1,77 @@
+<!--
+  Build-Along Course — module skeleton.
+  Read this at module-writing time; it is NOT copied into course/ — it
+  is a template you fill in and save as course/modules/NN-slug.html.
+  Every contract element from content-guide.md appears once below,
+  clearly marked [PLACEHOLDER]. Replace all placeholders; keep the
+  structural tags and class names exactly as shown so styles.css and
+  course.js pick the module up correctly.
+-->
+<section class="module" id="module-NN">
+  <h2>[PLACEHOLDER: module title — plain language, no jargon]</h2>
+  <p class="milestone">Milestone: [PLACEHOLDER: the one sentence from course.yaml's `milestone` field]</p>
+
+  <!-- Opening: why should the learner care, in plain language, before
+       any code appears. Two or three sentences, tied to something the
+       learner already wanted (not "this module covers X"). -->
+  <p>
+    [PLACEHOLDER: why-should-I-care opening. Ground this in the
+    learner's own goal for the project — what changed for THEM because
+    this milestone landed, not what changed in the code.]
+  </p>
+
+  <!-- Fresh metaphor for this module. Must not reuse a metaphor from
+       an earlier module — content-guide.md has the freshness rule. -->
+  <p>
+    [PLACEHOLDER: one metaphor, specific to this module's concept,
+    that has not appeared in an earlier module.]
+  </p>
+
+  <!-- Code <-> plain-English translation block. At least one per
+       module. Use a REAL, VERBATIM snippet from the learner's repo —
+       never invented code — with its file path shown above it. -->
+  <div class="translate">
+    <div>
+      <span class="path">[PLACEHOLDER: repo-relative file path, e.g. src/app/routes.py:14-22]</span>
+      <pre><code>[PLACEHOLDER: verbatim code snippet copied exactly from the repo]</code></pre>
+    </div>
+    <div class="plain">
+      [PLACEHOLDER: plain-English translation of exactly what that
+      snippet does, written for a reader who does not code.]
+    </div>
+  </div>
+
+  <!-- Aha callout: the one-sentence insight this module should leave
+       the learner with. -->
+  <div class="aha">
+    [PLACEHOLDER: the single "aha" insight — the thing that, once
+    understood, makes the rest of the project make more sense.]
+  </div>
+
+  <!-- Glossary tooltip: wrap each technical term's FIRST USE in the
+       course (not just this module) in this markup. Keyboard focus
+       must reveal the tip (course.js + styles.css already handle
+       this) — the markup below is all a module author needs to add. -->
+  <p>
+    [PLACEHOLDER sentence using a term like]
+    <span class="term" tabindex="0">API<span class="tip">A set of rules that lets two programs talk to each other.</span></span>
+    [PLACEHOLDER: rest of the sentence.]
+  </p>
+
+  <!-- Quiz: one per module. Tests APPLICATION of the module's idea,
+       not recall of a fact stated above. Exactly one option carries
+       data-correct. -->
+  <div class="quiz">
+    <p class="question">[PLACEHOLDER: a question that asks the learner to apply the idea to a new situation]</p>
+    <div class="options">
+      <label><input type="radio" name="quiz-NN" data-correct> [PLACEHOLDER: correct option]</label>
+      <label><input type="radio" name="quiz-NN"> [PLACEHOLDER: plausible wrong option]</label>
+      <label><input type="radio" name="quiz-NN"> [PLACEHOLDER: plausible wrong option]</label>
+    </div>
+    <button class="check" type="button">Check answer</button>
+    <div class="explanation">
+      <span class="result"></span>
+      <span>[PLACEHOLDER: one or two sentences explaining WHY the correct option is correct, not just restating it.]</span>
+    </div>
+  </div>
+</section>

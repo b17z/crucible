@@ -1,0 +1,89 @@
+# Policy: bash_denylist
+#
+# Pattern deny-list for PreToolUse(Bash). Complements dependency_quarantine
+# (an approval gate for installs) with a block-list for command shapes that
+# are destructive or are the delivery half of a supply-chain attack
+# (pipe-to-shell is how most postinstall-style payloads bootstrap outside
+# a package manager).
+#
+# Rules are python-regex, matched with re.search against the full command
+# text. action: deny → exit 2 (blocked); warn → stderr note, exit 0.
+#
+# Projects extend or trim via .crucible/bash-denylist.yaml:
+#   rules:    additional {id, pattern, action, reason} entries
+#   disable:  list of rule ids (bundled or project) to turn off
+#
+# Keep this list tight and high-signal. A deny-list that false-positives
+# on everyday commands is how deny-lists get disabled.
+
+name: bash_denylist
+description: Block destructive or exfil-shaped shell commands before they run.
+version: "1.0"
+severity: high
+threat_model_reference: skills/security-engineer/knowledge/supply-chain-2026.md
+
+hooks:
+  - event: PreToolUse
+    matcher: Bash
+    handler: interfaces/claude_code/pre_tool_use/bash_deny.sh
+    blocking: true
+    note: exit 2 on deny-rule match; warn rules pass with a stderr note
+
+rules:
+  - id: pipe-to-shell
+    pattern: '(?:curl|wget)\b[^|;]*\|\s*(?:sudo\s+)?(?:ba|da|z)?sh\b'
+    action: deny
+    reason: piping a remote download straight into a shell executes unreviewed code
+
+  - id: decode-to-shell
+    pattern: 'base64\s+(?:-d|-D|--decode)\b[^|;]*\|\s*(?:sudo\s+)?(?:ba|da|z)?sh\b'
+    action: deny
+    reason: decoding a blob straight into a shell is an obfuscated-payload pattern
+
+  - id: eval-remote
+    pattern: '(?:eval\s+.{0,30}\$\(\s*(?:curl|wget)\b|(?:ba|da|z)?sh\s+<\(\s*(?:curl|wget)\b)'
+    action: deny
+    reason: executing fetched content via eval/process-substitution runs unreviewed code
+
+  - id: rm-critical-path
+    pattern: '\brm\s+(?:-[^\s]+\s+)*["'']?(?:/|~/?|\$HOME/?)\*?["'']?\s*(?:$|[;&|)])'
+    action: deny
+    reason: rm aimed at / ~ or $HOME destroys the machine or the user account
+
+  - id: raw-device-write
+    pattern: '(?:\bdd\b[^|;]*\bof=/dev/(?:sd|hd|disk|nvme)|>\s*/dev/(?:sd|hd|disk|nvme))'
+    action: deny
+    reason: writing to a raw block device destroys the disk
+
+  - id: mkfs-device
+    pattern: '\bmkfs(?:\.\w+)?\s+[^;|&]*/dev/'
+    action: deny
+    reason: formatting a device destroys its contents
+
+  - id: fork-bomb
+    pattern: ':\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:'
+    action: deny
+    reason: fork bomb
+
+  - id: chmod-777-root
+    pattern: 'chmod\s+(?:-R\s+)?0?777\s+/\s*(?:$|[;&|])'
+    action: deny
+    reason: world-writable root filesystem
+
+  - id: force-push-protected
+    pattern: 'git\s+push\b(?=[^;|&]*(?:--force\b(?!-with-lease)|\s-f\b))(?=[^;|&]*\b(?:main|master)\b)'
+    action: warn
+    reason: force-pushing a protected branch rewrites shared history
+
+intentional_gaps:
+  - case: 'rm -rf on project-relative paths (node_modules, ./build, /tmp/x, ~/proj/dist)'
+    rationale: routine cleanup; only / ~ and $HOME themselves are critical
+  - case: 'curl/wget without a shell pipe'
+    rationale: fetching data is not executing it
+  - case: 'git push --force-with-lease'
+    rationale: lease semantics already guard against clobbering unseen work
+
+activated_by:
+  conditions:
+    - type: always_on
+      note: destructive-command hygiene applies to every session

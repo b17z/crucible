@@ -180,6 +180,7 @@ _V2_HOOKS: list[tuple[str, str | None, tuple[str, ...]]] = [
     ("UserPromptSubmit", None, ("user_prompt_submit", "magic_comments.sh")),
     ("UserPromptSubmit", None, ("user_prompt_submit", "route.sh")),
     ("PreToolUse", "Bash", ("pre_tool_use", "npm_install_gate.sh")),
+    ("PreToolUse", "Bash", ("pre_tool_use", "bash_deny.sh")),
     ("FileChanged", ".claude/settings.json|.mcp.json|.vscode/extensions.json",
      ("file_changed", "settings_integrity.sh")),
     ("PreCompact", None, ("pre_compact", "protect.sh")),

@@ -27,11 +27,11 @@ class TestHistoryModule:
         findings = [
             EnforcementFinding(
                 assertion_id="no-eval",
-                message="eval() is dangerous",
+                message="eval() is dangerous",  # crucible-ignore: no-eval -- fixture text
                 severity="error",
                 priority=Priority.CRITICAL,
                 location="test.py:10:5",
-                match_text="eval(user_input)",
+                match_text="eval(user_input)",  # crucible-ignore: no-eval -- fixture text
             )
         ]
 
@@ -42,7 +42,7 @@ class TestHistoryModule:
         content = result.read_text()
         assert "Last Review" in content
         assert "no-eval" in content
-        assert "eval() is dangerous" in content
+        assert "eval() is dangerous" in content  # crucible-ignore: no-eval -- fixture text
 
     def test_save_recent_findings_clears_when_no_findings(self, tmp_path: Path) -> None:
         """Test that save_recent_findings removes file when no active findings."""
@@ -65,7 +65,7 @@ class TestHistoryModule:
         findings = [
             EnforcementFinding(
                 assertion_id="no-eval",
-                message="eval() is dangerous",
+                message="eval() is dangerous",  # crucible-ignore: no-eval -- fixture text
                 severity="error",
                 priority=Priority.CRITICAL,
                 location="test.py:10:5",
@@ -127,7 +127,7 @@ class TestEnforcementSummary:
             Assertion(
                 id="no-eval",
                 type=AssertionType.PATTERN,
-                message="eval() is dangerous",
+                message="eval() is dangerous",  # crucible-ignore: no-eval -- fixture text
                 severity="error",
                 priority=Priority.CRITICAL,
                 pattern=r"\beval\s*\(",
@@ -135,7 +135,7 @@ class TestEnforcementSummary:
             Assertion(
                 id="no-exec",
                 type=AssertionType.PATTERN,
-                message="exec() allows arbitrary code",
+                message="exec() allows arbitrary code",  # crucible-ignore: no-exec -- fixture text
                 severity="error",
                 priority=Priority.CRITICAL,
                 pattern=r"\bexec\s*\(",
@@ -287,7 +287,7 @@ assertions:
         history_dir = tmp_path / ".crucible" / "history"
         history_dir.mkdir(parents=True)
         (history_dir / "recent-findings.md").write_text(
-            "# Last Review\n\n## ERROR (1)\n- **no-eval**: Found eval()"
+            "# Last Review\n\n## ERROR (1)\n- **no-eval**: Found eval()"  # crucible-ignore: no-eval -- fixture text
         )
 
         input_data = json.dumps({"cwd": str(tmp_path)})
@@ -368,6 +368,22 @@ class TestSettingsGenerator:
         assert "PreToolUse" in settings["hooks"]
         assert "PostToolUse" in settings["hooks"]
         assert "SessionStart" in settings["hooks"]
+
+    def test_generate_settings_json_registers_bash_deny(self, tmp_path: Path) -> None:
+        """bash_deny.sh registers under PreToolUse(Bash), idempotently."""
+        generate_settings_json(str(tmp_path))
+        settings_path = generate_settings_json(str(tmp_path))  # run twice
+
+        with open(settings_path) as f:
+            settings = json.load(f)
+
+        deny_entries = [
+            h for h in settings["hooks"]["PreToolUse"]
+            if isinstance(h, dict) and h.get("hooks")
+            and "bash_deny.sh" in h["hooks"][0].get("command", "")
+        ]
+        assert len(deny_entries) == 1
+        assert deny_entries[0]["matcher"] == "Bash"
 
 
 class TestSystemTemplates:

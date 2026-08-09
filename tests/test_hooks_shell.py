@@ -65,6 +65,15 @@ def test_settings_integrity_shell_suite() -> None:
 
 
 @pytest.mark.skipif(not Path("/bin/bash").exists() and not shutil.which("bash"), reason="no bash available")
+def test_bash_deny_shell_suite() -> None:
+    result = _run_shell_suite("test_bash_deny.sh")
+    assert result.returncode == 0, (
+        f"bash_deny shell suite failed (exit {result.returncode}):\n"
+        f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
+
+
+@pytest.mark.skipif(not Path("/bin/bash").exists() and not shutil.which("bash"), reason="no bash available")
 def test_route_hook_shell_suite() -> None:
     result = _run_shell_suite("test_route_hook.sh")
     assert result.returncode == 0, (

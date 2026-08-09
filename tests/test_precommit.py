@@ -449,7 +449,7 @@ class TestPrecommitResult:
                     tool="bandit",
                     rule="B602",
                     severity=Severity.HIGH,
-                    message="shell=True is dangerous",
+                    message="shell=True is dangerous",  # crucible-ignore: no-shell-true -- fixture message text
                     location="test.py:10",
                 ),
             ),
@@ -469,7 +469,7 @@ class TestPrecommitResult:
                     tool="bandit",
                     rule="B602",
                     severity=Severity.HIGH,
-                    message="shell=True is dangerous",
+                    message="shell=True is dangerous",  # crucible-ignore: no-shell-true -- fixture message text
                     location="test.py:10",
                     suggestion="Use shell=False",
                 ),
@@ -577,3 +577,67 @@ class TestSensitivePatternCoverage:
             assert len(findings) == 1, f"Expected {filename} to be blocked"
         else:
             assert len(findings) == 0, f"Expected {filename} to be allowed"
+
+
+class TestEnforcementSuppression:
+    """Inline crucible-ignore suppressions must not fail the pre-commit gate."""
+
+    def _repo_with_staged(self, tmp_path: Path, source: str) -> Path:
+        import subprocess
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        subprocess.run(
+            ["git", "-c", "user.email=t@t.io", "-c", "user.name=t",
+             "commit", "--allow-empty", "-q", "-m", "init"],
+            cwd=repo, check=True,
+        )
+
+        assertions_dir = repo / ".crucible" / "assertions"
+        assertions_dir.mkdir(parents=True)
+        (assertions_dir / "rules.yaml").write_text("""
+assertions:
+  - id: no-eval
+    type: pattern
+    pattern: "\\\\beval\\\\s*\\\\("
+    message: "No eval"
+    severity: error
+""")
+
+        (repo / "app.py").write_text(source)
+        subprocess.run(["git", "add", "app.py"], cwd=repo, check=True)
+        return repo
+
+    def _run(self, repo: Path) -> PrecommitResult:
+        from crucible.enforcement.assertions import clear_assertion_cache
+        from crucible.hooks.precommit import run_precommit
+
+        clear_assertion_cache()
+        config = PrecommitConfig(
+            tools={Domain.BACKEND: []},
+            secrets_tool="none",
+        )
+        with (
+            patch("crucible.enforcement.assertions.ASSERTIONS_PROJECT",
+                  repo / ".crucible" / "assertions"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_USER",
+                  repo / "nonexistent"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_BUNDLED",
+                  repo / "nonexistent"),
+        ):
+            return run_precommit(repo_path=str(repo), config=config)
+
+    def test_suppressed_finding_passes_gate(self, tmp_path: Path) -> None:
+        repo = self._repo_with_staged(
+            tmp_path,
+            "x = eval('1+1')  # crucible-ignore: no-eval -- test target\n",
+        )
+        result = self._run(repo)
+        assert result.passed, f"suppressed finding should not fail gate: {result}"
+        assert result.severity_counts.get("error", 0) == 0
+
+    def test_unsuppressed_finding_fails_gate(self, tmp_path: Path) -> None:
+        repo = self._repo_with_staged(tmp_path, "x = eval('1+1')\n")  # crucible-ignore: no-eval -- test target
+        result = self._run(repo)
+        assert not result.passed

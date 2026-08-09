@@ -516,6 +516,8 @@ def run_precommit(
                 compliance_config=compliance_config,
             )
         )
+        # Inline crucible-ignore suppressions must not fail the gate
+        enforcement_findings = [f for f in enforcement_findings if not f.suppressed]
 
         if budget_state:
             llm_tokens_used = budget_state.tokens_used

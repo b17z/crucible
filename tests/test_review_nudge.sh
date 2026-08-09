@@ -153,6 +153,26 @@ assert_exit_zero "staged-only-exit"
 assert_stderr_contains "Staged change matters" "staged-only-counted"
 teardown
 
+# --- stage a large change, then partially revert the worktree: the true
+# HEAD->worktree delta (not the stale staged delta) must drive the
+# threshold. Baseline is 5 lines; stage a jump to 25 lines (staged delta
+# 20, over the N=10 threshold), then edit the worktree back down to 12
+# lines (true delta 7, under the threshold) — no nudge should fire.
+init_repo
+write_review_md $'---\ntriggers:\n  - paths: ["*.py"]\n    min_changed_lines: 10\n    note: "Substantial change"\n---\n# Review\n'
+git add REVIEW.md
+git -c user.email=t@t -c user.name=t commit -q -m "add review.md"
+nlines 5 > baz.py
+git add baz.py
+git -c user.email=t@t -c user.name=t commit -q -m "baz.py baseline"
+nlines 25 > baz.py
+git add baz.py
+nlines 12 > baz.py
+run_hook
+assert_exit_zero "stale-staged-revert-exit"
+assert_stderr_empty "stale-staged-revert-silent"
+teardown
+
 # --- malformed frontmatter → silent 0 ---
 init_repo
 write_review_md $'---\n{ not yaml [\n---\n# Review\n'

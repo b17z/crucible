@@ -49,11 +49,13 @@ def run_git(args):
     return result.stdout
 
 
-def changed_names(numstat=False):
-    """Union of unstaged + staged changed files, or their numstat lines."""
-    flag = "--numstat" if numstat else "--name-only"
-    unstaged = run_git(["diff", flag, "HEAD"])
-    staged = run_git(["diff", "--cached", flag])
+def changed_names():
+    """Union of unstaged + staged changed file names (for glob matching).
+
+    Both listings are needed here: a file can be staged-only (only shows
+    up under --cached) or have unstaged-only changes."""
+    unstaged = run_git(["diff", "--name-only", "HEAD"])
+    staged = run_git(["diff", "--cached", "--name-only", "HEAD"])
     return unstaged, staged
 
 
@@ -67,27 +69,30 @@ def parse_names(*blobs):
     return names
 
 
-def parse_numstat_lines(*blobs):
-    """path -> added+deleted lines, per diff blob.
+def parse_numstat_lines():
+    """path -> added+deleted lines, from `git diff --numstat HEAD` alone.
 
-    `git diff HEAD` (no --cached) compares the working tree to HEAD, so a
-    file that is staged-only still shows its full delta there too — the
-    same change appears in both the unstaged-vs-HEAD and staged-vs-HEAD
-    listings. Each blob already reports that file's *total* change versus
-    HEAD, so take the max across blobs per file rather than summing them
-    (summing would double-count a staged-only change)."""
+    Unlike --name-only, `git diff HEAD` (no --cached) already compares the
+    working tree directly to HEAD — it is the complete HEAD-to-worktree
+    delta for every file, independent of staging state. --cached numstat
+    is NOT needed and must not be merged in: it reflects only the index,
+    which can be stale relative to the worktree (e.g. staged 5->25 lines,
+    then partially reverted the worktree to 12 lines — the true total is
+    7, but the staged blob still says 20). A file staged-then-fully-
+    reverted to match HEAD legitimately has 0 changed lines and simply
+    won't appear in this listing."""
     counts: dict[str, int] = {}
-    for blob in blobs:
-        for line in blob.splitlines():
-            parts = line.split("\t")
-            if len(parts) != 3:
-                continue
-            added, deleted, path = parts
-            try:
-                n = (int(added) if added != "-" else 0) + (int(deleted) if deleted != "-" else 0)
-            except ValueError:
-                continue
-            counts[path] = max(counts.get(path, 0), n)
+    blob = run_git(["diff", "--numstat", "HEAD"])
+    for line in blob.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        added, deleted, path = parts
+        try:
+            n = (int(added) if added != "-" else 0) + (int(deleted) if deleted != "-" else 0)
+        except ValueError:
+            continue
+        counts[path] = n
     return counts
 
 
@@ -123,7 +128,7 @@ triggers = data.get("triggers")
 if not isinstance(triggers, list) or not triggers:
     sys.exit(0)
 
-names_unstaged, names_staged = changed_names(numstat=False)
+names_unstaged, names_staged = changed_names()
 changed = parse_names(names_unstaged, names_staged)
 if not changed:
     sys.exit(0)
@@ -134,8 +139,7 @@ needs_lines = any(
 )
 line_counts: dict[str, int] = {}
 if needs_lines:
-    numstat_unstaged, numstat_staged = changed_names(numstat=True)
-    line_counts = parse_numstat_lines(numstat_unstaged, numstat_staged)
+    line_counts = parse_numstat_lines()
 
 for trigger in triggers:
     if not isinstance(trigger, dict):

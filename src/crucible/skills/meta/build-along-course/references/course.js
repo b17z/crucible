@@ -99,8 +99,11 @@
           resultEl.className = "result";
         }
         explanation.classList.add("visible");
+        explanation.classList.add("unanswered");
         return;
       }
+
+      explanation.classList.remove("unanswered");
 
       var isCorrect = selected.hasAttribute("data-correct");
       if (resultEl) {

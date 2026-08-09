@@ -4,12 +4,14 @@
   Original to crucible. Written into course/base.html at scaffold time
   with exactly three substitutions, then left alone:
 
-    1. COURSE_TITLE       -> the <title> text and header <h1> text.
-    2. the accent <style>  block below -> one palette's three CSS
-       custom properties (--accent, --accent-soft, --accent-ink),
+    1. Replace the title token below (it appears twice: the <title>
+       tag and the header <h1>) with the course's title.
+    2. Replace the accent <style> block below with one palette's three
+       CSS custom properties (--accent, --accent-soft, --accent-ink),
        chosen by course.yaml's `accent:` value.
-    3. NAV_DOTS            -> the <ul class="nav-dots"> list items,
-       one per module, appended in module order.
+    3. Replace the nav-dots token inside <ul class="nav-dots"> with one
+       <li><a href="#module-NN">Module title</a></li> per module, in
+       module order, appended as modules are added.
 
   Everything else in this file ships verbatim. Palette options (pick
   one per project, name it in course.yaml's `accent:` field):

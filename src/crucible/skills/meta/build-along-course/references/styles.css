@@ -269,6 +269,13 @@ body {
   display: block;
 }
 
+/* No option selected yet: show the "pick an answer" prompt but keep
+   the why-text hidden so checking with nothing selected can't leak
+   the correct answer. */
+.quiz .explanation.unanswered .why {
+  display: none;
+}
+
 .quiz .result {
   font-weight: 600;
   margin-right: 0.5rem;

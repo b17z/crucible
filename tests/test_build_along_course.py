@@ -160,6 +160,18 @@ class TestAssembleSh:
         assert mod1.read_text() == before[mod1]
         assert mod2.read_text() == before[mod2]
 
+    def test_assembles_with_space_in_course_path(self, tmp_path: Path) -> None:
+        parent = tmp_path / "My Project"
+        parent.mkdir()
+        course = self._make_course(parent)
+        result = self._run(course)
+        assert result.returncode == 0, result.stderr
+
+        index = (course / "index.html").read_text()
+        assert "MODULE_01_A" in index
+        assert "MODULE_02_B" in index
+        assert "2 module(s)" in result.stdout
+
 
 class TestBuildAlongDoc:
     """docs/BUILD-ALONG.md: exists, has a copy-pasteable kickoff block,

@@ -41,7 +41,11 @@ styles is that the course works offline, from a `file://` URL, forever:
   (fill in the three CSS custom properties for the palette named in
   `course.yaml`'s `accent:` field — options are documented as comments
   at the top of `references/base.html`), and `NAV_DOTS` (one `<li>` per
-  module, in module order — starts with just module 0's dot).
+  module, in module order — starts with just module 0's dot). Each nav
+  dot is exactly this shape:
+  `<li><a href="#module-NN">Module title</a></li>` — course.js keys off
+  `.nav-dots a` for click-to-scroll and scroll-spy, so the anchor is
+  required, not just an `<li>` of text.
 - **Write `course.yaml`** with the module 0 entry (see manifest schema
   below).
 
@@ -69,7 +73,8 @@ modules:
 - `id` — two-digit ordinal string. `00` is always the spec module.
 - `slug` — dash-case, used in the module's filename
   (`course/modules/<id>-<slug>.html`).
-- `title` — plain language, becomes a `<li>` nav-dot label and the
+- `title` — plain language, becomes the link text in a
+  `<li><a href="#module-NN">Module title</a></li>` nav dot and the
   freshness check for metaphors (see content-guide.md).
 - `milestone` — one plain sentence describing what got proven.
 - `commit` — short SHA of the commit this module covers; `none` for
@@ -98,9 +103,10 @@ proven:
    `references/content-guide.md` and the shape in
    `references/module-template.html`.
 4. Append the new entry to `course/course.yaml`'s `modules:` list.
-5. Add the new module's nav dot (one `<li>`) to `course/base.html`.
-6. Run `references/assemble.sh course` (or `./assemble.sh` from inside
-   `course/`) to rebuild `index.html`.
+5. Add the new module's nav dot to `course/base.html`:
+   `<li><a href="#module-NN">Module title</a></li>`.
+6. Run `bash course/assemble.sh course` (or `cd course && ./assemble.sh`)
+   to rebuild `index.html`.
 
 ## Module content contract
 

@@ -172,7 +172,9 @@ you to do, in order:
    crucible init --with-claudemd
    crucible hooks claudecode init
 
-3. Read the spec at <SPEC-FILE>. Do not start building yet.
+3. Read the spec at <SPEC-FILE>. Do not start building yet. If
+   <SPEC-FILE> doesn't exist yet, don't invent it — help me write it
+   first via `meta/brainstorming` and `crucible prewrite`.
 
 4. Run `crucible prewrite review <SPEC-FILE>` and fix anything it
    flags before writing any code.

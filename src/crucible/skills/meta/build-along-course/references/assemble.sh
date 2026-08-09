@@ -39,31 +39,25 @@ fi
 
 # Collect module files without mapfile/globstar (bash 3.2 has neither).
 # A glob that matches nothing expands to the literal pattern unless
-# nullglob is set, so guard explicitly.
-module_files=""
+# nullglob is set, so guard explicitly. The glob expansion itself is
+# already lexicographic order (the two-digit module ids make that
+# chronological), so no separate sort pass is needed — every path stays
+# quoted throughout, so paths with spaces survive intact.
 module_count=0
+tmp_out="$OUT.tmp.$$"
+cat "$BASE" > "$tmp_out" || exit 1
 for f in "$MODULES_DIR"/*.html; do
-  if [ -f "$f" ]; then
-    module_files="$module_files $f"
-    module_count=$((module_count + 1))
-  fi
+  [ -f "$f" ] || continue
+  cat "$f" >> "$tmp_out" || exit 1
+  module_count=$((module_count + 1))
 done
 
 if [ "$module_count" -eq 0 ]; then
   echo "assemble.sh: no module files in $MODULES_DIR — cannot assemble" >&2
+  rm -f "$tmp_out"
   exit 1
 fi
 
-# Lexicographic order: the for-loop glob expansion above is already
-# sorted lexicographically by bash; sort explicitly anyway so behavior
-# doesn't depend on locale/glob quirks.
-sorted_modules=$(printf '%s\n' $module_files | sort)
-
-tmp_out="$OUT.tmp.$$"
-cat "$BASE" > "$tmp_out"
-for f in $sorted_modules; do
-  cat "$f" >> "$tmp_out"
-done
 cat "$FOOTER" >> "$tmp_out"
 
 mv "$tmp_out" "$OUT"

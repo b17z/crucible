@@ -672,8 +672,9 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     # Verify findings against known false-positive shapes (fail-open on error)
     from crucible.verify import run_verification
 
+    verify_repo_root = get_repo_root(path if path else os.getcwd()).value if git_context else None
     all_findings, enforcement_findings, verify_errors = run_verification(
-        all_findings, enforcement_findings
+        all_findings, enforcement_findings, repo_root=verify_repo_root
     )
     tool_errors.extend(verify_errors)
 

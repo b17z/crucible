@@ -230,6 +230,60 @@ class TestReviewVerifierIntegration:
         assert "Suppressed" in text
         assert "B101" not in text.split("Suppressed")[0]
 
+    def test_git_mode_suppresses_with_repo_relative_location(self, tmp_path: Path) -> None:
+        """Git-mode findings carry repo-relative locations; the verifier must
+        resolve them against repo_root, not the process cwd."""
+        from crucible.errors import ok as ok_result
+        from crucible.tools.git import GitChange, GitContext, LineRange
+
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "test_a.py").write_text("assert True\n")
+
+        # Repo-relative location, as produced by run_static_analysis in git mode
+        # (full_path is built from repo_path, but findings from real tools
+        # commonly report paths relative to repo root).
+        mock_findings = [
+            ToolFinding(
+                tool="bandit",
+                rule="B101",
+                severity=Severity.LOW,
+                message="assert used",
+                location="tests/test_a.py:1",
+            ),
+        ]
+
+        git_context = GitContext(
+            mode="staged",
+            base_ref=None,
+            changes=(
+                GitChange(
+                    path="tests/test_a.py",
+                    status="M",
+                    added_lines=(LineRange(start=1, end=1),),
+                ),
+            ),
+            commit_messages=(),
+        )
+
+        with (
+            patch("crucible.server.get_repo_root", return_value=ok_result(str(tmp_path))),
+            patch("crucible.server.get_staged_changes", return_value=ok_result(git_context)),
+            patch("crucible.server.run_static_analysis", return_value=(mock_findings, [])),
+            patch("crucible.server.run_enforcement", return_value=([], [], 0, 0, None)),
+            patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
+            # Ensure a relative-path resolution against process cwd would fail:
+            # if repo_root threading regresses, the verifier can't read the
+            # file and fails open, leaving B101 active.
+            patch("os.getcwd", return_value=str(tmp_path.parent)),
+        ):
+            result = _handle_review({"mode": "staged"})
+            text = result[0].text
+
+        assert "Suppressed" in text
+        assert "B101" not in text.split("Suppressed")[0]
+
 
 class TestSeverityCountsSkipSuppressed:
     def test_suppressed_not_counted(self) -> None:

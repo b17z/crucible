@@ -161,3 +161,23 @@ class TestPretoolRegistration:
         ]
         assert len(pretool) == 1
         assert pretool[0]["matcher"] == "Edit|Write"
+
+
+class TestPretoolVerifier:
+    def test_bound_fp_in_proposed_content_allowed(self, tmp_path) -> None:
+        """String-literal TODO in proposed Write content is verifier-suppressed."""
+        _assertions_dir(tmp_path)
+        (tmp_path / ".crucible" / "assertions" / "todo.yaml").write_text("""
+assertions:
+  - id: no-todo-without-issue
+    type: pattern
+    pattern: "TODO"
+    message: "TODO needs issue"
+    severity: error
+""")
+        code = 'msg = "TODO handling is described here"\n'  # crucible-ignore: no-todo-without-issue -- fixture text
+        exit_code = _run(tmp_path, {
+            "tool_name": "Write",
+            "tool_input": {"file_path": "app.py", "content": code},
+        })
+        assert exit_code == 0

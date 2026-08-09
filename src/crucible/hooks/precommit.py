@@ -130,6 +130,8 @@ class PrecommitConfig:
     run_llm_assertions: bool = False
     # Token budget for LLM assertions
     llm_token_budget: int = 5000
+    # Deterministic verifier tier: suppress known false-positive shapes
+    verify: bool = True
 
 
 @dataclass(frozen=True)
@@ -203,6 +205,7 @@ def load_precommit_config(repo_path: str | None = None) -> PrecommitConfig:
     run_assertions = config_data.get("run_assertions", True)
     run_llm_assertions = config_data.get("run_llm_assertions", False)
     llm_token_budget = config_data.get("llm_token_budget", 5000)
+    verify = config_data.get("verify", True)
 
     return PrecommitConfig(
         fail_on=fail_on,
@@ -216,6 +219,7 @@ def load_precommit_config(repo_path: str | None = None) -> PrecommitConfig:
         run_assertions=run_assertions,
         run_llm_assertions=run_llm_assertions,
         llm_token_budget=llm_token_budget,
+        verify=verify,
     )
 
 
@@ -516,8 +520,14 @@ def run_precommit(
                 compliance_config=compliance_config,
             )
         )
-        # Inline crucible-ignore suppressions must not fail the gate
+
+        if config.verify:
+            from crucible.verify import run_verification
+            all_findings, enforcement_findings, _verify_errors = run_verification(
+                all_findings, enforcement_findings, repo_root=repo_root)
+        # Inline/verifier suppressions must not fail the gate
         enforcement_findings = [f for f in enforcement_findings if not f.suppressed]
+        all_findings = [f for f in all_findings if not f.suppressed]
 
         if budget_state:
             llm_tokens_used = budget_state.tokens_used

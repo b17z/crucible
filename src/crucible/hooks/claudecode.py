@@ -55,6 +55,9 @@ class ClaudeCodeHookConfig:
     # Token budget for LLM assertions
     llm_token_budget: int = 2000
 
+    # Deterministic verifier tier: suppress known false-positive shapes
+    verify: bool = True
+
     # File patterns to exclude
     exclude: tuple[str, ...] = ()
 
@@ -81,6 +84,7 @@ def load_claudecode_config(repo_path: str | None = None) -> ClaudeCodeHookConfig
         run_assertions=data.get("run_assertions", True),
         run_llm_assertions=data.get("run_llm_assertions", False),
         llm_token_budget=data.get("llm_token_budget", 2000),
+        verify=data.get("verify", True),
         exclude=tuple(data.get("exclude", [])),
         verbose=data.get("verbose", False),
     )
@@ -416,6 +420,11 @@ def _evaluate_content(
         content=content,
         assertions=assertions,
     )
+
+    if config.verify:
+        from crucible.verify import run_verification
+        _, findings, _ = run_verification(
+            [], findings, file_contents={file_path: content})
 
     # Filter by severity threshold
     severity_order = {"error": 0, "warning": 1, "info": 2}

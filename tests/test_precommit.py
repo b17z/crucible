@@ -641,3 +641,27 @@ assertions:
         repo = self._repo_with_staged(tmp_path, "x = eval('1+1')\n")  # crucible-ignore: no-eval -- test target
         result = self._run(repo)
         assert not result.passed
+
+
+class TestVerifierInPrecommit:
+    def test_b101_style_fp_does_not_fail_gate(self, tmp_path) -> None:
+        """A bound FP shape in staged changes is suppressed by the verifier."""
+        # Reuse _repo_with_staged but stage a test file with an assert and
+        # configure a project assertion that fires on it, bound in
+        # .crucible/verifiers.yaml via the bundled bandit/B101... simpler:
+        # use the bundled no-todo binding with an enforcement assertion.
+        repo = TestEnforcementSuppression()._repo_with_staged(
+            tmp_path,
+            'msg = "TODO is discussed here"\n',  # crucible-ignore: no-todo-without-issue -- fixture text
+        )
+        assertions_dir = repo / ".crucible" / "assertions"
+        (assertions_dir / "todo.yaml").write_text("""
+assertions:
+  - id: no-todo-without-issue
+    type: pattern
+    pattern: "TODO"
+    message: "TODO needs issue"
+    severity: error
+""")
+        result = TestEnforcementSuppression()._run(repo)
+        assert result.passed, f"verifier should suppress string-literal TODO: {result}"

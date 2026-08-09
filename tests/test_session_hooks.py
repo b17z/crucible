@@ -182,3 +182,34 @@ class TestReviewConventionsInjection:
         run_session_hook(json.dumps({"cwd": str(tmp_path)}))
         out = capsys.readouterr().out
         assert "Review Conventions" not in out
+
+
+class TestFrontmatterRule:
+    def test_dash_run_line_not_treated_as_closer(self, tmp_path, monkeypatch, capsys) -> None:
+        """A '----' rule line inside frontmatter must not close it (the old
+        find('\\n---') bug); only a line that strips to exactly '---' does."""
+        import json
+
+        from crucible.hooks.claudecode import run_session_hook
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "REVIEW.md").write_text(
+            "---\ntriggers:\n  - paths: ['x']\n    note: 'a----b'\n---\n# Body\nREAL-BODY\n"
+        )
+        run_session_hook(json.dumps({"cwd": str(tmp_path)}))
+        out = capsys.readouterr().out
+        ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        assert "REAL-BODY" in ctx
+        assert "triggers:" not in ctx
+
+    def test_no_frontmatter_whole_text_is_body(self, tmp_path, monkeypatch, capsys) -> None:
+        import json
+
+        from crucible.hooks.claudecode import run_session_hook
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "REVIEW.md").write_text("# Conventions only\nNO-FM-BODY\n")
+        run_session_hook(json.dumps({"cwd": str(tmp_path)}))
+        out = capsys.readouterr().out
+        ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        assert "NO-FM-BODY" in ctx

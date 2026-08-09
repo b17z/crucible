@@ -305,6 +305,26 @@ verbose: false
     return str(config_path)
 
 
+def _split_review_frontmatter(text: str) -> str:
+    """Strip REVIEW.md YAML frontmatter, returning the body.
+
+    Rule (intentionally duplicated in
+    interfaces/claude_code/stop/review_nudge.sh's parser — the two must
+    match): if the FIRST line's strip() == '---', find the next line
+    whose strip() == '---'; the body is everything after that line.
+    Otherwise (no frontmatter, or no closing line) the body is the
+    whole text. Line-based so a '----'-style rule line inside the
+    frontmatter body can't be mistaken for the closer.
+    """
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return text
+    for i, line in enumerate(lines[1:], 1):
+        if line.strip() == "---":
+            return "\n".join(lines[i + 1:])
+    return text
+
+
 def _should_exclude(file_path: str, exclude_patterns: tuple[str, ...]) -> bool:
     """Check if file should be excluded."""
     from fnmatch import fnmatch
@@ -698,11 +718,7 @@ def run_session_hook(stdin_data: str | None = None) -> int:
     review_md = cwd_path / "REVIEW.md"
     if review_md.exists():
         try:
-            text = review_md.read_text()
-            if text.startswith("---"):
-                closing = text.find("\n---", 3)
-                if closing != -1:
-                    text = text[closing + 4:]
+            text = _split_review_frontmatter(review_md.read_text())
             if text.strip():
                 context_parts.append(text.strip())
         except OSError:

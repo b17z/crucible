@@ -133,6 +133,12 @@ try:
 except OSError:
     sys.exit(0)
 
+# Frontmatter split rule (intentionally duplicated in
+# src/crucible/hooks/claudecode.py's _split_review_frontmatter — the two
+# must match): the FIRST line's strip() must be '---', then find the
+# next line whose strip() == '---'; only that closes the frontmatter
+# block. Line-based so a '----'-style rule line in the body can't be
+# mistaken for the closer.
 if not content.startswith("---"):
     sys.exit(0)
 

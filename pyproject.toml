@@ -49,6 +49,7 @@ crucible = [
     "interfaces/**/*.sh",
     "interfaces/**/*.py",
     "policies/*.yaml",
+    "verify/bundled/*.yaml",
 ]
 
 [tool.ruff]

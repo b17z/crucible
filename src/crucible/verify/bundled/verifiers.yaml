@@ -1,0 +1,20 @@
+# Bundled verifier bindings — rule -> predicate. Each entry names a
+# known-false-positive shape from docs/v2/phase6_verifier_corpus.md.
+# Projects extend or disable via .crucible/verifiers.yaml (same shape;
+# `disable:` lists rule keys to turn off entirely).
+verifiers:
+  - rule: bandit/B101
+    predicate: is_test_file
+    reason: "assert is pytest's mechanism; test runs never use -O"
+  - rule: bandit/B404
+    predicate: subprocess_import_used
+    reason: "an exercised subprocess import is the feature; usage-level rules still police the calls"
+  - rule: world-writable-permissions
+    predicate: octal_without_other_write
+    reason: "the octal grants no other-write bit (0o755-style exec perms)"
+  - rule: user-input-in-path
+    predicate: is_cli_entry_point
+    reason: "argparse input is operator-controlled; the CLI operator is the trust boundary"
+  - rule: no-todo-without-issue
+    predicate: match_in_string_literal
+    reason: "the token sits inside a string literal, not a live comment"

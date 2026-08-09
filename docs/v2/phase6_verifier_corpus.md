@@ -187,3 +187,18 @@ review-pass-dollar") should target suppressing ≥63 of these as the
 floor. Suppressing all 125 would be a >99% reduction on this corpus,
 which is the right ambition given that none of them require deep
 reasoning — they're all surface-pattern false positives.
+
+## Phase 6 landed (measurement)
+
+`crucible review src/crucible/cli.py` now suppresses the Group 1/2
+findings via the deterministic verifier (observed 2026-08-09); the enforced
+gate `tests/test_verifier_corpus.py` holds the full 125/125 plus a
+true-positive control group. New FP classes: add a predicate + binding +
+corpus entry, and extend the gate.
+
+Live run against current `cli.py` (grown since the original Phase 1a
+count) suppressed 8: 7 `user-input-in-path` (Group 1 pattern, more
+argparse call sites now that the file has grown) + 1
+`world-writable-permissions` (Group 2, `chmod(0o755)`). Both verifier
+bindings — `is_cli_entry_point` and `octal_without_other_write` — fired
+correctly on every observed instance.

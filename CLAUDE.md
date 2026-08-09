@@ -37,6 +37,7 @@ crucible init --with-claudemd     # Initialize + minimal CLAUDE.md
 crucible review                   # Review staged changes
 crucible review --mode branch     # Review branch vs main
 crucible review src/ --no-git     # Review without git
+crucible review --no-verify           # Raw findings (skip FP verifier)
 
 crucible hooks install            # Git pre-commit hook
 crucible hooks claudecode init    # Claude Code hooks (PostToolUse + SessionStart)

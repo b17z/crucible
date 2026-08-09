@@ -186,21 +186,33 @@ class TestReviewConventionsInjection:
 
 class TestFrontmatterRule:
     def test_dash_run_line_not_treated_as_closer(self, tmp_path, monkeypatch, capsys) -> None:
-        """A '----' rule line inside frontmatter must not close it (the old
-        find('\\n---') bug); only a line that strips to exactly '---' does."""
+        """A lone '----' rule line inside frontmatter must not be mistaken
+        for the closer (the old find('\\n---', 3) bug: it matches the '\\n---'
+        prefix of '----' and treats it as the close, leaving a stray '-'
+        plus everything up to the REAL closer as residue in the body).
+        Only a line that strips to exactly '---' may close frontmatter."""
         import json
 
         from crucible.hooks.claudecode import run_session_hook
 
         monkeypatch.chdir(tmp_path)
         (tmp_path / "REVIEW.md").write_text(
-            "---\ntriggers:\n  - paths: ['x']\n    note: 'a----b'\n---\n# Body\nREAL-BODY\n"
+            "---\ntriggers:\n  - note: x\n----\n---\nBODY-AFTER\n"
         )
         run_session_hook(json.dumps({"cwd": str(tmp_path)}))
         out = capsys.readouterr().out
         ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
-        assert "REAL-BODY" in ctx
+        assert "BODY-AFTER" in ctx
         assert "triggers:" not in ctx
+        # The REVIEW.md section is joined between "\n\n---\n\n" separators
+        # (see run_session_hook's context_parts join). Under the old
+        # find("\n---", 3) bug, the "----" line's "\n---" prefix is
+        # mistaken for the closer, leaving a stray "-" plus the real
+        # "---\n" line as residue ahead of the body: the section becomes
+        # "-\n---\nBODY-AFTER" instead of the clean "BODY-AFTER". Assert
+        # the section is exactly the clean body with no such residue.
+        assert "\n\n---\n\nBODY-AFTER\n\n---\n\n" in ctx
+        assert "-\n---\nBODY-AFTER" not in ctx
 
     def test_no_frontmatter_whole_text_is_body(self, tmp_path, monkeypatch, capsys) -> None:
         import json
@@ -213,3 +225,20 @@ class TestFrontmatterRule:
         out = capsys.readouterr().out
         ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
         assert "NO-FM-BODY" in ctx
+
+    def test_opener_no_closer_whole_text_is_body(self, tmp_path, monkeypatch, capsys) -> None:
+        """Frontmatter opener ('---' first line) with no closing '---' line
+        anywhere: nothing is stripped, so the opener line itself must still
+        be present in the injected context."""
+        import json
+
+        from crucible.hooks.claudecode import run_session_hook
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "REVIEW.md").write_text("---\ntriggers:\n  - note: x\nNO-CLOSER-BODY\n")
+        run_session_hook(json.dumps({"cwd": str(tmp_path)}))
+        out = capsys.readouterr().out
+        ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        assert "NO-CLOSER-BODY" in ctx
+        # Nothing was stripped: the opener line itself survives into context.
+        assert "---\ntriggers:\n  - note: x\nNO-CLOSER-BODY" in ctx

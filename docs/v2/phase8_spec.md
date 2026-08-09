@@ -43,6 +43,13 @@ filed GitHub issue for post-2.0 — nothing is silently dropped. New FP
 classes found → corpus entries + predicate/binding additions ONLY if
 trivially rule-decidable; otherwise corpus entry + issue.
 
+Data handling (the repo goes public at ship): the committed dogfood doc
+records outputs from seeded scratch-clone content only — no real project
+code, no secrets, and machine-specific absolute paths outside the scratch
+dir are elided. The `--verify-llm` step sends only a seeded scratch file
+to the API (standard Anthropic API data handling applies; the feature is
+opt-in and documented as such).
+
 ## 2. Deferred-minor burn-down (in scope, from the Phase 6/7 ledgers)
 
 1. `append_signs.sh`: atomic GUARDRAILS.md write (temp file + `os.replace`)

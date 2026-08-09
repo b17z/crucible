@@ -87,7 +87,7 @@ src/crucible/
 │   └── models.py          # PrewriteMetadata, PrewriteResult
 ├── templates/prewrite/    # 5 bundled spec templates
 ├── knowledge/             # 14 bundled knowledge files
-└── skills/                # 38 bundled persona skills
+└── skills/                # 39 bundled persona skills
 ```
 
 ## Patterns
@@ -150,7 +150,7 @@ See `docs/` for:
 - FEATURES.md - Complete feature reference
 - ARCHITECTURE.md - How pieces fit together
 - CUSTOMIZATION.md - Skill/knowledge/assertion cascade
-- SKILLS.md - All 38 bundled skills
+- SKILLS.md - All 39 bundled skills
 - KNOWLEDGE.md - All 14 knowledge files
 - CONTRIBUTING.md - For contributors
 - LOOP.md - The beginner engineering loop, plain-language, worked example
@@ -185,6 +185,7 @@ Crucible ships meta-skills that shape *how* the agent works, discoverable via `c
 - **`meta/wait-what`** — re-pitch an unclear message in plain language instead of repeating it louder. Adapted from mattpocock/skills.
 - **`meta/teach-me`** — stateful, multi-session teaching workspace (mission, resources, learning records, glossary, lessons); vault-aware via `.crucible/teach.yaml`. Adapted from mattpocock/skills.
 - **`meta/engineering-loop`** — beginner-facing six-step build cycle (say it plainly, think small, write it down, build the smallest thing, prove it honestly, keep what you learned), each step naming the skill that carries it. See `docs/LOOP.md`.
+- **`meta/build-along-course`** — piecewise course generation: grows an interactive HTML course next to the project being built, one module per proven milestone, starting with module 0 as the spec itself. Clean-room original inspired by codebase-to-course, no code or text reused.
 
 When writing or changing code in this repo, `meta/coding-discipline` applies: minimum code that solves the problem, surgical diffs, verify against success criteria. When authoring a skill, `meta/writing-good-skills` applies.
 

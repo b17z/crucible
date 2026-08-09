@@ -611,3 +611,43 @@ assertions:
             assert len(assertions) == 1  # Only valid one loaded
             assert len(errors) == 1  # One error reported
             assert "missing required 'pattern' field" in errors[0]
+
+
+class TestRunEnforcementGitMode:
+    """Git-mode file reading in run_enforcement."""
+
+    def test_binary_file_skipped(self, tmp_path: Path) -> None:
+        """A non-UTF-8 changed file is skipped; text files still get checked."""
+        from crucible.enforcement.models import ComplianceConfig
+        from crucible.review.core import run_enforcement
+
+        clear_assertion_cache()
+
+        assertions_dir = tmp_path / ".crucible" / "assertions"
+        assertions_dir.mkdir(parents=True)
+        (assertions_dir / "rules.yaml").write_text("""
+assertions:
+  - id: no-eval
+    type: pattern
+    pattern: "eval\\\\("
+    message: "No eval"
+""")
+
+        (tmp_path / "icon.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe\x00binary")
+        # crucible-ignore-next-line: no-eval -- pattern-match target for the test
+        (tmp_path / "app.py").write_text("eval('1+1')\n")
+
+        with (
+            patch("crucible.enforcement.assertions.ASSERTIONS_PROJECT", assertions_dir),
+            patch("crucible.enforcement.assertions.ASSERTIONS_USER", tmp_path / "nonexistent"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_BUNDLED", tmp_path / "nonexistent"),
+        ):
+            findings, errors, checked, skipped, _ = run_enforcement(
+                path=str(tmp_path),
+                changed_files=["icon.png", "app.py"],
+                repo_root=str(tmp_path),
+                compliance_config=ComplianceConfig(enabled=False),
+            )
+
+        assert any(f.assertion_id == "no-eval" for f in findings)
+        assert errors == []

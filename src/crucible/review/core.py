@@ -398,7 +398,7 @@ def run_enforcement(
         for file_path in changed_files:
             full_path = os.path.join(repo_root, file_path)
             try:
-                with open(full_path) as f:
+                with open(full_path, encoding="utf-8") as f:
                     file_content = f.read()
 
                 # Run pattern assertions
@@ -412,6 +412,8 @@ def run_enforcement(
                     files_for_llm.append((file_path, file_content))
             except OSError:
                 pass  # File may have been deleted
+            except UnicodeDecodeError:
+                pass  # Binary file (image, icon, etc.) — not reviewable as text
 
         # Run LLM assertions in batch
         if files_for_llm and compliance_config.enabled:

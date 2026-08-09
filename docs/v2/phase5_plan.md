@@ -106,6 +106,5 @@ the watched files. Zero new script code; silent when clean.
 - **mcp 2.0 migration**: mcp 2.0 removed the `Server.list_tools` decorator
   API server.py uses; fresh installs were pulling 2.0.0 and breaking at
   import. Capped to `<2.0.0` in f653bb0 (1.29.0 passes the full suite).
-  Migrate server.py to the 2.x API, then lift the cap. (A GitHub issue
-  should be filed for this — creation was not permitted from the agent
-  session that found it.)
+  Migrate server.py to the 2.x API, then lift the cap. Tracked in
+  b17z/crucible#11.

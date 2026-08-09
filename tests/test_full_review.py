@@ -216,6 +216,55 @@ class TestSeverityCountsSkipSuppressed:
         assert counts.get("low", 0) == 0
 
 
+class TestParallelDelegation:
+    def test_wall_clock_beats_sequential(self, tmp_path) -> None:
+        import time
+        from unittest.mock import patch
+
+        from crucible.errors import ok
+        from crucible.models import Domain
+        from crucible.review.core import run_static_analysis
+
+        def slow(name):
+            def delegate(*args, **kwargs):
+                time.sleep(0.3)
+                return ok([])
+            return delegate
+
+        with (
+            patch("crucible.review.core.delegate_semgrep", slow("semgrep")),
+            patch("crucible.review.core.delegate_ruff", slow("ruff")),
+            patch("crucible.review.core.delegate_slither", slow("slither")),
+            patch("crucible.review.core.delegate_bandit", slow("bandit")),
+        ):
+            start = time.monotonic()
+            findings, errors = run_static_analysis(
+                str(tmp_path), Domain.BACKEND, ["python"],
+                tools=["semgrep", "ruff", "slither", "bandit"])
+            elapsed = time.monotonic() - start
+        assert errors == []
+        assert elapsed < 0.9, f"4×0.3s delegates took {elapsed:.2f}s — not parallel"
+
+    def test_error_aggregation_and_order(self, tmp_path) -> None:
+        from unittest.mock import patch
+
+        from crucible.errors import err, ok
+        from crucible.models import Domain, Severity, ToolFinding
+        from crucible.review.core import run_static_analysis
+
+        f_ruff = ToolFinding(tool="ruff", rule="E1", severity=Severity.LOW,
+                             message="m", location="a.py:1")
+        with (
+            patch("crucible.review.core.delegate_semgrep",
+                  lambda *a, **k: err("semgrep exploded")),
+            patch("crucible.review.core.delegate_ruff", lambda *a, **k: ok([f_ruff])),
+        ):
+            findings, errors = run_static_analysis(
+                str(tmp_path), Domain.BACKEND, ["python"], tools=["semgrep", "ruff"])
+        assert findings == [f_ruff]
+        assert errors == ["semgrep: semgrep exploded"]
+
+
 class TestUnifiedReviewGitMode:
     """Test unified review in git mode."""
 

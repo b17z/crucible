@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import os
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 from crucible.enforcement.models import BudgetState, ComplianceConfig
+from crucible.errors import Result
 from crucible.ignore import load_ignore_spec
 from crucible.models import Domain, Severity, ToolFinding
 from crucible.tools.delegation import (
@@ -124,37 +126,35 @@ def run_static_analysis(
     if tools is None:
         tools = get_tools_for_domain(domain, domain_tags)
 
+    from concurrent.futures import ThreadPoolExecutor
+
     all_findings: list[ToolFinding] = []
     tool_errors: list[str] = []
 
+    # (name, thunk) in canonical order; delegates are subprocess-wait-bound,
+    # so threads give real wall-clock overlap.
+    jobs: list[tuple[str, Callable[[], Result]]] = []
     if "semgrep" in tools:
         config = get_semgrep_config(domain)
-        result = delegate_semgrep(path, config)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"semgrep: {result.error}")
-
+        jobs.append(("semgrep", lambda: delegate_semgrep(path, config)))
     if "ruff" in tools:
-        result = delegate_ruff(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"ruff: {result.error}")
-
+        jobs.append(("ruff", lambda: delegate_ruff(path)))
     if "slither" in tools:
-        result = delegate_slither(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"slither: {result.error}")
-
+        jobs.append(("slither", lambda: delegate_slither(path)))
     if "bandit" in tools:
-        result = delegate_bandit(path)
-        if result.is_ok:
-            all_findings.extend(result.value)
-        elif result.is_err:
-            tool_errors.append(f"bandit: {result.error}")
+        jobs.append(("bandit", lambda: delegate_bandit(path)))
+
+    if not jobs:
+        return all_findings, tool_errors
+
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures = [(name, pool.submit(thunk)) for name, thunk in jobs]
+        for name, future in futures:  # fixed submission order → deterministic output
+            result = future.result()
+            if result.is_ok:
+                all_findings.extend(result.value)
+            else:
+                tool_errors.append(f"{name}: {result.error}")
 
     return all_findings, tool_errors
 

@@ -41,6 +41,8 @@ class TestOctalWithoutOtherWrite:
         ("os.chmod(p, 0o646)", False),         # o=6 has write bit
         ("p.chmod(0o4755)", True),             # setuid + 755, still no o+w
         ("some_line_without_octal()", False),  # cannot confirm FP → don't suppress
+        ("os.chmod(p, 0o644)  # was 0o777 before", False),  # unrelated risky octal blocks suppression
+        ("os.chmod(p, 0o755)  # matches 0o644 default", True),  # multiple safe octals still suppress
     ])
     def test_lines(self, line_text, expected):
         content = f"import os\n{line_text}\n"

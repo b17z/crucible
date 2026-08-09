@@ -51,8 +51,10 @@ _OCTAL_RE = re.compile(r"0o([0-7]{3,4})")
 
 
 def octal_without_other_write(ctx: FindingContext, content: str) -> bool:
-    """Corpus group 2 (world-writable-permissions): parse the octal at the
-    match; suppress only when the other-write bit (0o2) is absent."""
+    """Corpus group 2 (world-writable-permissions): all octal literals on the
+    matched line are checked; suppress only when none grant other-write (0o2).
+    Conservative by design: unrelated risky octals on the line block suppression
+    rather than risking a false negative."""
     line = _line_at(content, ctx.line)
     if line is None:
         return False

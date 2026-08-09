@@ -1732,6 +1732,23 @@ def cmd_policies_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_signs_list(args: argparse.Namespace) -> int:
+    """List candidate Signs: pending and acked-not-yet-appended."""
+    from crucible.signs import list_candidates
+
+    pending, acked = list_candidates()
+
+    print("pending:")
+    for c in pending:
+        print(f"  {c.get('id')}  {c.get('trigger')}  [{c.get('provenance')}]")
+
+    print("acked (unappended):")
+    for c in acked:
+        print(f"  {c.get('id')}  {c.get('trigger')}  [{c.get('provenance')}]")
+
+    return 0
+
+
 # --- Hooks commands ---
 
 PRECOMMIT_HOOK_SCRIPT = """\
@@ -2900,6 +2917,13 @@ def main() -> int:
     # policies validate
     policies_sub.add_parser("validate", help="Validate policy files")
 
+    # === signs command ===
+    signs_parser = subparsers.add_parser("signs", help="Manage candidate Signs")
+    signs_sub = signs_parser.add_subparsers(dest="signs_command")
+
+    # signs list
+    signs_sub.add_parser("list", help="List pending and acked candidate Signs")
+
     # === ci command ===
     ci_parser = subparsers.add_parser(
         "ci",
@@ -3135,6 +3159,12 @@ def main() -> int:
             return cmd_policies_validate(args)
         else:
             policies_parser.print_help()
+            return 0
+    elif args.command == "signs":
+        if args.signs_command == "list":
+            return cmd_signs_list(args)
+        else:
+            signs_parser.print_help()
             return 0
     elif args.command == "review":
         return cmd_review(args)

@@ -462,6 +462,20 @@ def _evaluate_content(
 
     # Deny (default)
     print(output, file=sys.stderr)
+
+    try:
+        from crucible.signs import write_candidate
+
+        for f in filtered_findings:
+            write_candidate(
+                trigger=f"assertion:{f.assertion_id}:{file_path}",
+                instruction=f"Do not introduce `{f.assertion_id}` violations ({f.message})",
+                reason="denied by the Claude Code assertion hook",
+                source="claudecode-hook",
+            )
+    except OSError:
+        pass
+
     return 2  # Exit 2 = block and show to Claude
 
 

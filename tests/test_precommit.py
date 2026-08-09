@@ -665,3 +665,15 @@ assertions:
 """)
         result = TestEnforcementSuppression()._run(repo)
         assert result.passed, f"verifier should suppress string-literal TODO: {result}"
+
+
+class TestPrecommitSignCandidate:
+    def test_gate_failure_writes_candidate(self, tmp_path: Path) -> None:
+        repo = TestEnforcementSuppression()._repo_with_staged(
+            tmp_path, "x = eval('1+1')\n"  # crucible-ignore: no-eval -- fixture text
+        )
+        result = TestEnforcementSuppression()._run(repo)
+        assert not result.passed
+        from crucible.signs import list_candidates
+        pending, _ = list_candidates(base_path=str(repo))
+        assert any(c["trigger"].startswith("precommit:") for c in pending)

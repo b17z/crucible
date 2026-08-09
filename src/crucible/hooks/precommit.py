@@ -568,6 +568,25 @@ def run_precommit(
                 passed = False
                 break
 
+    if not passed:
+        try:
+            from crucible.signs import write_candidate
+
+            failing_ids = sorted({
+                *(f.rule for f in filtered_findings),
+                *(f.assertion_id for f in enforcement_findings),
+            })
+            joined = ",".join(failing_ids)
+            write_candidate(
+                trigger=f"precommit:{joined}",
+                instruction=f"Resolve `{joined}` findings before committing",
+                reason="pre-commit gate failure",
+                source="precommit",
+                base_path=repo_root,
+            )
+        except OSError:
+            pass
+
     return PrecommitResult(
         passed=passed,
         findings=tuple(filtered_findings),

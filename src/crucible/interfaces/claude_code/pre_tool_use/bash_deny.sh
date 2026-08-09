@@ -131,6 +131,20 @@ print("  disable:", file=sys.stderr)
 for rule_id, _ in denied:
     print(f"    - {rule_id}", file=sys.stderr)
 print("", file=sys.stderr)
+
+try:
+    from crucible.signs import write_candidate
+
+    for rule_id, reason in denied:
+        write_candidate(
+            trigger=f"bash_deny:{rule_id}",
+            instruction=f"Do not run commands matching `{rule_id}`: {reason}",
+            reason="blocked by the bash deny-list",
+            source="bash_deny.sh",
+        )
+except Exception:
+    pass  # candidate generation is best-effort; the deny itself must proceed
+
 sys.exit(2)
 PY
 exit $?

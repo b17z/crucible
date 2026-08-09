@@ -181,3 +181,18 @@ assertions:
             "tool_input": {"file_path": "app.py", "content": code},
         })
         assert exit_code == 0
+
+
+class TestPretoolSignCandidate:
+    def test_deny_writes_candidate(self, tmp_path: Path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        _assertions_dir(tmp_path)
+        code = "x = eval('1+1')\n"  # crucible-ignore: no-eval -- fixture text
+        exit_code = _run(tmp_path, {
+            "tool_name": "Write",
+            "tool_input": {"file_path": "app.py", "content": code},
+        })
+        assert exit_code == 2
+        from crucible.signs import list_candidates
+        pending, _ = list_candidates(base_path=str(tmp_path))
+        assert any(c["trigger"].startswith("assertion:no-eval") for c in pending)

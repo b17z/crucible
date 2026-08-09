@@ -1122,3 +1122,20 @@ class TestPoliciesCommands:
         out = capsys.readouterr().out
         assert code == 1
         assert "ghost" in out
+
+
+class TestSignsCommand:
+    def test_signs_list_shows_pending(self, tmp_path, monkeypatch, capsys) -> None:
+        from crucible.cli import cmd_signs_list
+        from crucible.signs import write_candidate
+
+        monkeypatch.chdir(tmp_path)
+        write_candidate("t1", "i", "r", "test", base_path=str(tmp_path))
+
+        class Args:
+            pass
+
+        code = cmd_signs_list(Args())
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "t1" in out

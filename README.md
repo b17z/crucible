@@ -207,6 +207,6 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # Run tests (660+ tests)
+pytest                    # Run tests (866+ tests)
 ruff check src/ --fix     # Lint
 ```

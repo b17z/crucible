@@ -153,9 +153,6 @@ crucible review src/file.py --no-git # Specific file
 crucible assertions list            # Assertion files
 crucible skills list                # Review personas
 crucible knowledge list             # Knowledge files
-
-# Check tool installation
-crucible check-tools                # Show what's installed
 ```
 
 ---

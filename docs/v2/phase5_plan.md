@@ -38,8 +38,9 @@ write before it happens.
   `crucible hooks claudecode pretool`; registered under PreToolUse with
   matcher `Edit|Write` (same idempotency check style as the PostToolUse
   registration).
-- Write → assert on `tool_input.content`. Edit → read the target file, apply
-  `old_string`→`new_string` (honoring `replace_all`), assert on the result.
+- Write → assert on `tool_input.content`. Edit → assert on `new_string` only:
+  asserting the merged file would let a pre-existing violation elsewhere in
+  the file block an unrelated edit (including the edit that fixes it).
 - Same `claudecode.yaml` config (threshold, exclude, on_finding). PostToolUse
   stays as the backstop for content that arrives by other paths.
 

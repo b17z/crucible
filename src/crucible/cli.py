@@ -2574,6 +2574,12 @@ def main() -> int:
         help="Run PostToolUse hook (reads JSON from stdin)"
     )
 
+    # hooks claudecode pretool (called by Claude Code PreToolUse on Edit|Write)
+    hooks_claudecode_sub.add_parser(
+        "pretool",
+        help="Run PreToolUse pre-check (denies violating Edit/Write before it lands)"
+    )
+
     # hooks claudecode session (called by Claude Code SessionStart)
     hooks_claudecode_sub.add_parser(
         "session",
@@ -2961,11 +2967,18 @@ def main() -> int:
         elif args.hooks_command == "status":
             return cmd_hooks_status(args)
         elif args.hooks_command == "claudecode":
-            from crucible.hooks.claudecode import main_init, run_hook, run_session_hook
+            from crucible.hooks.claudecode import (
+                main_init,
+                run_hook,
+                run_pretool_hook,
+                run_session_hook,
+            )
             if args.claudecode_command == "init":
                 return main_init(args.path)
             elif args.claudecode_command == "hook":
                 return run_hook()
+            elif args.claudecode_command == "pretool":
+                return run_pretool_hook()
             elif args.claudecode_command == "session":
                 return run_session_hook()
             else:

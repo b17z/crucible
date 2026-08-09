@@ -132,6 +132,28 @@ def generate_settings_json(repo_path: str | None = None) -> str:
         })
         existing["hooks"]["PostToolUse"] = post_tool_use
 
+    # Add PreToolUse pre-check for Edit|Write (deny before content lands)
+    pre_tool_use = existing["hooks"].get("PreToolUse", [])
+
+    crucible_pretool_exists = any(
+        "crucible hooks claudecode pretool"
+        in (hook["hooks"][0].get("command", "") if hook.get("hooks") else "")
+        for hook in pre_tool_use
+        if isinstance(hook, dict)
+    )
+
+    if not crucible_pretool_exists:
+        pre_tool_use.append({
+            "matcher": "Edit|Write",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": "crucible hooks claudecode pretool"
+                }
+            ]
+        })
+        existing["hooks"]["PreToolUse"] = pre_tool_use
+
     # Add SessionStart hook for context injection
     session_start = existing["hooks"].get("SessionStart", [])
 
@@ -365,10 +387,23 @@ def run_hook(stdin_data: str | None = None) -> int:
     else:
         return 0  # No content to analyze
 
-    # Run pattern assertions
+    return _evaluate_content(file_path, file_content, assertions, config)
+
+
+def _evaluate_content(
+    file_path: str,
+    content: str,
+    assertions: list,
+    config: ClaudeCodeHookConfig,
+) -> int:
+    """Run pattern assertions on content and turn findings into an exit code.
+
+    Shared by the PostToolUse hook (content already on disk) and the
+    PreToolUse pre-check (proposed content). 0 = allow, 2 = deny.
+    """
     findings, checked, skipped = run_pattern_assertions(
         file_path=file_path,
-        content=file_content,
+        content=content,
         assertions=assertions,
     )
 
@@ -409,6 +444,60 @@ def run_hook(stdin_data: str | None = None) -> int:
     # Deny (default)
     print(output, file=sys.stderr)
     return 2  # Exit 2 = block and show to Claude
+
+
+def run_pretool_hook(stdin_data: str | None = None) -> int:
+    """PreToolUse pre-check for Edit/Write: assert on the PROPOSED content
+    so a violating write is denied before it lands (the PostToolUse hook
+    remains the backstop for content that arrives by other paths).
+
+    Write → the full new content is asserted. Edit → only the introduced
+    new_string is asserted: a pre-existing violation elsewhere in the file
+    must not block the unrelated edit that would fix or bypass it.
+
+    Exit codes match run_hook: 0 = allow, 2 = deny.
+    """
+    if stdin_data is None:
+        stdin_data = sys.stdin.read()
+
+    try:
+        input_data = json.loads(stdin_data)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse hook input: {e}", file=sys.stderr)
+        return 0  # Allow on parse error
+
+    tool_name = input_data.get("tool_name", "")
+    tool_input = input_data.get("tool_input", {})
+
+    if tool_name not in ("Edit", "Write"):
+        return 0
+
+    file_path = tool_input.get("file_path", "")
+    if not file_path:
+        return 0
+
+    cwd = input_data.get("cwd", os.getcwd())
+    config = load_claudecode_config(cwd)
+
+    if _should_exclude(file_path, config.exclude):
+        return 0
+    if not config.run_assertions:
+        return 0
+
+    proposed = (
+        tool_input.get("content") if tool_name == "Write" else tool_input.get("new_string")
+    )
+    if not proposed:
+        return 0
+
+    assertions, load_errors = load_assertions()
+    if load_errors and config.verbose:
+        for err in load_errors:
+            print(f"Crucible hook warning: {err}", file=sys.stderr)
+    if not assertions:
+        return 0
+
+    return _evaluate_content(file_path, proposed, assertions, config)
 
 
 def _generate_enforcement_summary(assertions: list) -> str:
@@ -716,6 +805,9 @@ def main() -> int:
     # hook command (called by Claude Code PostToolUse)
     subparsers.add_parser("hook", help="Run PostToolUse hook (reads from stdin)")
 
+    # pretool command (called by Claude Code PreToolUse on Edit|Write)
+    subparsers.add_parser("pretool", help="Run PreToolUse pre-check (reads from stdin)")
+
     # session command (called by Claude Code SessionStart)
     subparsers.add_parser("session", help="Run SessionStart hook (injects context)")
 
@@ -725,6 +817,8 @@ def main() -> int:
         return main_init(args.path)
     elif args.command == "hook":
         return run_hook()
+    elif args.command == "pretool":
+        return run_pretool_hook()
     elif args.command == "session":
         return run_session_hook()
 

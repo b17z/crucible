@@ -1702,6 +1702,36 @@ def cmd_assertions_debug(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_policies_list(args: argparse.Namespace) -> int:
+    """List policies from all sources."""
+    from crucible.policy import load_policies
+    from crucible.policy.validator import POLICIES_BUNDLED
+
+    policies, errors = load_policies()
+    for p in sorted(policies, key=lambda p: p.name):
+        source = "bundled" if str(POLICIES_BUNDLED) in p.source_path else "project"
+        print(f"{p.name:24} {p.severity:8} {p.description}  [{len(p.hooks)} hook(s), {source}]")
+    for e in errors:
+        print(f"error: {e}")
+    return 0 if not errors else 1
+
+
+def cmd_policies_validate(args: argparse.Namespace) -> int:
+    """Validate policy files."""
+    from crucible.policy import load_policies, validate_policies
+
+    policies, errors = load_policies()
+    issues = validate_policies(policies)
+    for e in errors:
+        print(f"error: (parse) {e}")
+    for issue in issues:
+        print(f"{issue.level}: {issue.policy} {issue.field}: {issue.message}")
+    if errors or any(i.level == "error" for i in issues):
+        return 1
+    print(f"All policies valid ({len(policies)} checked)")
+    return 0
+
+
 # --- Hooks commands ---
 
 PRECOMMIT_HOOK_SCRIPT = """\
@@ -2860,6 +2890,16 @@ def main() -> int:
     assertions_debug_parser.add_argument("--rule", "-r", required=True, help="Rule ID")
     assertions_debug_parser.add_argument("--file", "-f", required=True, help="File to check")
 
+    # === policies command ===
+    policies_parser = subparsers.add_parser("policies", help="Manage cross-cutting policies")
+    policies_sub = policies_parser.add_subparsers(dest="policies_command")
+
+    # policies list
+    policies_sub.add_parser("list", help="List policy files from all sources")
+
+    # policies validate
+    policies_sub.add_parser("validate", help="Validate policy files")
+
     # === ci command ===
     ci_parser = subparsers.add_parser(
         "ci",
@@ -3087,6 +3127,14 @@ def main() -> int:
             return cmd_assertions_debug(args)
         else:
             assertions_parser.print_help()
+            return 0
+    elif args.command == "policies":
+        if args.policies_command == "list":
+            return cmd_policies_list(args)
+        elif args.policies_command == "validate":
+            return cmd_policies_validate(args)
+        else:
+            policies_parser.print_help()
             return 0
     elif args.command == "review":
         return cmd_review(args)

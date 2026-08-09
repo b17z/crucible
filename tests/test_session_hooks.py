@@ -126,3 +126,29 @@ class TestSessionHookEndToEnd:
         ctx = parsed["hookSpecificOutput"]["additionalContext"]
         assert "Available skills" in ctx  # Tier 1 discovery
         assert "Active policies" in ctx
+
+
+class TestPolicyNoteValidation:
+    def test_issue_appears_as_warning_line(self, tmp_path: Path, monkeypatch) -> None:
+        from unittest.mock import patch
+
+        from crucible.hooks.claudecode import _session_policy_note
+
+        proj = tmp_path / "policies"
+        proj.mkdir()
+        (proj / "p.yaml").write_text(
+            "name: ghost\ndescription: d\nseverity: high\n"
+            "hooks:\n  - event: Stop\n    handler: no/such.sh\n"
+        )
+        with patch("crucible.policy.validator.POLICIES_PROJECT", proj):
+            note = _session_policy_note()
+        assert note is not None
+        assert "ghost" in note
+        assert "⚠" in note
+
+    def test_clean_policies_no_warning_lines(self) -> None:
+        from crucible.hooks.claudecode import _session_policy_note
+
+        note = _session_policy_note()
+        assert note is not None
+        assert "⚠" not in note

@@ -601,18 +601,25 @@ def _session_integrity_note(cwd_path: Path) -> str | None:
 
 
 def _session_policy_note() -> str | None:
-    """Return a one-line summary of bundled policies, if any."""
-    policies_dir = Path(__file__).resolve().parent.parent / "policies"
-    if not policies_dir.exists():
+    """Names of active policies plus validator warnings, if any."""
+    try:
+        from crucible.policy import load_policies, validate_policies
+    except ImportError:
         return None
-    names = sorted(p.stem for p in policies_dir.glob("*.yaml"))
-    if not names:
+    policies, errors = load_policies()
+    if not policies and not errors:
         return None
-    return (
-        "## Active policies\n\n"
-        + ", ".join(names)
-        + " — cross-cutting enforcement composing the security skills."
-    )
+    lines = [
+        "## Active policies",
+        "",
+        ", ".join(sorted(p.name for p in policies))
+        + " — cross-cutting enforcement composing the security skills.",
+    ]
+    for e in errors:
+        lines.append(f"⚠ policy (parse): {e}")
+    for issue in validate_policies(policies):
+        lines.append(f"⚠ policy {issue.policy}: {issue.message}")
+    return "\n".join(lines)
 
 
 def run_session_hook(stdin_data: str | None = None) -> int:

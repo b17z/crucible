@@ -1077,3 +1077,48 @@ class TestReviewVerification:
         assert "Suppressed by verifier (1)" in out
         assert "Suppressed: 1" not in out
         assert result == 0
+
+
+class TestPoliciesCommands:
+    def test_policies_list_names_all_bundled(self, capsys) -> None:
+        from crucible.cli import cmd_policies_list
+
+        class Args:
+            pass
+
+        code = cmd_policies_list(Args())
+        out = capsys.readouterr().out
+        assert code == 0
+        for name in ("dependency_quarantine", "settings_integrity", "bash_denylist"):
+            assert name in out
+
+    def test_policies_validate_clean_exit_zero(self, capsys) -> None:
+        from crucible.cli import cmd_policies_validate
+
+        class Args:
+            pass
+
+        code = cmd_policies_validate(Args())
+        assert code == 0
+        assert "valid" in capsys.readouterr().out.lower()
+
+    def test_policies_validate_error_exit_one(self, tmp_path, capsys) -> None:
+        from unittest.mock import patch
+
+        from crucible.cli import cmd_policies_validate
+
+        proj = tmp_path / "policies"
+        proj.mkdir()
+        (proj / "p.yaml").write_text(
+            "name: ghost\ndescription: d\nseverity: high\n"
+            "hooks:\n  - event: Stop\n    handler: no/such.sh\n"
+        )
+
+        class Args:
+            pass
+
+        with patch("crucible.policy.validator.POLICIES_PROJECT", proj):
+            code = cmd_policies_validate(Args())
+        out = capsys.readouterr().out
+        assert code == 1
+        assert "ghost" in out

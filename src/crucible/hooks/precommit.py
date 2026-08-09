@@ -523,8 +523,11 @@ def run_precommit(
 
         if config.verify:
             from crucible.verify import run_verification
-            all_findings, enforcement_findings, _verify_errors = run_verification(
+            all_findings, enforcement_findings, verify_errors = run_verification(
                 all_findings, enforcement_findings, repo_root=repo_root)
+            if config.verbose:
+                for verify_error in verify_errors:
+                    print(f"crucible: verify: {verify_error}", file=sys.stderr)
         # Inline/verifier suppressions must not fail the gate
         enforcement_findings = [f for f in enforcement_findings if not f.suppressed]
         all_findings = [f for f in all_findings if not f.suppressed]

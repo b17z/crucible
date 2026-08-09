@@ -677,3 +677,44 @@ class TestPrecommitSignCandidate:
         from crucible.signs import list_candidates
         pending, _ = list_candidates(base_path=str(repo))
         assert any(c["trigger"].startswith("precommit:") for c in pending)
+
+
+class TestVerboseVerifyErrors:
+    """Malformed .crucible/verifiers.yaml surfaces on stderr only when verbose."""
+
+    def _run_with_malformed_verifiers(self, tmp_path: Path, verbose: bool) -> None:
+        repo = TestEnforcementSuppression()._repo_with_staged(
+            tmp_path, "x = eval('1+1')  # crucible-ignore: no-eval -- test target\n",
+        )
+        malformed = repo / ".crucible" / "verifiers.yaml"
+        malformed.write_text("verifiers: [", encoding="utf-8")  # crucible-ignore: no-eval -- malformed YAML fixture
+
+        from crucible.enforcement.assertions import clear_assertion_cache
+        from crucible.hooks.precommit import run_precommit
+
+        clear_assertion_cache()
+        config = PrecommitConfig(
+            tools={Domain.BACKEND: []},
+            secrets_tool="none",
+            verbose=verbose,
+        )
+        with (
+            patch("crucible.enforcement.assertions.ASSERTIONS_PROJECT",
+                  repo / ".crucible" / "assertions"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_USER",
+                  repo / "nonexistent"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_BUNDLED",
+                  repo / "nonexistent"),
+            patch("crucible.verify.bindings.VERIFIERS_PROJECT", malformed),
+        ):
+            run_precommit(repo_path=str(repo), config=config)
+
+    def test_verbose_prints_verify_errors_to_stderr(self, tmp_path: Path, capsys) -> None:
+        self._run_with_malformed_verifiers(tmp_path, verbose=True)
+        captured = capsys.readouterr()
+        assert "crucible: verify:" in captured.err
+
+    def test_non_verbose_is_silent(self, tmp_path: Path, capsys) -> None:
+        self._run_with_malformed_verifiers(tmp_path, verbose=False)
+        captured = capsys.readouterr()
+        assert "crucible: verify:" not in captured.err

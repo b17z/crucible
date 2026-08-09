@@ -234,3 +234,9 @@ one nudge per matched trigger per Stop event.
 - Phase 6 deferred items remain tracked in the project memory (repo_root-
   aware cascade loading would benefit `load_policies` too — same cwd
   convention, same limitation, noted not fixed here).
+
+## Deviations accepted
+
+- bash_deny candidate triggers use `bash_deny:<rule_id>` without command
+  text (dedup-friendly; avoids leaking command content into a committed
+  GUARDRAILS.md).

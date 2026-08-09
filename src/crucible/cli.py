@@ -812,7 +812,9 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
         from crucible.verify.llm import run_llm_verification
 
         all_findings, enforcement_findings, llm_errors = run_llm_verification(
-            all_findings, enforcement_findings, repo_root=None
+            all_findings, enforcement_findings, repo_root=None,
+            model=getattr(args, "compliance_model", None) or "sonnet",
+            token_budget=getattr(args, "token_budget", None) or 10000,
         )
         tool_errors.extend(llm_errors)
 
@@ -1157,7 +1159,9 @@ def cmd_review(args: argparse.Namespace) -> int:
         from crucible.verify.llm import run_llm_verification
 
         filtered_findings, enforcement_findings, llm_errors = run_llm_verification(
-            filtered_findings, enforcement_findings, repo_root=repo_path
+            filtered_findings, enforcement_findings, repo_root=repo_path,
+            model=getattr(args, "compliance_model", None) or "sonnet",
+            token_budget=getattr(args, "token_budget", None) or 10000,
         )
         tool_errors.extend(llm_errors)
 

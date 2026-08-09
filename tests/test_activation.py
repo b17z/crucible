@@ -419,6 +419,22 @@ class TestSettingsGenerator:
             assert len(entries) == 1, f"missing integrity recheck under {event}"
             assert "matcher" not in entries[0]
 
+    def test_generate_settings_json_registers_inherit(self, tmp_path: Path) -> None:
+        """inherit.sh registers under SubagentStart with no matcher."""
+        generate_settings_json(str(tmp_path))
+        settings_path = generate_settings_json(str(tmp_path))  # idempotent
+
+        with open(settings_path) as f:
+            settings = json.load(f)
+
+        entries = [
+            h for h in settings["hooks"].get("SubagentStart", [])
+            if isinstance(h, dict) and h.get("hooks")
+            and "inherit.sh" in h["hooks"][0].get("command", "")
+        ]
+        assert len(entries) == 1
+        assert "matcher" not in entries[0]
+
 
 class TestSystemTemplates:
     """Tests for system template generation."""

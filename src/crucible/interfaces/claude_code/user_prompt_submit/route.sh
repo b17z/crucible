@@ -28,6 +28,7 @@ CRUCIBLE_DIR=".crucible"
 MODE_FILE="${CRUCIBLE_DIR}/mode.session"
 BYPASS_LOG="${CRUCIBLE_DIR}/inbox/spec-bypasses"
 STRICT_FLAG="${CRUCIBLE_DIR}/spec-gate.strict"
+ACTIVE_SKILLS_FILE="${CRUCIBLE_DIR}/active-skills.session"
 
 # Nothing to do if Crucible isn't initialized here.
 [[ -d "$CRUCIBLE_DIR" ]] || exit 0
@@ -71,6 +72,16 @@ if [[ -n "$matched" ]]; then
     echo "crucible: skills activated for this prompt:" >&2
     while IFS= read -r skill; do
         [[ -n "$skill" ]] && echo "  - ${skill}" >&2
+    done <<< "$matched"
+
+    # Persist for subagent inheritance (dedup) — the SubagentStart hook
+    # (subagent_start/inherit.sh) reads this session file so spawned
+    # agents load the same review perspectives.
+    while IFS= read -r skill; do
+        [[ -n "$skill" ]] || continue
+        if [[ ! -f "$ACTIVE_SKILLS_FILE" ]] || ! grep -qxF "$skill" "$ACTIVE_SKILLS_FILE"; then
+            printf '%s\n' "$skill" >> "$ACTIVE_SKILLS_FILE"
+        fi
     done <<< "$matched"
 fi
 

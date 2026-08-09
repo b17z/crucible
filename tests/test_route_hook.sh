@@ -60,6 +60,27 @@ SCRATCH=$(mktemp -d); cd "$SCRATCH"
 assert_exit 0 '{"user_prompt":"build a feature"}' "no-crucible-dir-exit0"
 cd /; rm -rf "$SCRATCH"
 
+# T7: matched skills persisted to active-skills.session, deduped on rerun
+SCRATCH=$(mktemp -d); cd "$SCRATCH"; mkdir -p .crucible
+printf '{"user_prompt":"please build a feature for user export"}' | $RUNNER "$HOOK" >/dev/null 2>&1
+if [[ ! -f .crucible/active-skills.session ]]; then
+    echo "FAIL [persist-created]: active-skills.session missing"
+    FAILED=$((FAILED+1))
+else
+    if ! grep -q '[^[:space:]]' .crucible/active-skills.session; then
+        echo "FAIL [persist-nonempty]: file is empty"
+        FAILED=$((FAILED+1))
+    fi
+    LINES_BEFORE=$(wc -l < .crucible/active-skills.session)
+    printf '{"user_prompt":"please build a feature for user export"}' | $RUNNER "$HOOK" >/dev/null 2>&1
+    LINES_AFTER=$(wc -l < .crucible/active-skills.session)
+    if [[ "$LINES_BEFORE" != "$LINES_AFTER" ]]; then
+        echo "FAIL [persist-dedup]: $LINES_BEFORE line(s) became $LINES_AFTER on rerun"
+        FAILED=$((FAILED+1))
+    fi
+fi
+cd /; rm -rf "$SCRATCH"
+
 if [[ $FAILED -eq 0 ]]; then
     echo "All route.sh tests passed."
     exit 0

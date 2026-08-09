@@ -212,6 +212,9 @@ _V2_HOOKS: list[tuple[str, str | None, tuple[str, ...]]] = [
     # files. Same script, different trigger; silent when clean.
     ("ConfigChange", None, ("file_changed", "settings_integrity.sh")),
     ("SubagentStop", None, ("file_changed", "settings_integrity.sh")),
+    # Skill inheritance: subagents receive the parent session's activated
+    # skills (recorded by route.sh in .crucible/active-skills.session).
+    ("SubagentStart", None, ("subagent_start", "inherit.sh")),
     ("PreCompact", None, ("pre_compact", "protect.sh")),
     ("PostCompact", None, ("post_compact", "reinject.sh")),
 ]

@@ -6,11 +6,11 @@ Code review with enforcement. Patterns that block bad code, not just suggest fix
 
 ```bash
 pip install -e ".[dev]"    # Install
-pytest                     # Test (630+ tests)
+pytest                     # Test (860+ tests)
 ruff check src/ --fix      # Lint
 ```
 
-## Key 1.0 Features
+## Key Features
 
 - **42 bundled assertions** - security, error handling, smart contracts
 - **Pre-commit hook** - `crucible hooks install`
@@ -150,7 +150,7 @@ See `docs/` for:
 - FEATURES.md - Complete feature reference
 - ARCHITECTURE.md - How pieces fit together
 - CUSTOMIZATION.md - Skill/knowledge/assertion cascade
-- SKILLS.md - All 32 personas
+- SKILLS.md - All 32 bundled skills
 - KNOWLEDGE.md - All 14 knowledge files
 - CONTRIBUTING.md - For contributors
 

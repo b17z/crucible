@@ -1,6 +1,6 @@
 # Crucible Personas
 
-All 20 bundled personas.
+Crucible bundles 32 skills; 20 of them are personas. This doc covers those 20 personas.
 
 ## Overview
 

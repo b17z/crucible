@@ -116,3 +116,12 @@ def test_review_nudge_shell_suite() -> None:
         f"review_nudge shell suite failed (exit {result.returncode}):\n"
         f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
+
+
+@pytest.mark.skipif(not Path("/bin/bash").exists() and not shutil.which("bash"), reason="no bash available")
+def test_sign_lifecycle_e2e_shell_suite() -> None:
+    result = _run_shell_suite("test_sign_lifecycle_e2e.sh")
+    assert result.returncode == 0, (
+        f"sign_lifecycle e2e shell suite failed (exit {result.returncode}):\n"
+        f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )

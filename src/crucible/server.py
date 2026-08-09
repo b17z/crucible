@@ -130,6 +130,11 @@ async def list_tools() -> list[Tool]:
                         "type": "integer",
                         "description": "Token budget for LLM assertions (0 = unlimited, default: 10000).",
                     },
+                    "verify_llm": {
+                        "type": "boolean",
+                        "description": "LLM-verify findings the deterministic tier could not decide (default: false; costs tokens).",
+                        "default": False,
+                    },
                 },
             },
         ),
@@ -538,6 +543,7 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     include_skills = arguments.get("include_skills", True)
     include_knowledge = arguments.get("include_knowledge", True)
     enforce = arguments.get("enforce", True)
+    verify_llm = arguments.get("verify_llm", False)
 
     # Build compliance config
     compliance_enabled = arguments.get("compliance_enabled", True)
@@ -677,6 +683,14 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
         all_findings, enforcement_findings, repo_root=verify_repo_root
     )
     tool_errors.extend(verify_errors)
+
+    if verify_llm:
+        from crucible.verify.llm import run_llm_verification
+
+        all_findings, enforcement_findings, llm_errors = run_llm_verification(
+            all_findings, enforcement_findings, repo_root=verify_repo_root
+        )
+        tool_errors.extend(llm_errors)
 
     # Compute severity summary
     severity_counts = compute_severity_counts(all_findings)

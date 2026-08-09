@@ -807,6 +807,14 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
         )
         tool_errors.extend(verify_errors)
 
+    if getattr(args, "verify_llm", False):
+        from crucible.verify.llm import run_llm_verification
+
+        all_findings, enforcement_findings, llm_errors = run_llm_verification(
+            all_findings, enforcement_findings, repo_root=None
+        )
+        tool_errors.extend(llm_errors)
+
     verifier_suppressed = [f for f in all_findings if f.suppressed] + [
         f for f in enforcement_findings
         if f.suppressed and (f.suppression_reason or "").startswith("verifier:")
@@ -1139,6 +1147,14 @@ def cmd_review(args: argparse.Namespace) -> int:
             filtered_findings, enforcement_findings, repo_root=repo_path
         )
         tool_errors.extend(verify_errors)
+
+    if getattr(args, "verify_llm", False):
+        from crucible.verify.llm import run_llm_verification
+
+        filtered_findings, enforcement_findings, llm_errors = run_llm_verification(
+            filtered_findings, enforcement_findings, repo_root=repo_path
+        )
+        tool_errors.extend(llm_errors)
 
     verifier_suppressed = [f for f in filtered_findings if f.suppressed] + [
         f for f in enforcement_findings
@@ -2690,6 +2706,10 @@ def main() -> int:
     review_parser.add_argument(
         "--no-verify", action="store_true",
         help="Skip the false-positive verifier (show raw findings)"
+    )
+    review_parser.add_argument(
+        "--verify-llm", action="store_true",
+        help="LLM-verify findings the deterministic tier could not decide (costs tokens)"
     )
     review_parser.add_argument(
         "path", nargs="?", default=".", help="Path to review (file or directory)"

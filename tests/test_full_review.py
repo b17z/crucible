@@ -285,6 +285,58 @@ class TestReviewVerifierIntegration:
         assert "B101" not in text.split("Suppressed")[0]
 
 
+class TestReviewLLMVerifierIntegration:
+    """The review MCP tool should run the opt-in LLM tier when verify_llm=True,
+    after the deterministic verifier, for findings it left unsuppressed."""
+
+    @staticmethod
+    def _mock_client(suppress: bool, counterargument: str = "it is parameterized"):
+        import json
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        response = MagicMock()
+        response.content = [MagicMock(type="text", text=json.dumps(
+            {"suppress": suppress, "counterargument": counterargument}))]
+        response.usage.input_tokens = 500
+        response.usage.output_tokens = 50
+        client.messages.create.return_value = response
+        return client
+
+    def test_verify_llm_suppresses_unbound_finding(self, tmp_path: Path) -> None:
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        app_file = src_dir / "app.py"
+        app_file.write_text("query = db.execute(sql, params)\n" * 12)
+
+        # semgrep/custom-rule has no deterministic binding, so it survives
+        # the verifier tier unsuppressed and reaches the LLM tier.
+        mock_findings = [
+            ToolFinding(
+                tool="semgrep",
+                rule="custom-rule",
+                severity=Severity.HIGH,
+                message="possible injection",
+                location=f"{app_file}:1",
+            ),
+        ]
+
+        with (
+            patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok(mock_findings)),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
+            patch("crucible.verify.llm._get_anthropic_client",
+                  return_value=self._mock_client(True)),
+        ):
+            result = _handle_review({"path": str(src_dir), "verify_llm": True})
+            text = result[0].text
+
+        assert "Suppressed" in text
+        assert "custom-rule" not in text.split("Suppressed")[0]
+
+
 class TestSeverityCountsSkipSuppressed:
     def test_suppressed_not_counted(self) -> None:
         import dataclasses

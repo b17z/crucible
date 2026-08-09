@@ -19,6 +19,7 @@ import crucible
 
 SKILL_DIR = Path(crucible.__file__).parent / "skills" / "meta" / "build-along-course"
 REFERENCES = SKILL_DIR / "references"
+REPO_ROOT = Path(__file__).parent.parent
 
 
 class TestSkillContent:
@@ -158,3 +159,51 @@ class TestAssembleSh:
 
         assert mod1.read_text() == before[mod1]
         assert mod2.read_text() == before[mod2]
+
+
+class TestBuildAlongDoc:
+    """docs/BUILD-ALONG.md: exists, has a copy-pasteable kickoff block,
+    and every discover command in it uses the full meta/ skill name.
+    """
+
+    def _text(self) -> str:
+        return (REPO_ROOT / "docs" / "BUILD-ALONG.md").read_text()
+
+    def test_build_along_doc_exists(self) -> None:
+        assert (REPO_ROOT / "docs" / "BUILD-ALONG.md").exists()
+
+    def test_contains_fenced_kickoff_block_with_all_placeholders(self) -> None:
+        text = self._text()
+        assert "```text" in text
+        fence_start = text.index("```text")
+        fence_end = text.index("```", fence_start + len("```text"))
+        block = text[fence_start:fence_end]
+        assert "<PROJECT-NAME>" in block
+        assert "<SPEC-FILE>" in block
+        assert "<VAULT-PATH>" in block
+
+    def test_discover_commands_use_meta_prefix(self) -> None:
+        text = self._text()
+        marker = "crucible skills discover "
+        start = 0
+        found = 0
+        while True:
+            idx = text.find(marker, start)
+            if idx == -1:
+                break
+            found += 1
+            after = text[idx + len(marker) :]
+            assert after.startswith("meta/"), (
+                f"discover command at offset {idx} does not use the meta/ "
+                f"prefix: {after[:40]!r}"
+            )
+            start = idx + len(marker)
+        assert found > 0, "expected at least one 'crucible skills discover' command"
+
+
+class TestReadmeLinksBuildAlong:
+    """README's docs list must point at BUILD-ALONG.md."""
+
+    def test_readme_links_build_along(self) -> None:
+        text = (REPO_ROOT / "README.md").read_text()
+        assert "BUILD-ALONG.md" in text

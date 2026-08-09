@@ -143,6 +143,12 @@ to write the small config file (`teach.yaml`) that remembers your
 choice. Say yes and give it the vault path, or say no and everything
 stays in the project. You won't be asked again after you answer.
 
+Alongside the learning record, `meta/build-along-course` can turn this
+same milestone into one module of a running HTML course that grows
+next to your project, starting from the spec itself. Say "add this to
+the course" any time, or run `crucible skills discover
+meta/build-along-course`.
+
 ---
 
 ## When to break the loop
@@ -203,3 +209,4 @@ the ledger, and the habits that keep it honest — see the
 - [`meta/engineering-loop`](../src/crucible/skills/meta/engineering-loop/SKILL.md) — the skill this guide accompanies; run `crucible skills discover meta/engineering-loop` any time.
 - [QUICKSTART.md](QUICKSTART.md) — installing and setting up Crucible itself.
 - [SKILLS.md](SKILLS.md) — every bundled skill, including the six named above.
+- [BUILD-ALONG.md](BUILD-ALONG.md) — starting a brand-new project with crucible end to end, with a course module grown per milestone.

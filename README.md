@@ -203,6 +203,7 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 | [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 14 knowledge files with topics covered |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 | [LOOP.md](docs/LOOP.md) | The beginner engineering loop, plain-language, worked example |
+| [BUILD-ALONG.md](docs/BUILD-ALONG.md) | Start a new project with crucible end to end, plus a copy-paste kickoff prompt |
 
 ## Development
 

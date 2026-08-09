@@ -2118,7 +2118,9 @@ include_context: false
     print(
         "\nNew to building software? See "
         "https://github.com/b17z/crucible/blob/main/docs/LOOP.md "
-        "for the beginner engineering loop."
+        "for the beginner engineering loop, and "
+        "https://github.com/b17z/crucible/blob/main/docs/BUILD-ALONG.md "
+        "for a full start-to-finish walkthrough with a kickoff prompt."
     )
     return 0
 

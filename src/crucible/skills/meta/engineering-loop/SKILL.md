@@ -109,6 +109,11 @@ learned, and short lessons you can revisit. Say "teach me" or `crucible
 skills discover meta/teach-me` to set it up once; after that it keeps
 growing with you.
 
+Alongside the learning record, **`meta/build-along-course`** can turn
+this milestone into one module of a running HTML course that grows
+with your project — say "add this to the course" or `crucible skills
+discover meta/build-along-course`.
+
 ## When to break the loop
 
 Not everything needs all six steps. If you're just poking at an idea
@@ -135,3 +140,5 @@ when a step doesn't earn its keep is part of learning to build things.
 - `knowledge/the-loop-at-scale.md` — what this same loop looks like once
   you're not the one writing the code — a controller coordinating
   agents that build and review each other's work.
+- `meta/build-along-course` — grows a course module alongside each
+  proven milestone in step 6.

@@ -817,7 +817,7 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
 
     verifier_suppressed = [f for f in all_findings if f.suppressed] + [
         f for f in enforcement_findings
-        if f.suppressed and (f.suppression_reason or "").startswith("verifier:")
+        if f.suppressed and (f.suppression_reason or "").startswith(("verifier:", "llm:"))
     ]
     active_findings = [f for f in all_findings if not f.suppressed]
 
@@ -1158,7 +1158,7 @@ def cmd_review(args: argparse.Namespace) -> int:
 
     verifier_suppressed = [f for f in filtered_findings if f.suppressed] + [
         f for f in enforcement_findings
-        if f.suppressed and (f.suppression_reason or "").startswith("verifier:")
+        if f.suppressed and (f.suppression_reason or "").startswith(("verifier:", "llm:"))
     ]
     active_findings = [f for f in filtered_findings if not f.suppressed]
 
@@ -1375,7 +1375,8 @@ def cmd_review(args: argparse.Namespace) -> int:
             active_enforcement = [f for f in enforcement_findings if not f.suppressed]
             suppressed_enforcement = [
                 f for f in enforcement_findings
-                if f.suppressed and not (f.suppression_reason or "").startswith("verifier:")
+                if f.suppressed
+                and not (f.suppression_reason or "").startswith(("verifier:", "llm:"))
             ]
 
             if active_enforcement:

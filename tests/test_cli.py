@@ -871,3 +871,58 @@ class TestReviewVerification:
         out = capsys.readouterr().out
         assert "Suppressed by verifier (1)" in out
         assert result == 0
+
+    def test_llm_suppressed_enforcement_finding_itemized_once(
+        self, tmp_path, monkeypatch, capsys
+    ) -> None:
+        """An enforcement finding suppressed by the LLM tier (reason prefix
+        'llm:') must be itemized in 'Suppressed by verifier' in git-mode
+        output, and not also double-listed under the generic 'Suppressed:'
+        fallback count."""
+        from crucible.enforcement.models import EnforcementFinding, Priority
+        from crucible.errors import ok
+        from crucible.tools.git import GitChange, GitContext, LineRange
+
+        class Args:
+            mode = "staged"
+            base = None
+            fail_on = None
+            include_context = False
+            json = False
+            quiet = False
+            path = str(tmp_path)
+
+        change = GitChange(path="src/app.py", status="M", added_lines=(LineRange(1, 1),), old_path=None)
+        context = GitContext(mode="staged", base_ref=None, changes=(change,), commit_messages=())
+
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text("x = 1\n")
+
+        finding = EnforcementFinding(
+            assertion_id="some-assertion",
+            message="flagged",
+            severity="warning",
+            priority=Priority.MEDIUM,
+            location="src/app.py:1",
+            suppressed=True,
+            suppression_reason="llm:sonnet — x",
+        )
+        with (
+            patch("crucible.tools.git.is_git_repo", return_value=True),
+            patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
+            patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok([])),
+            patch(
+                "crucible.review.core.run_enforcement",
+                return_value=([finding], [], 1, 0, None),
+            ),
+        ):
+            result = cmd_review(Args())
+
+        out = capsys.readouterr().out
+        assert out.count("src/app.py:1") == 1
+        assert "Suppressed by verifier (1)" in out
+        assert "Suppressed: 1" not in out
+        assert result == 0

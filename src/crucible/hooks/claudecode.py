@@ -481,7 +481,7 @@ def _evaluate_content(
                 reason="denied by the Claude Code assertion hook",
                 source="claudecode-hook",
             )
-    except OSError:
+    except Exception:  # crucible-ignore: no-catch-exception -- fail-silent boundary: Sign bookkeeping must never break a deny path
         pass
 
     return 2  # Exit 2 = block and show to Claude

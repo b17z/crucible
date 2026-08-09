@@ -584,7 +584,7 @@ def run_precommit(
                 source="precommit",
                 base_path=repo_root,
             )
-        except OSError:
+        except Exception:  # crucible-ignore: no-catch-exception -- fail-silent boundary: Sign bookkeeping must never break a deny path
             pass
 
     return PrecommitResult(

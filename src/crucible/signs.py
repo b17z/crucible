@@ -25,8 +25,8 @@ def write_candidate(
     base_path: str = ".",
 ) -> str | None:
     """Write a candidate Sign; returns its id, or None on dedup/failure."""
-    sign_id = hashlib.sha256(trigger.encode()).hexdigest()[:8]
     try:
+        sign_id = hashlib.sha256(trigger.encode()).hexdigest()[:8]
         inbox = Path(base_path) / SIGNS_INBOX
         inbox.mkdir(parents=True, exist_ok=True)
         path = inbox / f"{sign_id}.yaml"
@@ -41,7 +41,7 @@ def write_candidate(
         }
         path.write_text(yaml.safe_dump(payload, sort_keys=False))
         return sign_id
-    except OSError:
+    except Exception:  # crucible-ignore: no-catch-exception -- fail-silent boundary: Sign bookkeeping must never break a deny path
         return None
 
 

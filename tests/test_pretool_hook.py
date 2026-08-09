@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from crucible.hooks.claudecode import run_pretool_hook
 
 
@@ -196,3 +198,36 @@ class TestPretoolSignCandidate:
         from crucible.signs import list_candidates
         pending, _ = list_candidates(base_path=str(tmp_path))
         assert any(c["trigger"].startswith("assertion:no-eval") for c in pending)
+
+    def test_deny_survives_unencodable_file_path(self, tmp_path: Path, monkeypatch) -> None:
+        """A file_path containing a lone surrogate (valid JSON, invalid UTF-8)
+        must not let Sign candidate generation's UnicodeEncodeError escape
+        past the deny path: the hook must still exit 2, not fall through to
+        an unguarded exception that Claude Code would treat as non-blocking."""
+        monkeypatch.chdir(tmp_path)
+        _assertions_dir(tmp_path)
+        code = "x = eval('1+1')\n"  # crucible-ignore: no-eval -- fixture text
+        payload = {
+            "tool_name": "Write",
+            "tool_input": {"file_path": "app_\ud800.py", "content": code},
+            "cwd": str(tmp_path),
+        }
+        stdin_data = json.dumps(payload)
+        # Sanity check: json.dumps/loads round-trips the lone surrogate as a
+        # str containing an unencodable code point, confirming this test
+        # exercises the bug (UnicodeEncodeError from `.encode()`) rather
+        # than something JSON itself would have already rejected.
+        with pytest.raises(UnicodeEncodeError):
+            json.loads(stdin_data)["tool_input"]["file_path"].encode()
+
+        from crucible.enforcement.assertions import clear_assertion_cache
+
+        clear_assertion_cache()
+        with (
+            patch("crucible.enforcement.assertions.ASSERTIONS_PROJECT",
+                  tmp_path / ".crucible" / "assertions"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_USER", tmp_path / "nonexistent"),
+            patch("crucible.enforcement.assertions.ASSERTIONS_BUNDLED", tmp_path / "nonexistent"),
+        ):
+            exit_code = run_pretool_hook(stdin_data)
+        assert exit_code == 2

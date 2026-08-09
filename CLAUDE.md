@@ -12,7 +12,7 @@ ruff check src/ --fix      # Lint
 
 ## Key 1.0 Features
 
-- **30 bundled assertions** - security, error handling, smart contracts
+- **42 bundled assertions** - security, error handling, smart contracts
 - **Pre-commit hook** - `crucible hooks install`
 - **Claude Code hook** - `crucible hooks claudecode init`
 - **Pattern + LLM assertions** - fast/free + semantic/costs
@@ -73,7 +73,7 @@ src/crucible/
 ├── errors.py              # Result types (Ok/Err)
 ├── ignore.py              # .crucibleignore file handling
 ├── enforcement/           # Assertions, patterns, compliance
-│   ├── bundled/           # 30 bundled assertions
+│   ├── bundled/           # 42 bundled assertions
 │   ├── assertions.py      # Load and resolve
 │   ├── patterns.py        # Pattern matching
 │   └── compliance.py      # LLM assertions
@@ -87,7 +87,7 @@ src/crucible/
 │   └── models.py          # PrewriteMetadata, PrewriteResult
 ├── templates/prewrite/    # 5 bundled spec templates
 ├── knowledge/             # 14 bundled knowledge files
-└── skills/                # 20 bundled persona skills
+└── skills/                # 32 bundled persona skills
 ```
 
 ## Patterns
@@ -150,7 +150,7 @@ See `docs/` for:
 - FEATURES.md - Complete feature reference
 - ARCHITECTURE.md - How pieces fit together
 - CUSTOMIZATION.md - Skill/knowledge/assertion cascade
-- SKILLS.md - All 20 personas
+- SKILLS.md - All 32 personas
 - KNOWLEDGE.md - All 14 knowledge files
 - CONTRIBUTING.md - For contributors
 

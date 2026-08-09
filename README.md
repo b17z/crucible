@@ -68,7 +68,7 @@ Finding detected → Exit 2 (block) + feedback to Claude
 Claude fixes the issue
 ```
 
-**30 bundled assertions** covering:
+**42 bundled assertions** covering:
 - Security: eval, exec, shell injection, pickle, hardcoded secrets, SQL injection
 - Error handling: bare except, silent catch, empty catch blocks
 - Smart contracts: reentrancy, CEI violations, access control, tx.origin auth
@@ -181,9 +181,9 @@ See [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for the full guide.
 
 ## What's Included
 
-**30 Bundled Assertions** — Pattern rules for security, error handling, and smart contracts.
+**42 Bundled Assertions** — Pattern rules for security, error handling, and smart contracts.
 
-**20 Personas** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
+**32 Personas** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
 
 **14 Knowledge Files** — Coding patterns and principles for security, testing, APIs, databases, smart contracts, etc.
 
@@ -199,7 +199,7 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 | [FEATURES.md](docs/FEATURES.md) | Complete feature reference |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
 | [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) | Override skills and knowledge for your project |
-| [SKILLS.md](docs/SKILLS.md) | All 20 personas with triggers and focus areas |
+| [SKILLS.md](docs/SKILLS.md) | All 32 personas with triggers and focus areas |
 | [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 14 knowledge files with topics covered |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 

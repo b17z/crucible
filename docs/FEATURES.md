@@ -22,13 +22,14 @@ Crucible enforces your patterns through hooks that run automatically.
 
 ### Bundled Assertions
 
-30 assertions across 3 files:
+42 assertions across 4 files:
 
 | File | Assertions | Covers |
 |------|------------|--------|
-| `security.yaml` | 12 | eval, exec, shell injection, pickle, secrets, SQL, weak crypto |
+| `security.yaml` | 16 | eval, exec, shell injection, pickle, secrets, SQL, weak crypto |
 | `error-handling.yaml` | 8 | bare except, silent catch, empty catch, error suppression |
 | `smart-contract.yaml` | 10 | reentrancy, CEI, access control, tx.origin, overflow, DoS |
+| `prewrite.yaml` | 8 | missing auth/failure-modes/data-handling, vague scope, no success criteria |
 
 ### Assertion Types
 
@@ -235,7 +236,7 @@ check_tools()
 
 Domain-specific thinking that Claude loads based on what you're working on.
 
-### 20 Bundled Personas
+### 32 Bundled Personas
 
 | Skill | Triggers | Focus |
 |-------|----------|-------|

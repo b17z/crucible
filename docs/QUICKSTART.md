@@ -54,7 +54,7 @@ Add to your `.mcp.json`:
 The pre-commit hook runs:
 1. Secrets detection (blocks .env, keys, credentials)
 2. Static analysis (semgrep, ruff, bandit, slither)
-3. Pattern assertions (30 bundled rules)
+3. Pattern assertions (42 bundled rules)
 
 ```bash
 $ git commit -m "Add feature"

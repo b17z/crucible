@@ -838,3 +838,36 @@ class TestCiGenerateCommand:
         assert output_path.exists()
         content = output_path.read_text()
         assert "name: Crucible Code Review" in content
+
+
+class TestReviewVerification:
+    def test_review_suppresses_corpus_shapes(self, tmp_path, monkeypatch, capsys) -> None:
+        """A B101-style finding in a test file is suppressed end to end."""
+        from crucible.errors import ok
+        from crucible.models import Severity, ToolFinding
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "test_a.py").write_text("assert True\n")
+
+        class Args:
+            mode = "staged"
+            base = None
+            fail_on = None
+            include_context = False
+            json = False
+            quiet = False
+            path = "tests/"
+            no_git = True
+            no_verify = False
+
+        finding = ToolFinding(
+            tool="bandit", rule="B101", severity=Severity.LOW,
+            message="assert used", location="tests/test_a.py:1",
+        )
+        with patch("crucible.review.core.delegate_bandit", return_value=ok([finding])):
+            result = cmd_review(Args())
+
+        out = capsys.readouterr().out
+        assert "Suppressed by verifier (1)" in out
+        assert result == 0

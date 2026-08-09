@@ -798,6 +798,21 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
     )
     tool_errors.extend(enforcement_errors)
 
+    # Verify findings against known false-positive shapes (fail-open on error)
+    if not getattr(args, "no_verify", False):
+        from crucible.verify import run_verification
+
+        all_findings, enforcement_findings, verify_errors = run_verification(
+            all_findings, enforcement_findings, repo_root=None
+        )
+        tool_errors.extend(verify_errors)
+
+    verifier_suppressed = [f for f in all_findings if f.suppressed] + [
+        f for f in enforcement_findings
+        if f.suppressed and (f.suppression_reason or "").startswith("verifier:")
+    ]
+    active_findings = [f for f in all_findings if not f.suppressed]
+
     # Compute severity summary
     severity_counts = compute_severity_counts(all_findings)
 
@@ -850,9 +865,9 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
         print(json_mod.dumps(output, indent=2))
     else:
         # Text output
-        if all_findings:
-            print(f"\nFound {len(all_findings)} static analysis issue(s):\n")
-            for f in all_findings:
+        if active_findings:
+            print(f"\nFound {len(active_findings)} static analysis issue(s):\n")
+            for f in active_findings:
                 sev_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪"}.get(
                     f.severity.value, "⚪"
                 )
@@ -863,16 +878,17 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
                 print()
 
         # Enforcement findings
-        if enforcement_findings:
-            print(f"\nEnforcement Assertions ({len(enforcement_findings)}):")
-            for f in enforcement_findings:
+        active_enforcement = [f for f in enforcement_findings if not f.suppressed]
+        if active_enforcement:
+            print(f"\nEnforcement Assertions ({len(active_enforcement)}):")
+            for f in active_enforcement:
                 sev_icon = {"error": "🔴", "warning": "🟠", "info": "⚪"}.get(f.severity, "⚪")
                 source_tag = "[LLM]" if f.source == "llm" else "[Pattern]"
                 print(f"  {sev_icon} [{f.severity.upper()}] {source_tag} {f.assertion_id}: {f.location}")
                 print(f"    {f.message}")
                 print()
 
-        if not all_findings and not enforcement_findings:
+        if not active_findings and not active_enforcement:
             print("\n✅ No issues found.")
 
         # Summary
@@ -884,6 +900,12 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
             print(f"Assertions: {assertions_checked} checked, {assertions_skipped} skipped")
             if budget_state and budget_state.tokens_used > 0:
                 print(f"  LLM tokens used: {budget_state.tokens_used}")
+
+        if verifier_suppressed:
+            print(f"\nSuppressed by verifier ({len(verifier_suppressed)}):")
+            for f in verifier_suppressed:
+                rule = f"{f.tool}/{f.rule}" if hasattr(f, "tool") else f.assertion_id
+                print(f"  {f.location} {rule} — {f.suppression_reason}")
 
         if tool_errors and not args.quiet:
             print(f"\n⚠️  {len(tool_errors)} tool error(s)")
@@ -1109,6 +1131,21 @@ def cmd_review(args: argparse.Namespace) -> int:
     # Add enforcement errors to tool errors
     tool_errors.extend(enforcement_errors)
 
+    # Verify findings against known false-positive shapes (fail-open on error)
+    if not getattr(args, "no_verify", False):
+        from crucible.verify import run_verification
+
+        filtered_findings, enforcement_findings, verify_errors = run_verification(
+            filtered_findings, enforcement_findings, repo_root=repo_path
+        )
+        tool_errors.extend(verify_errors)
+
+    verifier_suppressed = [f for f in filtered_findings if f.suppressed] + [
+        f for f in enforcement_findings
+        if f.suppressed and (f.suppression_reason or "").startswith("verifier:")
+    ]
+    active_findings = [f for f in filtered_findings if not f.suppressed]
+
     # Compute severity summary
     severity_counts = compute_severity_counts(filtered_findings)
 
@@ -1303,11 +1340,11 @@ def cmd_review(args: argparse.Namespace) -> int:
             for error in tool_errors:
                 print(f"  - {error}")
 
-        if filtered_findings:
-            print(f"\nFindings ({len(filtered_findings)}):")
+        if active_findings:
+            print(f"\nFindings ({len(active_findings)}):")
             print(f"  Summary: {severity_counts}")
             print()
-            for f in filtered_findings:
+            for f in active_findings:
                 sev_upper = f.severity.value.upper()
                 print(f"  [{sev_upper}] {f.location}")
                 print(f"    {f.tool}/{f.rule}: {f.message}")
@@ -1320,7 +1357,10 @@ def cmd_review(args: argparse.Namespace) -> int:
         # Enforcement assertions
         if enforcement_findings:
             active_enforcement = [f for f in enforcement_findings if not f.suppressed]
-            suppressed_enforcement = [f for f in enforcement_findings if f.suppressed]
+            suppressed_enforcement = [
+                f for f in enforcement_findings
+                if f.suppressed and not (f.suppression_reason or "").startswith("verifier:")
+            ]
 
             if active_enforcement:
                 print(f"\nEnforcement Assertions ({len(active_enforcement)}):")
@@ -1338,6 +1378,12 @@ def cmd_review(args: argparse.Namespace) -> int:
             print(f"\nAssertions: {assertions_checked} checked, {assertions_skipped} skipped")
             if budget_state and budget_state.tokens_used > 0:
                 print(f"  LLM tokens used: {budget_state.tokens_used}")
+
+        if verifier_suppressed:
+            print(f"\nSuppressed by verifier ({len(verifier_suppressed)}):")
+            for f in verifier_suppressed:
+                rule = f"{f.tool}/{f.rule}" if hasattr(f, "tool") else f.assertion_id
+                print(f"  {f.location} {rule} — {f.suppression_reason}")
 
         if effective_threshold:
             status = "PASSED" if passed else "FAILED"
@@ -2640,6 +2686,10 @@ def main() -> int:
     review_parser.add_argument(
         "--no-git", action="store_true",
         help="Review path directly without git awareness (static analysis only)"
+    )
+    review_parser.add_argument(
+        "--no-verify", action="store_true",
+        help="Skip the false-positive verifier (show raw findings)"
     )
     review_parser.add_argument(
         "path", nargs="?", default=".", help="Path to review (file or directory)"

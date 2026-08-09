@@ -284,6 +284,38 @@ class TestReviewVerifierIntegration:
         assert "Suppressed" in text
         assert "B101" not in text.split("Suppressed")[0]
 
+    def test_verify_false_leaves_corpus_shape_unsuppressed(self, tmp_path: Path) -> None:
+        """The verify=False kill switch skips the deterministic tier entirely,
+        so a finding that would normally be suppressed (B101 in tests/) stays
+        active in the output."""
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        test_file = tests_dir / "test_a.py"
+        test_file.write_text("assert True\n")
+
+        mock_findings = [
+            ToolFinding(
+                tool="bandit",
+                rule="B101",
+                severity=Severity.LOW,
+                message="assert used",
+                location=f"{test_file}:1",
+            ),
+        ]
+
+        with (
+            patch("crucible.skills.loader.SKILLS_PROJECT", tmp_path / "nonexistent-project"),
+            patch("crucible.skills.loader.SKILLS_USER", tmp_path / "nonexistent-user"),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch("crucible.review.core.delegate_bandit", return_value=ok(mock_findings)),
+        ):
+            result = _handle_review({"path": str(tests_dir), "verify": False})
+            text = result[0].text
+
+        assert "B101" in text
+        assert "Suppressed" not in text
+
 
 class TestReviewLLMVerifierIntegration:
     """The review MCP tool should run the opt-in LLM tier when verify_llm=True,

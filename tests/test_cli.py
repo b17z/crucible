@@ -872,6 +872,157 @@ class TestReviewVerification:
         assert "Suppressed by verifier (1)" in out
         assert result == 0
 
+    def test_json_output_marks_suppressed_and_active_findings(
+        self, tmp_path, monkeypatch, capsys
+    ) -> None:
+        """--json output must carry a `suppressed` field on tool findings so
+        consumers can tell active findings from ones the verifier dropped."""
+        import json as json_mod
+
+        from crucible.errors import ok
+        from crucible.models import Severity, ToolFinding
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "test_a.py").write_text("assert True\nx = 1\n")
+
+        class Args:
+            mode = "staged"
+            base = None
+            fail_on = None
+            include_context = False
+            json = True
+            quiet = False
+            path = "tests/"
+            no_git = True
+            no_verify = False
+
+        suppressed_finding = ToolFinding(
+            tool="bandit", rule="B101", severity=Severity.LOW,
+            message="assert used", location="tests/test_a.py:1",
+        )
+        active_finding = ToolFinding(
+            tool="bandit", rule="B999", severity=Severity.HIGH,
+            message="something else", location="tests/test_a.py:2",
+        )
+        with patch(
+            "crucible.review.core.delegate_bandit",
+            return_value=ok([suppressed_finding, active_finding]),
+        ):
+            result = cmd_review(Args())
+
+        out = capsys.readouterr().out
+        payload = json_mod.loads(out)
+        findings = {f["rule"]: f for f in payload["findings"]}
+
+        assert findings["B101"]["suppressed"] is True
+        assert findings["B101"]["suppression_reason"].startswith("verifier:")
+        assert findings["B999"]["suppressed"] is False
+        assert result == 0
+
+    def test_report_format_header_matches_active_finding_count(
+        self, tmp_path, monkeypatch, capsys
+    ) -> None:
+        """The report format's '**N finding(s)** detected' header must count
+        only active (unsuppressed) findings, so it agrees with the per-
+        severity bullets below it."""
+        from crucible.errors import ok
+        from crucible.tools.git import GitChange, GitContext, LineRange
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "test_a.py").write_text("assert True\nx = 1\n")
+
+        class Args:
+            mode = "staged"
+            base = None
+            fail_on = None
+            include_context = False
+            json = False
+            quiet = True
+            format = "report"
+            path = str(tmp_path)
+            no_verify = False
+            verify_llm = False
+            skills = None
+            no_compliance = True
+            token_budget = None
+            compliance_model = None
+
+        change = GitChange(
+            path="tests/test_a.py", status="M",
+            added_lines=(LineRange(1, 2),), old_path=None,
+        )
+        context = GitContext(mode="staged", base_ref=None, changes=(change,), commit_messages=())
+
+        from crucible.models import Severity, ToolFinding
+
+        suppressed_finding = ToolFinding(
+            tool="bandit", rule="B101", severity=Severity.LOW,
+            message="assert used", location="tests/test_a.py:1",
+        )
+        active_finding = ToolFinding(
+            tool="bandit", rule="B999", severity=Severity.HIGH,
+            message="something else", location="tests/test_a.py:2",
+        )
+
+        with (
+            patch("crucible.tools.git.is_git_repo", return_value=True),
+            patch("crucible.tools.git.get_repo_root", return_value=ok(str(tmp_path))),
+            patch("crucible.tools.git.get_staged_changes", return_value=ok(context)),
+            patch("crucible.review.core.delegate_semgrep", return_value=ok([])),
+            patch("crucible.review.core.delegate_ruff", return_value=ok([])),
+            patch(
+                "crucible.review.core.delegate_bandit",
+                return_value=ok([suppressed_finding, active_finding]),
+            ),
+        ):
+            result = cmd_review(Args())
+
+        out = capsys.readouterr().out
+        assert "**1 finding(s)** detected" in out
+        assert "- HIGH: 1" in out
+        assert "## Suppressed (1)" in out
+        assert result == 0  # no fail_on threshold configured
+
+    def test_review_yaml_verify_false_leaves_corpus_shape_unsuppressed(
+        self, tmp_path, monkeypatch, capsys
+    ) -> None:
+        """A `verify: false` in .crucible/review.yaml disables the deterministic
+        tier entirely, so a normally-suppressed corpus shape stays active."""
+        from crucible.errors import ok
+        from crucible.models import Severity, ToolFinding
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "test_a.py").write_text("assert True\n")
+        config_dir = tmp_path / ".crucible"
+        config_dir.mkdir()
+        (config_dir / "review.yaml").write_text("verify: false\n")
+
+        class Args:
+            mode = "staged"
+            base = None
+            fail_on = None
+            include_context = False
+            json = False
+            quiet = False
+            path = "tests/"
+            no_git = True
+            no_verify = False
+
+        finding = ToolFinding(
+            tool="bandit", rule="B101", severity=Severity.LOW,
+            message="assert used", location="tests/test_a.py:1",
+        )
+        with patch("crucible.review.core.delegate_bandit", return_value=ok([finding])):
+            result = cmd_review(Args())
+
+        out = capsys.readouterr().out
+        assert "B101" in out
+        assert "Suppressed by verifier" not in out
+        assert result == 0
+
     def test_llm_suppressed_enforcement_finding_itemized_once(
         self, tmp_path, monkeypatch, capsys
     ) -> None:

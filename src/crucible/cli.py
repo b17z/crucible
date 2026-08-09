@@ -611,6 +611,7 @@ def _load_review_config(repo_path: str | None = None) -> dict:
           backend: high
         include_context: false
         skip_tools: []
+        verify: true                     # deterministic verifier tier (default true)
         enforcement:
           compliance:
             enabled: true
@@ -799,7 +800,7 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
     tool_errors.extend(enforcement_errors)
 
     # Verify findings against known false-positive shapes (fail-open on error)
-    if not getattr(args, "no_verify", False):
+    if config.get("verify", True) and not getattr(args, "no_verify", False):
         from crucible.verify import run_verification
 
         all_findings, enforcement_findings, verify_errors = run_verification(
@@ -847,6 +848,8 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
                     "message": f.message,
                     "location": f.location,
                     "suggestion": f.suggestion,
+                    "suppressed": f.suppressed,
+                    "suppression_reason": f.suppression_reason,
                 }
                 for f in all_findings
             ],
@@ -858,6 +861,8 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
                         "message": f.message,
                         "location": f.location,
                         "source": f.source,
+                        "suppressed": f.suppressed,
+                        "suppression_reason": f.suppression_reason,
                     }
                     for f in enforcement_findings
                 ],
@@ -1140,7 +1145,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     tool_errors.extend(enforcement_errors)
 
     # Verify findings against known false-positive shapes (fail-open on error)
-    if not getattr(args, "no_verify", False):
+    if config.get("verify", True) and not getattr(args, "no_verify", False):
         from crucible.verify import run_verification
 
         filtered_findings, enforcement_findings, verify_errors = run_verification(
@@ -1209,6 +1214,8 @@ def cmd_review(args: argparse.Namespace) -> int:
                     "message": f.message,
                     "location": f.location,
                     "suggestion": f.suggestion,
+                    "suppressed": f.suppressed,
+                    "suppression_reason": f.suppression_reason,
                 }
                 for f in filtered_findings
             ],
@@ -1221,6 +1228,7 @@ def cmd_review(args: argparse.Namespace) -> int:
                         "location": f.location,
                         "source": f.source,
                         "suppressed": f.suppressed,
+                        "suppression_reason": f.suppression_reason,
                     }
                     for f in enforcement_findings
                 ],
@@ -1249,8 +1257,8 @@ def cmd_review(args: argparse.Namespace) -> int:
 
         # Summary
         print("## Summary\n")
-        if filtered_findings:
-            total = len(filtered_findings)
+        if active_findings:
+            total = len(active_findings)
             print(f"**{total} finding(s)** detected:\n")
             for sev in ["critical", "high", "medium", "low", "info"]:
                 count = severity_counts.get(sev, 0)
@@ -1281,12 +1289,12 @@ def cmd_review(args: argparse.Namespace) -> int:
             print()
 
         # Findings by severity
-        if filtered_findings:
+        if active_findings:
             print("## Findings\n")
 
             # Group by severity
             by_severity: dict[str, list] = {}
-            for f in filtered_findings:
+            for f in active_findings:
                 sev = f.severity.value
                 if sev not in by_severity:
                     by_severity[sev] = []
@@ -1304,6 +1312,14 @@ def cmd_review(args: argparse.Namespace) -> int:
                     if f.suggestion:
                         print(f"\n**Suggestion:** {f.suggestion}")
                     print()
+
+        # Suppressed findings
+        if verifier_suppressed:
+            print(f"## Suppressed ({len(verifier_suppressed)})\n")
+            for f in verifier_suppressed:
+                rule = f"{f.tool}/{f.rule}" if hasattr(f, "tool") else f.assertion_id
+                print(f"- `{f.location}` {rule} — {f.suppression_reason}")
+            print()
 
         # Tool errors
         if tool_errors:

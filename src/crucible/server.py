@@ -130,6 +130,11 @@ async def list_tools() -> list[Tool]:
                         "type": "integer",
                         "description": "Token budget for LLM assertions (0 = unlimited, default: 10000).",
                     },
+                    "verify": {
+                        "type": "boolean",
+                        "description": "Run the deterministic verifier tier to suppress known false-positive shapes (default: true).",
+                        "default": True,
+                    },
                     "verify_llm": {
                         "type": "boolean",
                         "description": "LLM-verify findings the deterministic tier could not decide (default: false; costs tokens).",
@@ -543,6 +548,7 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
     include_skills = arguments.get("include_skills", True)
     include_knowledge = arguments.get("include_knowledge", True)
     enforce = arguments.get("enforce", True)
+    verify = arguments.get("verify", True)
     verify_llm = arguments.get("verify_llm", False)
 
     # Build compliance config
@@ -676,13 +682,15 @@ def _handle_review(arguments: dict[str, Any]) -> list[TextContent]:
             )
 
     # Verify findings against known false-positive shapes (fail-open on error)
-    from crucible.verify import run_verification
-
     verify_repo_root = get_repo_root(path if path else os.getcwd()).value if git_context else None
-    all_findings, enforcement_findings, verify_errors = run_verification(
-        all_findings, enforcement_findings, repo_root=verify_repo_root
-    )
-    tool_errors.extend(verify_errors)
+
+    if verify:
+        from crucible.verify import run_verification
+
+        all_findings, enforcement_findings, verify_errors = run_verification(
+            all_findings, enforcement_findings, repo_root=verify_repo_root
+        )
+        tool_errors.extend(verify_errors)
 
     if verify_llm:
         from crucible.verify.llm import run_llm_verification

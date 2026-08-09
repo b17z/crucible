@@ -296,6 +296,8 @@ def compute_severity_counts(findings: list[ToolFinding]) -> dict[str, int]:
     """Compute severity counts for findings."""
     counts: dict[str, int] = {}
     for f in findings:
+        if f.suppressed:
+            continue
         sev = f.severity.value
         counts[sev] = counts.get(sev, 0) + 1
     return counts

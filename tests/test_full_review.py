@@ -198,6 +198,24 @@ class TestUnifiedReview:
             assert "Line too long" in text
 
 
+class TestSeverityCountsSkipSuppressed:
+    def test_suppressed_not_counted(self) -> None:
+        import dataclasses
+
+        from crucible.models import Severity, ToolFinding
+        from crucible.review.core import compute_severity_counts
+
+        active = ToolFinding(tool="bandit", rule="B102", severity=Severity.HIGH,
+                             message="m", location="a.py:1")
+        muted = dataclasses.replace(
+            ToolFinding(tool="bandit", rule="B101", severity=Severity.LOW,
+                        message="m", location="tests/test_a.py:1"),
+            suppressed=True, suppression_reason="verifier:is_test_file — t")
+        counts = compute_severity_counts([active, muted])
+        assert counts.get("high") == 1
+        assert counts.get("low", 0) == 0
+
+
 class TestUnifiedReviewGitMode:
     """Test unified review in git mode."""
 

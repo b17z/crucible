@@ -436,20 +436,23 @@ class TestSettingsGenerator:
         assert "matcher" not in entries[0]
 
     def test_generate_settings_json_registers_stop_hooks(self, tmp_path: Path) -> None:
-        """append_signs.sh registers under Stop with no matcher."""
+        """append_signs.sh and review_nudge.sh both register under Stop,
+        with no matcher, exactly once each."""
         generate_settings_json(str(tmp_path))
         settings_path = generate_settings_json(str(tmp_path))  # idempotent
 
         with open(settings_path) as f:
             settings = json.load(f)
 
-        entries = [
-            h for h in settings["hooks"].get("Stop", [])
-            if isinstance(h, dict) and h.get("hooks")
-            and "append_signs.sh" in h["hooks"][0].get("command", "")
-        ]
-        assert len(entries) == 1
-        assert "matcher" not in entries[0]
+        stop_hooks = settings["hooks"].get("Stop", [])
+        for script_name in ("append_signs.sh", "review_nudge.sh"):
+            entries = [
+                h for h in stop_hooks
+                if isinstance(h, dict) and h.get("hooks")
+                and script_name in h["hooks"][0].get("command", "")
+            ]
+            assert len(entries) == 1, f"expected exactly one Stop entry for {script_name}"
+            assert "matcher" not in entries[0]
 
 
 class TestSystemTemplates:

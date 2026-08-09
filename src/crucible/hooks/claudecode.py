@@ -225,6 +225,10 @@ _V2_HOOKS: list[tuple[str, str | None, tuple[str, ...]]] = [
     # layout, .crucible/inbox/signs/acked/) get rendered into the
     # project's GUARDRAILS.md at end of session.
     ("Stop", None, ("stop", "append_signs.sh")),
+    # REVIEW.md advisory nudge: evaluates the project's REVIEW.md
+    # frontmatter triggers (Task 8 format) against changed files at end
+    # of session and prints a reminder for any that matched.
+    ("Stop", None, ("stop", "review_nudge.sh")),
 ]
 
 

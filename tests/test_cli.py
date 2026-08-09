@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from crucible.cli import (
     SKILLS_BUNDLED,
+    _build_compliance_config,
     _load_review_config,
     cmd_review,
     cmd_skills_init,
@@ -278,6 +279,25 @@ include_context: true
         config = _load_review_config(str(tmp_path))
         # Should return empty dict on error
         assert config == {}
+
+
+class TestBuildComplianceConfig:
+    """LLM compliance assertions are opt-in for the review CLI."""
+
+    def test_default_disables_llm_compliance(self) -> None:
+        """With no --llm flag and no config override, compliance stays off."""
+        config = _build_compliance_config({})
+        assert config.enabled is False
+
+    def test_llm_flag_enables_compliance(self) -> None:
+        """--llm flips compliance on."""
+        config = _build_compliance_config({}, cli_llm=True)
+        assert config.enabled is True
+
+    def test_no_compliance_wins_over_llm_flag(self) -> None:
+        """--no-compliance always disables, even alongside --llm."""
+        config = _build_compliance_config({}, cli_llm=True, cli_no_compliance=True)
+        assert config.enabled is False
 
 
 class TestCmdReview:

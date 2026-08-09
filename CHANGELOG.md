@@ -16,6 +16,7 @@
 - Retired model pins replaced with current model aliases.
 - Live-API tests are now guarded (`tests/conftest.py` blocks accidental network calls during the suite).
 - Deny-path fail-open hardened against a surrogate `file_path` that could flip a deny decision to allow.
+- LLM compliance assertions in `crucible review` are now opt-in via `--llm` (previously on by default when credentials existed).
 
 ### Known deferred
 
@@ -23,7 +24,6 @@
 - no-git text mode hides inline-suppressed findings that git mode shows (#TBD)
 - policy cascade has no user tier (deliberate scope choice, diverges from other cascades) (#TBD)
 - mcp 2.x migration, lifting the `mcp<2.0.0` cap (#11)
-- `crucible review`'s LLM compliance assertions run by default (live API call, token cost) without being flagged as opt-in the way `--verify-llm` is (#TBD)
 - `review_nudge.sh` silently no-ops on a repo with no commits yet instead of nudging (#TBD)
 - `meta/spec-validator`'s trigger regex misses several natural feature-request phrasings (#TBD)
 - `crucible init --with-claudemd` doc/spec wording implies it creates `GUARDRAILS.md`; it's lazily created on first acknowledged Sign instead (#TBD)

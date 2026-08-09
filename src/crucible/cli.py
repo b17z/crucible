@@ -652,14 +652,20 @@ def _build_compliance_config(
     cli_token_budget: int | None = None,
     cli_model: str | None = None,
     cli_no_compliance: bool = False,
+    cli_llm: bool = False,
 ) -> ComplianceConfig:
     """Build compliance config from config file and CLI overrides.
+
+    LLM compliance assertions are opt-in for the review CLI: disabled by
+    default unless enabled via --llm or the config file's
+    enforcement.compliance.enabled. --no-compliance always wins.
 
     Args:
         config: Loaded config dict
         cli_token_budget: CLI --token-budget override
         cli_model: CLI --compliance-model override
         cli_no_compliance: CLI --no-compliance flag
+        cli_llm: CLI --llm flag (opts into LLM compliance assertions)
 
     Returns:
         ComplianceConfig instance
@@ -670,8 +676,9 @@ def _build_compliance_config(
     enforcement_config = config.get("enforcement", {})
     compliance_section = enforcement_config.get("compliance", {})
 
-    # Build config with defaults
-    enabled = not cli_no_compliance and compliance_section.get("enabled", True)
+    # Build config with defaults. Opt-in: disabled unless --llm or the
+    # config file explicitly enables it; --no-compliance always disables.
+    enabled = not cli_no_compliance and (cli_llm or compliance_section.get("enabled", False))
     model = cli_model or compliance_section.get("model", "sonnet")
     token_budget = cli_token_budget if cli_token_budget is not None else compliance_section.get("token_budget", 10000)
 
@@ -786,6 +793,7 @@ def _cmd_review_no_git(args: argparse.Namespace, path: str) -> int:
         cli_token_budget=getattr(args, "token_budget", None),
         cli_model=getattr(args, "compliance_model", None),
         cli_no_compliance=getattr(args, "no_compliance", False),
+        cli_llm=getattr(args, "llm", False),
     )
 
     # Use current directory as repo root for enforcement
@@ -1132,6 +1140,7 @@ def cmd_review(args: argparse.Namespace) -> int:
         cli_token_budget=getattr(args, "token_budget", None),
         cli_model=getattr(args, "compliance_model", None),
         cli_no_compliance=getattr(args, "no_compliance", False),
+        cli_llm=getattr(args, "llm", False),
     )
 
     enforcement_findings, enforcement_errors, assertions_checked, assertions_skipped, budget_state = (
@@ -2775,6 +2784,10 @@ def main() -> int:
     review_parser.add_argument(
         "--no-compliance", action="store_true",
         help="Disable LLM compliance assertions"
+    )
+    review_parser.add_argument(
+        "--llm", action="store_true",
+        help="Run LLM compliance assertions (semantic checks — costs tokens)"
     )
     review_parser.add_argument(
         "--no-git", action="store_true",

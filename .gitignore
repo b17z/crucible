@@ -343,3 +343,7 @@ docs/PLAN_1.0.md
 .crucible/approved-deps.session.yaml
 .crucible/mode.session
 .crucible/inbox/
+
+# local working files (not part of the repo)
+.crucible/assertions/test-llm.yaml
+CRUCIBLE_RESEARCH.md

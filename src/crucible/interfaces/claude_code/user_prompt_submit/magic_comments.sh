@@ -12,9 +12,11 @@
 #     → appends an entry to .crucible/approved-deps.session.yaml
 #     → consumed by pre_tool_use/npm_install_gate.sh as Pattern B
 #
-#   crucible-sign: <id> [<id>...]
-#     → appends IDs to .crucible/inbox/signs-confirmed
-#     → consumed by Phase 7 GUARDRAILS.md auto-append flow
+#   crucible-sign: <id>[, <id>...] | crucible-sign: all
+#     → moves matching pending candidate(s) from .crucible/inbox/signs/
+#       into .crucible/inbox/signs/acked/
+#     → consumed by the Phase 7 Stop hook, which appends acked Signs to
+#       GUARDRAILS.md
 #
 # This hook NEVER blocks. Magic comments are user-initiated side effects,
 # not gates. Exit 0 always (unless misconfigured at the bash level).
@@ -32,7 +34,8 @@ CRUCIBLE_DIR=".crucible"
 MODE_FILE="${CRUCIBLE_DIR}/mode.session"
 APPROVED_SESSION="${CRUCIBLE_DIR}/approved-deps.session.yaml"
 INBOX_DIR="${CRUCIBLE_DIR}/inbox"
-SIGNS_CONFIRMED="${INBOX_DIR}/signs-confirmed"
+SIGNS_DIR="${INBOX_DIR}/signs"
+SIGNS_ACKED_DIR="${SIGNS_DIR}/acked"
 
 # Read the prompt text from stdin. Claude Code passes UserPromptSubmit
 # as JSON; we extract the user message body.
@@ -199,16 +202,61 @@ YAML_ENTRY
 fi
 
 # --- crucible-sign ---
-# Match: `crucible-sign: <id> [<id>...]` — space- or comma-separated IDs.
-# Currently just records the IDs to inbox/signs-confirmed; Phase 7 owns
-# the actual append-to-GUARDRAILS.md flow.
-sign_line=$( { echo "$prompt_text" | grep -oE '^[[:space:]]*crucible-sign:[[:space:]]*[0-9,[:space:]]+' || true; } | tail -1 | sed -E 's/^[[:space:]]*crucible-sign:[[:space:]]*//')
+# Match: `crucible-sign: <id>[, <id>...]` or `crucible-sign: all`. IDs are
+# the 8-char lowercase hex prefixes minted by crucible.signs.write_candidate
+# (sha256(trigger)[:8]), so the charset is deliberately narrow — hex digits
+# only, plus the literal `all`. Anything else can't reach the filesystem.
+#
+# Acknowledging a Sign moves its file from the pending inbox dir into
+# acked/ (created on demand); the Phase 7 Stop hook consumes acked/ to
+# append entries to GUARDRAILS.md. This hook never blocks: an unknown id
+# is a stderr note, not an error, and we always exit 0.
+sign_line=$( { echo "$prompt_text" | grep -oE 'crucible-sign:[[:space:]]*([a-f0-9]{8}([,[:space:]]+[a-f0-9]{8})*|all)\b' || true; } | tail -1 | sed -E 's/^crucible-sign:[[:space:]]*//')
 if [[ -n "$sign_line" ]]; then
-    mkdir -p "$INBOX_DIR"
-    # Normalize to space-separated. Strip commas.
-    ids=$(echo "$sign_line" | tr ',' ' ' | tr -s ' ')
-    printf '%s|%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ids" >> "$SIGNS_CONFIRMED"
-    echo "crucible: sign IDs '${ids}' recorded for Phase 7 GUARDRAILS.md flow" >&2
+    # Normalize to space-separated tokens. Strip commas, collapse whitespace,
+    # and trim (echo appends a trailing newline that `tr -s` turns into a
+    # trailing space rather than removing — that would break the exact
+    # `== "all"` comparison below).
+    sign_tokens=$(echo "$sign_line" | tr ',' ' ' | tr -s '[:space:]' ' ')
+    sign_tokens="${sign_tokens# }"
+    sign_tokens="${sign_tokens% }"
+
+    # Build the id array with a portable while-read loop (bash 3.2 has no
+    # mapfile). `all` expands to every pending *.yaml basename; otherwise
+    # each whitespace-separated token is validated against the hex-id
+    # charset individually — defense in depth even though the line-level
+    # regex above should already exclude anything else.
+    sign_ids=()
+    if [[ "$sign_tokens" == "all" ]]; then
+        if [[ -d "$SIGNS_DIR" ]]; then
+            for f in "$SIGNS_DIR"/*.yaml; do
+                [[ -e "$f" ]] || continue   # guard empty glob under set -u/-e (nullglob unset in bash 3.2)
+                base=$(basename "$f" .yaml)
+                sign_ids+=("$base")
+            done
+        fi
+    else
+        for tok in $sign_tokens; do
+            if [[ "$tok" =~ ^[a-f0-9]{8}$ ]]; then
+                sign_ids+=("$tok")
+            else
+                echo "crucible: ignoring malformed sign id '${tok}' — expected 8-char hex or 'all'" >&2
+            fi
+        done
+    fi
+
+    if [[ ${#sign_ids[@]} -gt 0 ]]; then
+        mkdir -p "$SIGNS_ACKED_DIR"
+        for id in "${sign_ids[@]}"; do
+            pending_file="${SIGNS_DIR}/${id}.yaml"
+            if [[ -f "$pending_file" ]]; then
+                mv "$pending_file" "${SIGNS_ACKED_DIR}/${id}.yaml"
+                echo "crucible: sign ${id} acknowledged" >&2
+            else
+                echo "crucible: sign ${id} not found" >&2
+            fi
+        done
+    fi
 fi
 
 exit 0

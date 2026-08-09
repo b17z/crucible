@@ -130,14 +130,48 @@ if [[ ! -f .crucible/mode.session ]]; then
 fi
 cd / && rm -rf "$SCRATCH"
 
-# --- Test 7: sign command still works ---
-SCRATCH=$(mktemp -d); cd "$SCRATCH"; mkdir -p .crucible
-printf '{"user_prompt":"crucible-sign: 1 3"}' | $RUNNER "$HOOK" >/dev/null 2>&1
-if [[ ! -f .crucible/inbox/signs-confirmed ]]; then
-    echo "FAIL [sign-still-works]: inbox/signs-confirmed not created"
+# --- Test 7: sign command acknowledges a pending candidate ---
+SCRATCH=$(mktemp -d); cd "$SCRATCH"; mkdir -p .crucible/inbox/signs
+printf 'id: deadbeef\ntrigger: t\ninstruction: i\nreason: r\nprovenance: p\n' \
+    > .crucible/inbox/signs/deadbeef.yaml
+printf '{"user_prompt":"crucible-sign: deadbeef"}' | $RUNNER "$HOOK" >/dev/null 2>&1
+if [[ ! -f .crucible/inbox/signs/acked/deadbeef.yaml ]]; then
+    echo "FAIL [sign-still-works]: candidate not moved to acked/"
     FAILED=$((FAILED + 1))
 fi
 cd / && rm -rf "$SCRATCH"
+
+# --- crucible-sign: single id moves candidate to acked ---
+SCRATCH=$(mktemp -d); cd "$SCRATCH"; mkdir -p .crucible/inbox/signs
+printf 'id: abc12345\ntrigger: t\ninstruction: i\nreason: r\nprovenance: p\n' \
+    > .crucible/inbox/signs/abc12345.yaml
+printf '%s' '{"user_prompt":"looks right. crucible-sign: abc12345"}' | $RUNNER "$HOOK" >/dev/null 2>&1
+if [[ ! -f .crucible/inbox/signs/acked/abc12345.yaml ]]; then
+    echo "FAIL [sign-single-acks]"; FAILED=$((FAILED + 1))
+fi
+if [[ -f .crucible/inbox/signs/abc12345.yaml ]]; then
+    echo "FAIL [sign-single-removed-from-pending]"; FAILED=$((FAILED + 1))
+fi
+cd /; rm -rf "$SCRATCH"
+
+# --- crucible-sign: all moves every pending candidate ---
+SCRATCH=$(mktemp -d); cd "$SCRATCH"; mkdir -p .crucible/inbox/signs
+printf 'id: aaaa1111\n' > .crucible/inbox/signs/aaaa1111.yaml
+printf 'id: bbbb2222\n' > .crucible/inbox/signs/bbbb2222.yaml
+printf '%s' '{"user_prompt":"crucible-sign: all"}' | $RUNNER "$HOOK" >/dev/null 2>&1
+count=$(ls .crucible/inbox/signs/acked/*.yaml 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$count" != "2" ]]; then
+    echo "FAIL [sign-all-acks]: acked count $count"; FAILED=$((FAILED + 1))
+fi
+cd /; rm -rf "$SCRATCH"
+
+# --- crucible-sign: unknown id is a note, exit 0 ---
+SCRATCH=$(mktemp -d); cd "$SCRATCH"; mkdir -p .crucible/inbox/signs
+printf '%s' '{"user_prompt":"crucible-sign: deadbeef"}' | $RUNNER "$HOOK" >/dev/null 2>&1
+if [[ $? != 0 ]]; then
+    echo "FAIL [sign-unknown-exit0]"; FAILED=$((FAILED + 1))
+fi
+cd /; rm -rf "$SCRATCH"
 
 if [[ $FAILED -eq 0 ]]; then
     echo "All magic_comments tests passed."

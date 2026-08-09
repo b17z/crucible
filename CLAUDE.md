@@ -48,6 +48,9 @@ crucible system show              # Preview session context injection
 crucible assertions list          # List assertion files
 crucible assertions test file.py  # Test assertions
 
+crucible policies validate        # Validate policy files
+crucible signs list               # List pending and acked candidate Signs
+
 crucible skills init <skill>      # Copy for customization
 crucible knowledge init <file>    # Copy for customization
 

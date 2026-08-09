@@ -97,15 +97,15 @@ UserPromptSubmit hooks intercept:
   `.crucible/mode.session`. The consumer (the spec-validator gate that
   this flag is meant to bypass) ships in Phase 4. Until then, the flag
   is recorded but has no behavioral effect.
-- `crucible-sign: <id> [<id>...]` — **partial.** The hook appends to
-  `.crucible/inbox/signs-confirmed`. The Phase 7 GUARDRAILS.md
-  auto-append flow that consumes this list — and the Stop-event summary
-  that proposes Signs to confirm — ship in Phase 7. Until then, IDs are
-  recorded but no GUARDRAILS.md entries are written.
+- `crucible-sign: <id> [<id>...]` — **active.** The hook moves matching
+  candidate Signs from `.crucible/inbox/signs/` into
+  `.crucible/inbox/signs/acked/`. The Stop hook then appends each acked
+  candidate to the project's `GUARDRAILS.md` as a numbered Sign and
+  removes the acked file.
 
-If you rely on `crucible-mode: exploration` or `crucible-sign:` today,
-check `.crucible/mode.session` / `.crucible/inbox/signs-confirmed`
-directly — the side effect is real, but nothing else reads the file yet.
+If you rely on `crucible-mode: exploration` today, check
+`.crucible/mode.session` directly — the side effect is real, but
+nothing else reads the file yet.
 
 Cascade resolution applies across `.crucible/`, `~/.claude/crucible/`,
 and bundled defaults. Project-local files override user-tier, which

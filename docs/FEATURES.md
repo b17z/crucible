@@ -658,6 +658,16 @@ Assertions with `scope: prewrite` run against documents:
 
 ---
 
+## Policy Layer (Phase 7)
+
+Cross-cutting policies (`policies/*.yaml`) document a threat and its enforcement hooks in one file. `crucible policies validate` checks the cascade — bundled, user, project — for schema errors and reports issues by severity. `crucible policies list` shows every loaded policy with its hook count and source tier.
+
+Blocked bash commands (via the deny-list PreToolUse hook) write a candidate **Sign** to `.crucible/inbox/signs/`. A `crucible-sign: <id>` magic comment in a prompt acknowledges a candidate, moving it to `acked/`; the Stop hook then appends it to the project's `GUARDRAILS.md` under a numbered `### Sign N` entry. `crucible signs list` shows pending and acked-but-unappended candidates at any point in that lifecycle.
+
+`REVIEW.md` declares path-glob triggers (with an optional `min_changed_lines` threshold) in its frontmatter. A Stop hook diffs the session's changed files against those triggers and prints an advisory nudge — e.g. "Security-sensitive paths — review with the security-engineer skill" — when a match fires. `crucible init --with-claudemd` scaffolds a starter `REVIEW.md`; the check is always advisory and never blocks.
+
+---
+
 ## External Tools
 
 Crucible shells out to these (install separately):

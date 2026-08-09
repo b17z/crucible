@@ -1,0 +1,17 @@
+# Trigger patterns for engineering-loop skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Fires on beginner-orientation language — someone who has never shipped
+# software and doesn't know where to start. Deliberately narrow to
+# first-timer framing, not general "build a feature" requests (that's
+# brainstorming/coding-discipline territory for people who already know
+# the ropes). Also user-invocable by naming the skill directly.
+
+rules:
+  - type: prompt_match
+    pattern: "\\b(i.?m new (to|at) (this|coding|programming|building)|first (project|app|program|time building)|where do i start|help me build my first)\\b"
+    note: first-timer / beginner orientation language
+
+  - type: prompt_match
+    pattern: '\b(engineering[- ]loop|the (six|6)[- ]step loop)\b'
+    note: explicit reference to the loop skill itself

@@ -265,8 +265,8 @@ class TestProgressiveCost:
         """Pin the bundled skill count. Update deliberately when skills are
         added or removed — this is a tripwire, not a ceiling."""
         summaries = discover_skills()  # default SKILLS_SPEC = bundled tree
-        assert len(summaries) == 37, (
-            f"Expected 37 bundled skills, got {len(summaries)}: "
+        assert len(summaries) == 38, (
+            f"Expected 38 bundled skills, got {len(summaries)}: "
             f"{sorted(s.name for s in summaries)}"
         )
 

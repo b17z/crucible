@@ -185,6 +185,33 @@ assert_exit_zero "malformed-frontmatter-exit"
 assert_stderr_empty "malformed-frontmatter-silent"
 teardown
 
+# --- root-level file matches a leading-**/ pattern (fnmatch has no **
+# special-casing — "**/auth*" must still match a root-level "auth.py") ---
+init_repo
+write_review_md $'---\ntriggers:\n  - paths: ["**/auth*"]\n    note: "Security-sensitive paths"\n---\n# Review\n'
+git add REVIEW.md
+git -c user.email=t@t -c user.name=t commit -q -m "add review.md"
+echo "def login(): pass" > auth.py
+git add auth.py
+run_hook
+assert_exit_zero "root-level-double-star-exit"
+assert_stderr_contains "Security-sensitive paths" "root-level-double-star-matches"
+teardown
+
+# --- root-level-under-dir file matches an interior /**/ pattern
+# ("src/**/*.py" must still match "src/x.py" with zero intervening dirs) ---
+init_repo
+write_review_md $'---\ntriggers:\n  - paths: ["src/**/*.py"]\n    note: "Substantial source changes"\n---\n# Review\n'
+git add REVIEW.md
+git -c user.email=t@t -c user.name=t commit -q -m "add review.md"
+mkdir -p src
+echo "print('hi')" > src/x.py
+git add src/x.py
+run_hook
+assert_exit_zero "interior-double-star-exit"
+assert_stderr_contains "Substantial source changes" "interior-double-star-matches"
+teardown
+
 # --- no trigger matches at all → silent 0 (multiple triggers, none match) ---
 init_repo
 write_review_md $'---\ntriggers:\n  - paths: ["**/auth*"]\n    note: "Security-sensitive"\n  - paths: ["*.rb"]\n    note: "Ruby change"\n---\n# Review\n'

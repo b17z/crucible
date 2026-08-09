@@ -69,6 +69,38 @@ def parse_names(*blobs):
     return names
 
 
+def _matches(path, pattern):
+    """Match `path` against a REVIEW.md glob `pattern`.
+
+    `fnmatch` treats `**` as no different from a single `*` — it is not
+    special like it is in gitignore/git-pathspec globbing, and `*`
+    (single or double) never crosses `/` boundaries either way. That
+    means the natural-looking authoring patterns `**/auth*` and
+    `src/**/*.py` do NOT match root-level `auth.py` or `src/x.py`
+    respectively (both need at least one path segment to sit where the
+    `**/` implies "zero or more directories"). Try a few equivalent
+    forms so those authoring patterns work as intended:
+      - the pattern as-written, verbatim fnmatch;
+      - a leading `**/` also tried with that prefix stripped, against
+        both the full path and just its basename (covers the "zero
+        directories" case for both `**/auth*` and `src/**/auth*`-style
+        interior globs... but only for a *leading* `**/`);
+      - `/**/` collapsed to `/` anywhere in the pattern (covers the
+        "zero directories" case for interior globs like `src/**/*.py`).
+    """
+    if fnmatch(path, pattern):
+        return True
+    if pattern.startswith("**/"):
+        stripped = pattern[3:]
+        if fnmatch(path, stripped) or fnmatch(path.rsplit("/", 1)[-1], stripped):
+            return True
+    if "/**/" in pattern:
+        collapsed = pattern.replace("/**/", "/")
+        if fnmatch(path, collapsed):
+            return True
+    return False
+
+
 def parse_numstat_lines():
     """path -> added+deleted lines, from `git diff --numstat HEAD` alone.
 
@@ -152,7 +184,7 @@ for trigger in triggers:
 
     matching_files = [
         f for f in changed
-        if any(fnmatch(f, pattern) for pattern in paths)
+        if any(_matches(f, pattern) for pattern in paths)
     ]
     if not matching_files:
         continue

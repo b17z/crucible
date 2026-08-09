@@ -20,10 +20,10 @@
 
 ### Known deferred
 
-- repo_root-aware cascade loading for bindings/assertions (#TBD)
-- no-git text mode hides inline-suppressed findings that git mode shows (#TBD)
-- policy cascade has no user tier (deliberate scope choice, diverges from other cascades) (#TBD)
+- repo_root-aware cascade loading for bindings/assertions (#12)
+- no-git text mode hides inline-suppressed findings that git mode shows (#13)
+- policy cascade has no user tier (deliberate scope choice, diverges from other cascades) (#14)
 - mcp 2.x migration, lifting the `mcp<2.0.0` cap (#11)
-- `review_nudge.sh` silently no-ops on a repo with no commits yet instead of nudging (#TBD)
-- `meta/spec-validator`'s trigger regex misses several natural feature-request phrasings (#TBD)
-- `crucible init --with-claudemd` doc/spec wording implies it creates `GUARDRAILS.md`; it's lazily created on first acknowledged Sign instead (#TBD)
+- `review_nudge.sh` silently no-ops on a repo with no commits yet instead of nudging (#15)
+- `meta/spec-validator`'s trigger regex misses several natural feature-request phrasings (#16)
+- `crucible init --with-claudemd` doc/spec wording implies it creates `GUARDRAILS.md`; it's lazily created on first acknowledged Sign instead (#17)

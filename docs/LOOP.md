@@ -40,12 +40,14 @@ so directly:
 > "wait, what? can you explain that simply?"
 
 That activates `meta/wait-what`, which re-explains in plain language
-instead of repeating the same words louder. You can also run `crucible
-skills discover wait-what` any time to see what it does.
+instead of repeating the same words louder. Skills have a folder-style
+full name like `meta/wait-what` — always use the full name with the
+discover command. You can also run `crucible skills discover
+meta/wait-what` any time to see what it does.
 
 ### Step 2 — Think small first
 
-Don't design the whole dream version (member logins, a event calendar,
+Don't design the whole dream version (member logins, an event calendar,
 RSVPs, a mobile app). Find the smallest version that could possibly
 work. For the running club page, that's: one page, showing one date,
 time, and location. Nothing else yet.
@@ -61,7 +63,7 @@ on phones? do you want to be able to update it yourself?), proposes a
 couple of options with trade-offs, and — this is the important
 part — **does not write any code** until it has shown you a short plan
 and you've said yes to it. If you want to see what this skill does
-ahead of time: `crucible skills discover brainstorming`.
+ahead of time: `crucible skills discover meta/brainstorming`.
 
 ### Step 3 — Write it down
 
@@ -78,8 +80,8 @@ nobody has to guess later. For the running club page, it might read:
 code gets written — it's why, if you ask to "build" something without
 having written this down first, the agent will pause and ask "is there
 a spec for this?" instead of diving straight into code. `crucible
-skills discover spec-validator` explains the check, and also how to
-skip it on purpose for a five-minute experiment you don't intend to
+skills discover meta/spec-validator` explains the check, and also how
+to skip it on purpose for a five-minute experiment you don't intend to
 keep (see "When to break the loop" below).
 
 ### Step 4 — Build the smallest thing
@@ -93,8 +95,8 @@ You don't need to say anything special here — `meta/coding-discipline`
 activates automatically whenever code is being written or changed. It
 keeps the agent's changes matched to what you actually asked for:
 minimum code that solves the problem, nothing speculative bolted on
-top. `crucible skills discover coding-discipline` shows the full list
-of habits it enforces.
+top. `crucible skills discover meta/coding-discipline` shows the full
+list of habits it enforces.
 
 ### Step 5 — Prove it honestly
 
@@ -106,14 +108,14 @@ of habits it enforces.
   (because the page doesn't exist yet) and then watch it pass once the
   page is built. That's `meta/tdd` — say "let's do this test-first" or
   it activates automatically once tests come up. `crucible skills
-  discover tdd`.
+  discover meta/tdd`.
 - **A skeptical pass before calling it done.** Before anyone says
   "it's ready," the agent re-reads what was actually built (not what
   it meant to build), tries to break it (What if the text file is
   empty? What if the date format is wrong?), and only then calls it
   finished. That's `meta/but-for-real` — it activates automatically any
   time you or the agent are about to say "this works" or "ready to
-  ship." `crucible skills discover but-for-real`.
+  ship." `crucible skills discover meta/but-for-real`.
 
 Both matter for different reasons: the test proves the page does what
 you designed it to do; the skeptical pass proves nobody fooled
@@ -128,8 +130,8 @@ explained it plainly. Write one short note about it before moving on —
 this is how beginners get better faster than beginners who don't do
 this, because the lessons stop disappearing between projects.
 
-Say "teach me" once, or run `crucible skills discover teach-me`, and
-`meta/teach-me` sets up a standing learning workspace for you: a
+Say "teach me" once, or run `crucible skills discover meta/teach-me`,
+and `meta/teach-me` sets up a standing learning workspace for you: a
 mission (why you're learning this), a running record of what you've
 learned, and short lessons you can revisit later. After the first
 setup, it keeps growing with you across future sessions.
@@ -198,6 +200,6 @@ the ledger, and the habits that keep it honest — see the
 
 ## Related
 
-- [`meta/engineering-loop`](../src/crucible/skills/meta/engineering-loop/SKILL.md) — the skill this guide accompanies; run `crucible skills discover engineering-loop` any time.
+- [`meta/engineering-loop`](../src/crucible/skills/meta/engineering-loop/SKILL.md) — the skill this guide accompanies; run `crucible skills discover meta/engineering-loop` any time.
 - [QUICKSTART.md](QUICKSTART.md) — installing and setting up Crucible itself.
 - [SKILLS.md](SKILLS.md) — every bundled skill, including the six named above.

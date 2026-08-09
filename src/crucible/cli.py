@@ -2115,7 +2115,11 @@ include_context: false
     print("  2. Customize knowledge:  crucible knowledge init <file>")
     print("  3. Install git hooks:    crucible hooks install")
     print("  4. Claude Code hooks:    crucible hooks claudecode init")
-    print("\nNew to building software? See docs/LOOP.md for the beginner engineering loop.")
+    print(
+        "\nNew to building software? See "
+        "https://github.com/b17z/crucible/blob/main/docs/LOOP.md "
+        "for the beginner engineering loop."
+    )
     return 0
 
 

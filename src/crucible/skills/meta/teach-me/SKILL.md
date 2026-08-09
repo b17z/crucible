@@ -32,27 +32,31 @@ user's learning is captured in files there:
   thing each, tied to the mission. The primary unit of teaching.
 - `assets/*` — reusable components shared across lessons (stylesheets,
   quiz widgets, simulators, diagram helpers).
+- `reference/*` — compressed cheat-sheets and quick-reference documents
+  distilled from lessons (syntax tables, glossaries of technique,
+  process flowcharts) — the things worth revisiting after the lesson
+  itself is forgotten.
 - `NOTES.md` — a scratchpad for user preferences or working notes.
 
-`lessons/` and `assets/` ALWAYS stay in the workspace, regardless of
-vault configuration (see below) — they're HTML output, not notes, and
-HTML doesn't belong in a notes vault.
+`lessons/`, `assets/`, and `reference/` ALWAYS stay in the workspace,
+regardless of vault configuration (see below) — they're HTML-leaning
+output, not notes, and don't belong in a notes vault.
 
 ## Vault resolution
 
 Before writing any workspace file, resolve where `MISSION.md`,
-`learning-records/`, `RESOURCES.md`, and `NOTES.md`/`GLOSSARY.md` live,
-in this exact order:
+`learning-records/`, `RESOURCES.md`, `NOTES.md`, and `GLOSSARY.md`
+live, in this exact order:
 
 1. Check `.crucible/teach.yaml` in the project for a `vault:` key
    (project-level).
 2. If not set there, check `~/.claude/crucible/teach.yaml` for a
    `vault:` key (user-level).
 3. If a vault is set by either: `MISSION.md`, `learning-records/`,
-   `RESOURCES.md`, and `NOTES.md` live under
+   `RESOURCES.md`, `NOTES.md`, and `GLOSSARY.md` live under
    `<vault>/crucible-learning/<topic-slug>/` instead of the workspace.
-   `lessons/` and `assets/` still stay in the workspace — never write
-   HTML into the vault.
+   `lessons/`, `assets/`, and `reference/` still stay in the workspace
+   — never write HTML-leaning artifacts into the vault.
 4. If no vault is set anywhere: fall back to pure upstream
    workspace-only behavior (everything under the current directory, as
    described above) — AND, on first use in a workspace with no vault

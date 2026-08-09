@@ -11,8 +11,10 @@ fit together. Good news: it's six steps, on repeat, every time. This
 skill is the map. Each step has its own Crucible skill that does the
 real work — this one just tells you which one to reach for and when.
 
-See `docs/LOOP.md` for a full worked example (a page that shows a
-running club's next meetup, walked through all six steps).
+See `docs/LOOP.md` in the crucible repo
+(https://github.com/b17z/crucible/blob/main/docs/LOOP.md) for a full
+worked example (a page that shows a running club's next meetup, walked
+through all six steps).
 
 ## The six steps
 
@@ -28,8 +30,10 @@ If your own explanation (or the agent's) doesn't make sense, this is
 also where you catch that mid-conversation: ask "wait, what?" or "can
 you explain that simply?" and the **`meta/wait-what`** skill re-explains
 in plain language instead of repeating the same words louder. Activate
-it any time by just saying you're confused — `crucible skills discover
-wait-what` shows you what it does.
+it any time by just saying you're confused. Skills have a folder-style
+full name like `meta/wait-what` — always use the full name with the
+discover command: `crucible skills discover meta/wait-what` shows you
+what it does.
 
 ### 2. Think small first
 
@@ -41,8 +45,8 @@ it needs one page with one date on it.
 This is **`meta/brainstorming`**: one question at a time, a couple of
 options with trade-offs, and a short plan you approve before any code
 gets written. Nothing gets built until you've seen the plan and said
-yes. Run `crucible skills discover brainstorming` to see it, or just
-say "let's build X" and it activates.
+yes. Run `crucible skills discover meta/brainstorming` to see it, or
+just say "let's build X" and it activates.
 
 ### 3. Write it down
 
@@ -55,7 +59,7 @@ edit one text file. No login, no database."
 **`meta/spec-validator`** is the check that makes sure this step
 actually happens before code gets written — it's why the agent asks
 "is there a spec for this?" instead of just diving in. `crucible skills
-discover spec-validator` explains the gate and how to skip it
+discover meta/spec-validator` explains the gate and how to skip it
 deliberately for a quick experiment (see "when to break the loop"
 below).
 
@@ -69,8 +73,8 @@ time keeps mistakes small and easy to spot.
 **`meta/coding-discipline`** is the set of habits that keeps this step
 honest: minimum code that solves the problem, changes that trace back
 to what you actually asked for, nothing speculative bolted on. `crucible
-skills discover coding-discipline` shows the full list. It activates
-automatically any time code is being written or changed.
+skills discover meta/coding-discipline` shows the full list. It
+activates automatically any time code is being written or changed.
 
 ### 5. Prove it honestly
 
@@ -80,13 +84,13 @@ automatically any time code is being written or changed.
   the thing works, before you believe it works. That's
   **`meta/tdd`**: write the check first, watch it fail (because nothing
   exists yet), then write just enough code to make it pass. `crucible
-  skills discover tdd`.
+  skills discover meta/tdd`.
 - **A skeptical pass before you say "done"** — re-read what you
   actually built (not what you meant to build), try to break it, and
   only then call it finished. That's **`meta/but-for-real`** — it
   activates automatically whenever you or the agent are about to say
   "this works" or "ready to ship." `crucible skills discover
-  but-for-real`.
+  meta/but-for-real`.
 
 Both matter: TDD proves the thing does what you designed; the skeptical
 pass proves you didn't fool yourself about what you designed.
@@ -102,7 +106,7 @@ evaporating between projects.
 **`meta/teach-me`** builds this into a standing learning workspace —
 a mission (why you're learning this), a running list of what you've
 learned, and short lessons you can revisit. Say "teach me" or `crucible
-skills discover teach-me` to set it up once; after that it keeps
+skills discover meta/teach-me` to set it up once; after that it keeps
 growing with you.
 
 ## When to break the loop
@@ -125,7 +129,9 @@ when a step doesn't earn its keep is part of learning to build things.
 
 ## Related
 
-- `docs/LOOP.md` — the full walkthrough with a worked example.
+- `docs/LOOP.md` in the crucible repo
+  (https://github.com/b17z/crucible/blob/main/docs/LOOP.md) — the full
+  walkthrough with a worked example.
 - `knowledge/the-loop-at-scale.md` — what this same loop looks like once
   you're not the one writing the code — a controller coordinating
   agents that build and review each other's work.

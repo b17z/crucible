@@ -206,3 +206,25 @@ class TestToolRunCheck:
         # Truncation cap is 500 chars; the error message has surrounding text
         # but the stderr portion must be bounded.
         assert len(check.error) < 800
+
+
+class TestToolFindingSuppression:
+    def test_defaults_unsuppressed(self) -> None:
+        from crucible.models import Severity, ToolFinding
+
+        f = ToolFinding(tool="bandit", rule="B101", severity=Severity.LOW,
+                        message="assert used", location="tests/test_x.py:3")
+        assert f.suppressed is False
+        assert f.suppression_reason is None
+
+    def test_replace_marks_suppressed(self) -> None:
+        import dataclasses
+
+        from crucible.models import Severity, ToolFinding
+
+        f = ToolFinding(tool="bandit", rule="B101", severity=Severity.LOW,
+                        message="assert used", location="tests/test_x.py:3")
+        marked = dataclasses.replace(f, suppressed=True,
+                                     suppression_reason="verifier:is_test_file — pytest asserts")
+        assert marked.suppressed is True
+        assert "is_test_file" in marked.suppression_reason

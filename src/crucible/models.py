@@ -34,6 +34,8 @@ class ToolFinding:
     message: str
     location: str
     suggestion: str | None = None
+    suppressed: bool = False
+    suppression_reason: str | None = None
 
 
 # Domain detection heuristics

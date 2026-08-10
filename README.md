@@ -91,6 +91,12 @@ assertions:
 
 ## MCP Tools
 
+> **The MCP server is optional.** Crucible never registers it
+> automatically, and every capability below has a CLI equivalent
+> (see CLI Commands) — the Claude Code hooks call the CLI, not MCP.
+> In environments where MCP servers need separate approval, skip
+> this section entirely; nothing else changes.
+
 Add to Claude Code (`.mcp.json`):
 
 ```json

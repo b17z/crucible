@@ -100,6 +100,28 @@ exclude:
 
 ## MCP Tools
 
+### The MCP server is optional
+
+Everything Crucible does is available without it. The `crucible` CLI
+carries every capability (review, prewrite, skills, knowledge,
+assertions, hooks), and the Claude Code hooks shell out to that CLI —
+no MCP involved. The MCP server (`crucible-mcp`) only adds
+in-conversation tool calls, and Crucible never writes it into
+`.mcp.json` for you.
+
+For restricted environments (workplace MCP or data policies), the
+posture is:
+
+- **No MCP registration needed** — don't add `crucible-mcp` to
+  `.mcp.json`; agents run `crucible ...` commands instead.
+- **Hooks are local shell** — they invoke the locally installed CLI;
+  nothing listens on a port.
+- **Default review is deterministic and local** — pattern assertions,
+  delegated scanners (`ruff`, `semgrep`, `bandit`, `slither` — all
+  locally installed), no network calls.
+- **LLM assertions are opt-in** (`crucible review --llm`) and call the
+  Anthropic API — leave the flag off if code can't leave the machine.
+
 ### review(path?, mode?, ...)
 
 Unified code review tool. Supports path-based review OR git-aware review.

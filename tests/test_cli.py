@@ -835,6 +835,24 @@ class TestInitCommand:
         cmd_init(args2)
         assert review_path.read_text() == "custom content"
 
+    def test_generated_claudemd_says_mcp_is_optional(self, tmp_path: Path) -> None:
+        """The generated CLAUDE.md must tell agents the MCP server is
+        optional and never auto-registered — restricted environments
+        (workplace MCP policies) rely on this being explicit.
+        """
+        from argparse import Namespace
+
+        from crucible.cli import cmd_init
+
+        args = Namespace(
+            path=str(tmp_path), force=False, minimal=True, with_claudemd=True
+        )
+        assert cmd_init(args) == 0
+
+        text = (tmp_path / "CLAUDE.md").read_text()
+        assert "## No MCP server required" in text
+        assert "never registers it automatically" in text
+
 
 class TestCiGenerateCommand:
     """Test crucible ci generate command."""

@@ -2,6 +2,16 @@
 
 Use Crucible for code review: `crucible review`
 
+## No MCP server required
+
+Crucible works entirely through its CLI and the Claude Code hooks —
+every capability in this file is a `crucible ...` shell command. An
+optional MCP server (`crucible-mcp`) exists for in-conversation tool
+calls, but Crucible never registers it automatically and nothing here
+depends on it. In environments where MCP servers need separate
+approval (workplace data/security policies), skip it entirely: agents
+use the CLI, hooks run locally, and behavior is identical.
+
 For full engineering principles and patterns, run:
 - `crucible knowledge list` - see available knowledge
 - `crucible skills list` - see available review personas
@@ -11,11 +21,11 @@ For full engineering principles and patterns, run:
 Crucible skills load in three tiers to keep context cost low — don't
 pull a skill's full body until you need it:
 
-- **Tier 1 (discovery):** `crucible skills discover` — or the
-  `discover_skills` MCP tool with no argument — lists every skill's name
-  and one-line description. Cheap; call it at session start to see what
-  review perspectives exist (~4 KB for ~27 skills vs ~120 KB to load all
-  bodies).
+- **Tier 1 (discovery):** `crucible skills discover` — or, if the
+  optional MCP server is registered, the `discover_skills` MCP tool with
+  no argument — lists every skill's name and one-line description.
+  Cheap; call it at session start to see what review perspectives exist
+  (a few KB instead of loading every skill body).
 - **Tier 2 (activation):** `crucible skills discover <name>` (or
   `discover_skills` with a `skill` argument) loads one skill's full
   SKILL.md body plus the names of its knowledge files. Do this when a
@@ -93,19 +103,15 @@ UserPromptSubmit hooks intercept:
   entry into `.crucible/approved-deps.session.yaml`, which the
   npm/pip/cargo install gate reads. Equivalent to the durable
   allow-list but doesn't persist across sessions.
-- `crucible-mode: exploration` — **partial.** The hook writes a flag to
-  `.crucible/mode.session`. The consumer (the spec-validator gate that
-  this flag is meant to bypass) ships in Phase 4. Until then, the flag
-  is recorded but has no behavioral effect.
+- `crucible-mode: exploration` — **active.** The hook writes a flag to
+  `.crucible/mode.session`; the trigger routing reads it and bypasses
+  the spec-validator gate for the session, so exploratory work isn't
+  gated on a spec.
 - `crucible-sign: <id> [<id>...]` — **active.** The hook moves matching
   candidate Signs from `.crucible/inbox/signs/` into
   `.crucible/inbox/signs/acked/`. The Stop hook then appends each acked
   candidate to the project's `GUARDRAILS.md` as a numbered Sign and
   removes the acked file.
-
-If you rely on `crucible-mode: exploration` today, check
-`.crucible/mode.session` directly — the side effect is real, but
-nothing else reads the file yet.
 
 Cascade resolution applies across `.crucible/`, `~/.claude/crucible/`,
 and bundled defaults. Project-local files override user-tier, which

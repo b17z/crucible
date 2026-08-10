@@ -13,6 +13,13 @@ from unittest.mock import patch
 
 import pytest
 
+REPO_ROOT = Path(__file__).parent.parent
+DELIVERY_LOOP_SKILL_PATH = (
+    REPO_ROOT / "src" / "crucible" / "skills" / "meta" / "delivery-loop" / "SKILL.md"
+)
+PORTABILITY_PATH = REPO_ROOT / "docs" / "PORTABILITY.md"
+BUILD_ALONG_PATH = REPO_ROOT / "docs" / "BUILD-ALONG.md"
+
 from crucible.cli import cmd_prewrite_review
 from crucible.prewrite.models import PrewriteFinding
 from crucible.prewrite.review import (
@@ -288,3 +295,22 @@ class TestApiPathExitCodes:
 def payload_expected_count(spec_path: str) -> int:
     selection = select_prewrite_checks(spec_path)
     return len(checks_from_assertions(selection.assertions))
+
+
+class TestChecklistDocsWiring:
+    """Spec §4: the four doc surfaces name --checklist."""
+
+    def test_delivery_loop_skill_names_checklist(self) -> None:
+        text = DELIVERY_LOOP_SKILL_PATH.read_text()
+        assert "--checklist" in text
+
+    def test_portability_mentions_checklist(self) -> None:
+        text = PORTABILITY_PATH.read_text()
+        assert "--checklist" in text
+
+    def test_build_along_kickoff_block_mentions_checklist(self) -> None:
+        text = BUILD_ALONG_PATH.read_text()
+        fence_start = text.index("```text")
+        fence_end = text.index("```", fence_start + len("```text"))
+        block = text[fence_start:fence_end]
+        assert "--checklist" in block

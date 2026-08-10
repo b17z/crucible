@@ -641,7 +641,18 @@ Review specifications, PRDs, and design documents before code is written.
 crucible prewrite list            # List available templates
 crucible prewrite init prd my.md  # Create spec from template
 crucible prewrite review spec.md  # Review spec against assertions
+
+# No Anthropic API key? Skip the API and evaluate with the agent you already have:
+crucible prewrite review spec.md --checklist        # Render checks for inline evaluation, exits 0
+crucible prewrite review spec.md --checklist --json  # Same package as JSON
 ```
+
+`--checklist` renders every applicable assertion as a check — id,
+severity, and its compliance criteria — for the calling agent to
+evaluate PASS/FAIL inline, with no network call and no key required.
+A keyless run of the ordinary (API) path now exits 1 with a pointer
+to `--checklist` once nothing evaluated, instead of silently exiting
+0 on zero findings.
 
 ### MCP Tools
 

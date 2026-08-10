@@ -258,7 +258,9 @@ you to do, in order:
    first via `meta/brainstorming` and `crucible prewrite`.
 
 4. Run `crucible prewrite review <SPEC-FILE>` and fix anything it
-   flags before writing any code.
+   flags before writing any code. If the output shows key-not-found
+   errors, rerun with `--checklist` and evaluate the checks yourself,
+   showing me the results.
 
 5. Follow the `meta/engineering-loop` skill (run `crucible skills
    discover meta/engineering-loop` if you want the details) starting

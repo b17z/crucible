@@ -60,11 +60,14 @@ degrade gracefully without a key:
 
 That last one has a sharp edge: with no `ANTHROPIC_API_KEY` set, each
 assertion call fails independently with an `"Anthropic API key not
-found"` error, the run collects zero findings, and `crucible prewrite
-review` exits 0 — printed and read as "passed." **If prewrite review's
-output shows key-not-found errors, the semantic gate did not run** —
-check the errors section before trusting a pass; a clean exit code
-alone doesn't mean the spec was reviewed.
+found"` error, the run collects zero findings, and — for a keyless run
+where nothing evaluated — `crucible prewrite review` now exits 1 with
+a pointer to `--checklist`, rather than printing a silent "passed."
+**If prewrite review's output shows key-not-found errors, the
+semantic gate did not run** — check the errors section before
+trusting a pass; a clean exit code alone doesn't mean the spec was
+reviewed. Without a key, `--checklist` turns prewrite review into an
+agent-evaluated gate; no Anthropic dependency.
 
 Everything else — pattern assertions, hooks, skills, `crucible
 review`'s deterministic tier, delegated scanners (semgrep, ruff,

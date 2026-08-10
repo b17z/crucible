@@ -532,12 +532,20 @@ def cmd_prewrite_init(args: argparse.Namespace) -> int:
 
 def cmd_prewrite_review(args: argparse.Namespace) -> int:
     """Review a spec against pre-write assertions."""
-    from crucible.enforcement.models import ComplianceConfig
-    from crucible.prewrite.review import format_prewrite_result, prewrite_review
-
     path = args.path
     template = args.template
     skills = args.skills.split(",") if args.skills else None
+
+    # Check if file exists
+    if not Path(path).exists():
+        print(f"Error: File not found: {path}")
+        return 1
+
+    if args.checklist:
+        return _cmd_prewrite_checklist(args, path, template, skills)
+
+    from crucible.enforcement.models import ComplianceConfig
+    from crucible.prewrite.review import format_prewrite_result, prewrite_review
 
     # Build compliance config
     config = ComplianceConfig(
@@ -545,11 +553,6 @@ def cmd_prewrite_review(args: argparse.Namespace) -> int:
         model=args.model or "sonnet",
         token_budget=args.token_budget or 10000,
     )
-
-    # Check if file exists
-    if not Path(path).exists():
-        print(f"Error: File not found: {path}")
-        return 1
 
     # Run review
     result = prewrite_review(
@@ -578,10 +581,28 @@ def cmd_prewrite_review(args: argparse.Namespace) -> int:
             "checklist": result.checklist,
             "tokens_used": result.tokens_used,
             "errors": result.errors,
+            "evaluated": result.evaluated,
         }
         print(json.dumps(output, indent=2))
     else:
         print(format_prewrite_result(result))
+
+    # Honest exits: nothing evaluated + something errored means the run
+    # didn't actually check anything (missing key, missing package, API
+    # down) — that is not a pass, and --fail-on cannot override it.
+    if result.errors and result.evaluated == 0:
+        print(
+            "Nothing was evaluated. Run with --checklist to evaluate with "
+            "the agent you already have."
+        )
+        return 1
+
+    if result.errors:
+        print(
+            f"⚠ {len(result.errors)} of "
+            f"{result.evaluated + len(result.errors)} assertions errored "
+            f"— partial evaluation"
+        )
 
     # Exit code based on findings
     if args.fail_on:
@@ -594,6 +615,45 @@ def cmd_prewrite_review(args: argparse.Namespace) -> int:
         return 0
 
     return 0 if result.passed else 1
+
+
+def _cmd_prewrite_checklist(
+    args: argparse.Namespace,
+    path: str,
+    template: str | None,
+    skills: list[str] | None,
+) -> int:
+    """Render the no-API checklist for agent-mediated review. Always exits 0.
+
+    Deliberately does not import anything under `crucible.enforcement.compliance`
+    or `anthropic` — this path must work with no key and no `anthropic` package
+    installed.
+    """
+    from crucible.prewrite.review import (
+        checks_from_assertions,
+        render_prewrite_checklist,
+        select_prewrite_checks,
+    )
+
+    selection = select_prewrite_checks(path, template=template, skills=skills)
+    checks = checks_from_assertions(selection.assertions)
+
+    if args.json:
+        import json
+        output = {
+            "path": path,
+            "template": selection.template,
+            "mode": "checklist",
+            "checks": [
+                {"id": c.id, "severity": c.severity, "criteria": c.criteria}
+                for c in checks
+            ],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        print(render_prewrite_checklist(path, selection.template, checks))
+
+    return 0
 
 
 # --- Review command ---
@@ -2862,6 +2922,11 @@ def main() -> int:
     prewrite_review_parser.add_argument(
         "--token-budget", type=int,
         help="Token budget for LLM assertions (default: 10000)"
+    )
+    prewrite_review_parser.add_argument(
+        "--checklist", action="store_true",
+        help="Render checks for agent-mediated review instead of calling the API "
+        "(no key or anthropic package required)"
     )
 
     # === pre-commit command (direct invocation) ===

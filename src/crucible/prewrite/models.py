@@ -66,6 +66,7 @@ class PrewriteResult:
     skills_loaded: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     tokens_used: int = 0
+    evaluated: int = 0
 
     @property
     def passed(self) -> bool:

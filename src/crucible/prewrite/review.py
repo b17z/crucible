@@ -4,16 +4,152 @@ Runs LLM assertions (no pattern assertions) against specifications
 to catch gaps before implementation begins.
 """
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from crucible.enforcement.assertions import load_assertions
 from crucible.enforcement.models import (
+    Assertion,
     AssertionType,
     ComplianceConfig,
 )
 from crucible.knowledge.loader import load_knowledge_file
 from crucible.prewrite.loader import detect_template_type, load_template_body
 from crucible.prewrite.models import PrewriteFinding, PrewriteResult
+
+
+@dataclass(frozen=True)
+class PrewriteCheck:
+    """A single semantic check selected for a spec: id, severity, criteria."""
+
+    id: str
+    severity: str
+    criteria: str
+
+
+@dataclass(frozen=True)
+class PrewriteSelection:
+    """Result of selecting checks for a spec.
+
+    Both the API path (`prewrite_review`) and the checklist path
+    (`render_prewrite_checklist`) call `select_prewrite_checks` and get
+    this back, so template detection and assertion filtering only
+    happen in one place.
+    """
+
+    content: str
+    template: str | None
+    checklist: list[str]
+    knowledge_to_load: set[str]
+    skills_loaded: list[str]
+    assertions: list[Assertion]
+    errors: list[str] = field(default_factory=list)
+
+
+def select_prewrite_checks(
+    path: str,
+    template: str | None = None,
+    skills: list[str] | None = None,
+) -> PrewriteSelection:
+    """Select the ordered semantic checks the API path would run for a spec.
+
+    Shared by `prewrite_review` (API path) and `render_prewrite_checklist`
+    (no-API path) so template detection and assertion filtering can never
+    drift between the two.
+
+    Args:
+        path: Path to the spec/PRD/TDD file
+        template: Template type (auto-detect if None)
+        skills: Skill overrides (auto-detect if None)
+
+    Returns:
+        PrewriteSelection with the ordered assertions and any load errors.
+        On file-read failure, `assertions` is empty and `errors` explains why.
+    """
+    errors: list[str] = []
+
+    try:
+        content = Path(path).read_text()
+    except OSError as e:
+        return PrewriteSelection(
+            content="",
+            template=template,
+            checklist=[],
+            knowledge_to_load=set(),
+            skills_loaded=[],
+            assertions=[],
+            errors=[f"Failed to read file: {e}"],
+        )
+
+    # Auto-detect template type if not specified
+    if template is None:
+        template = detect_template_type(content)
+
+    # Load template metadata if available
+    checklist: list[str] = []
+    knowledge_to_load: set[str] = set()
+    assertions_to_load: set[str] = set()
+
+    if template:
+        template_result = load_template_body(template)
+        if template_result.is_ok:
+            metadata, _ = template_result.value
+            checklist = list(metadata.checklist)
+            knowledge_to_load.update(metadata.knowledge)
+            assertions_to_load.update(metadata.assertions)
+
+    # Resolve skills
+    if skills:
+        skills_loaded = list(skills)
+    elif template:
+        skills_loaded = ["spec-reviewer"]
+    else:
+        skills_loaded = []
+
+    # Load pre-write assertions
+    all_assertions, load_errors = load_assertions()
+    errors.extend(load_errors)
+
+    # Filter to prewrite-scope LLM assertions only
+    prewrite_assertions = [
+        a for a in all_assertions
+        if a.type == AssertionType.LLM and a.scope in ("prewrite", "all")
+    ]
+
+    # If specific assertion files requested, filter to those
+    if assertions_to_load:
+        # Reload with specific files
+        specific_assertions, specific_errors = load_assertions(assertions_to_load)
+        errors.extend(specific_errors)
+        prewrite_assertions = [
+            a for a in specific_assertions
+            if a.type == AssertionType.LLM and a.scope in ("prewrite", "all")
+        ]
+
+    return PrewriteSelection(
+        content=content,
+        template=template,
+        checklist=checklist,
+        knowledge_to_load=knowledge_to_load,
+        skills_loaded=skills_loaded,
+        assertions=prewrite_assertions,
+        errors=errors,
+    )
+
+
+def checks_from_assertions(assertions: list[Assertion]) -> list[PrewriteCheck]:
+    """Convert selected assertions into checklist entries.
+
+    Skips assertions without compliance text — same skip `prewrite_review`
+    applies before running an assertion, so the checklist never lists a
+    check that path would have silently passed over.
+    """
+    return [
+        PrewriteCheck(id=a.id, severity=a.severity, criteria=a.compliance)
+        for a in assertions
+        if a.compliance
+    ]
+
 
 # System prompt specifically for pre-write review (specs/docs, not code)
 PREWRITE_SYSTEM_PROMPT = """You are a specification reviewer. Analyze the provided document against the review requirements.
@@ -188,65 +324,25 @@ def prewrite_review(
 
     result = PrewriteResult(path=path, template=template)
 
-    # Read document content
-    try:
-        content = Path(path).read_text()
-    except OSError as e:
-        result.errors.append(f"Failed to read file: {e}")
+    selection = select_prewrite_checks(path, template=template, skills=skills)
+    result.template = selection.template
+    result.errors.extend(selection.errors)
+
+    if not selection.content:
+        # File read failed; selection.errors already explains why.
         return result
 
-    # Auto-detect template type if not specified
-    if template is None:
-        template = detect_template_type(content)
-        result.template = template
-
-    # Load template metadata if available
-    checklist: list[str] = []
-    knowledge_to_load: set[str] = set()
-    assertions_to_load: set[str] = set()
-
-    if template:
-        template_result = load_template_body(template)
-        if template_result.is_ok:
-            metadata, _ = template_result.value
-            checklist = list(metadata.checklist)
-            knowledge_to_load.update(metadata.knowledge)
-            assertions_to_load.update(metadata.assertions)
-
-    result.checklist = checklist
+    content = selection.content
+    result.checklist = selection.checklist
+    result.skills_loaded = selection.skills_loaded
 
     # Load linked knowledge
-    for filename in knowledge_to_load:
+    for filename in selection.knowledge_to_load:
         knowledge_result = load_knowledge_file(filename)
         if knowledge_result.is_ok:
             result.knowledge_loaded.append(filename)
 
-    # Load skills
-    if skills:
-        result.skills_loaded = list(skills)
-    elif template:
-        # Default skill for pre-write review
-        result.skills_loaded = ["spec-reviewer"]
-
-    # Load pre-write assertions
-    all_assertions, load_errors = load_assertions()
-    result.errors.extend(load_errors)
-
-    # Filter to prewrite-scope LLM assertions only
-    prewrite_assertions = [
-        a for a in all_assertions
-        if a.type == AssertionType.LLM and a.scope in ("prewrite", "all")
-    ]
-
-    # If specific assertion files requested, filter to those
-    if assertions_to_load:
-        # Reload with specific files
-        specific_assertions, specific_errors = load_assertions(assertions_to_load)
-        result.errors.extend(specific_errors)
-        prewrite_assertions = [
-            a for a in specific_assertions
-            if a.type == AssertionType.LLM and a.scope in ("prewrite", "all")
-        ]
+    prewrite_assertions = selection.assertions
 
     if not config.enabled:
         # LLM assertions disabled
@@ -280,6 +376,7 @@ def prewrite_review(
         if error:
             result.errors.append(f"{assertion.id}: {error}")
         else:
+            result.evaluated += 1
             result.findings.extend(findings)
 
     result.tokens_used = total_tokens
@@ -359,5 +456,48 @@ def format_prewrite_result(result: PrewriteResult) -> str:
         parts.append("**Status:** PASSED")
     else:
         parts.append(f"**Status:** FAILED ({result.error_count} errors)")
+
+    return "\n".join(parts)
+
+
+def render_prewrite_checklist(
+    path: str,
+    template: str | None,
+    checks: list[PrewriteCheck],
+) -> str:
+    """Render the agent-mediated evaluation package (spec section 2, verbatim).
+
+    Pure function: no network calls, no file I/O. Callers get the ordered
+    checks from `select_prewrite_checks`.
+
+    Args:
+        path: Path to the spec that was selected against
+        template: Detected or given template type (may be None)
+        checks: Ordered checks to render, one per LLM/prewrite assertion
+
+    Returns:
+        The formatted checklist document.
+    """
+    template_label = template or "none"
+
+    parts: list[str] = [
+        "# Pre-Write Review Checklist",
+        "",
+        f"Spec: {path} (template: {template_label})",
+        "",
+        "Evaluate the document against each check below. For each, report",
+        "PASS or FAIL with one line of evidence (a quote or section",
+        "reference). A FAIL on any error-severity check means the spec is",
+        "not ready. Record the completed checklist next to the spec (in the",
+        "workbench, if you keep one).",
+        "",
+        "## Checks",
+    ]
+
+    for check in checks:
+        parts.append("")
+        parts.append(f"### {check.id} — severity: {check.severity}")
+        parts.append("")
+        parts.append(check.criteria)
 
     return "\n".join(parts)

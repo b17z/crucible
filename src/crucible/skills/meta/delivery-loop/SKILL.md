@@ -50,6 +50,12 @@ skill that gates this — it's why the loop stops and asks "is there a
 spec, and has it passed prewrite review?" instead of proceeding on
 vibes. `crucible skills discover meta/spec-validator`.
 
+Prewrite review's semantic assertions need an Anthropic API key to
+run. If the output shows key-not-found errors, the gate did not
+run — that is not a pass, no matter what the exit code says. Fall
+back to a human or a second agent reviewing the spec by hand against
+the same assertions before moving on.
+
 ### 4. Plan the execution
 
 Break the spec into tasks. Each task carries binding details (exact
@@ -99,7 +105,10 @@ Write the learning record and decision log to the notes folder before
 moving on to the next piece of work. `meta/teach-me` is the standing
 workspace this belongs in — a learning record per non-obvious lesson,
 grounded in why the work mattered. `crucible skills discover
-meta/teach-me`.
+meta/teach-me`. The workbench's `decisions.md` (see below) stays the
+working record throughout the loop; at close, distill or copy its
+contents into the learning record rather than moving it — the
+workbench copy is not superseded.
 
 ## The workbench
 
@@ -115,11 +124,13 @@ order, before the first artifact is written:
    `<vault>/crucible-work/<project-slug>/`, where project-slug is the
    project directory name, slugified.
 3. Else fall back to `.crucible/workbench/` inside the project — and
-   before writing anything there, verify it's gitignored: look for
-   `.crucible/workbench/` or a broader `.crucible/` pattern in
-   `.gitignore`, or run `git check-ignore .crucible/workbench/` to
-   confirm. If it isn't ignored, add the ignore line first. Never write
-   a workbench artifact into a directory git would track.
+   before writing anything there, verify it's gitignored: look for a
+   `.crucible/workbench/` line in `.gitignore`, or run `git
+   check-ignore .crucible/workbench/` to confirm. If it isn't ignored,
+   add exactly `.crucible/workbench/` as the ignore line — never a
+   broader `.crucible/` pattern, which would also hide files `crucible
+   init` creates to be committed. Never write a workbench artifact
+   into a directory git would track.
 
 Artifact names inside the workbench, always:
 
@@ -157,6 +168,7 @@ of which resolution branch produced the workbench path.
   steps up to once the work is professional.
 - `meta/wait-what`, `meta/brainstorming`, `meta/challenge`,
   `meta/spec-validator`, `meta/but-for-real`, `meta/teach-me` — the
-  carrier skills for steps 1, 2, 3, 6, and 7 respectively.
+  carrier skills for steps 1, 2 (brainstorming and challenge both),
+  3, 6, and 7.
 - `meta/engineering-loop`'s `knowledge/the-loop-at-scale.md` — the
   controller/subagent discipline for step 5 at scale.

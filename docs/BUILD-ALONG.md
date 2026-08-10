@@ -125,11 +125,11 @@ automatically as you work:
 crucible hooks claudecode init
 ```
 
-Optional: if you keep notes in your notes folder — any tool that
-reads markdown from a directory (Obsidian, Logseq, an in-house
-notetaker) — and want your learning records to land there instead of
-inside the project folder, create `.crucible/teach.yaml` with a
-`vault:` key pointing at that folder's path:
+Optional: if you keep notes in a notes app that reads markdown from a
+directory (Obsidian, Logseq, an in-house notetaker) and want your
+learning records to land there instead of inside the project folder,
+create `.crucible/teach.yaml` with a `vault:` key pointing at that
+folder's path:
 
 ```yaml
 vault: /path/to/your/notes/folder
@@ -170,11 +170,11 @@ for as many milestones as your project needs.
 
 ## Worked example: a personal knowledge base in a notes folder
 
-Say the project is: **a personal knowledge base built on top of your
-notes folder** — any tool that reads markdown from a directory
-(Obsidian, Logseq, an in-house notetaker) — a tool that helps organize
-and surface notes already sitting there. Here's how the loop and the
-course play out together, milestone by milestone.
+Say the project is: **a personal knowledge base built on top of a
+notes folder** — the kind any notes app that reads markdown from a directory
+can open (Obsidian, Logseq, an in-house notetaker) — a tool that helps
+organize and surface notes already sitting there. Here's how the loop
+and the course play out together, milestone by milestone.
 
 **Milestone 0 — the spec.** Before any code, three to five sentences
 get written down: "A tool that reads notes from my notes folder and
@@ -184,13 +184,14 @@ overview board of notes by status. Later, it automates moving notes
 between stages." That spec becomes course module 0 — before anything
 else exists, the course already explains what's being built and why.
 
-**Milestone 1 — vault skeleton.** The smallest first step: a script
-that creates a consistent folder structure for a new topic area inside
-the vault (an index note, a subfolder per category). Built small,
-tested, proven. That becomes course module 1 — using the real
-folder-creation code just written, with a why-should-I-care opening
-("why bother with a consistent skeleton instead of just dropping notes
-wherever?") and a quiz that checks understanding, not memorization.
+**Milestone 1 — notes folder skeleton.** The smallest first step: a
+script that creates a consistent folder structure for a new topic area
+inside the notes folder (an index note, a subfolder per category).
+Built small, tested, proven. That becomes course module 1 — using the
+real folder-creation code just written, with a why-should-I-care
+opening ("why bother with a consistent skeleton instead of just
+dropping notes wherever?") and a quiz that checks understanding, not
+memorization.
 
 **Milestone 2 — the parser.** Reads each note's frontmatter (the small
 block of structured metadata at the top of a note) and builds an index

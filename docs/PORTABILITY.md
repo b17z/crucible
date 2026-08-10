@@ -23,11 +23,11 @@ over a path directly, no repository required.
 
 | Harness | Reads | Activation |
 |---|---|---|
-| Claude Code (any model backend, gateways included) | `CLAUDE.md` + hooks | Full auto-activation: PostToolUse/SessionStart hooks fire, `core/trigger_router.py` matches prompts to skills, session context injects automatically, enforcement gates (spec-validator, install gates) block without being asked. |
+| Claude Code (any model backend, gateways included) | `CLAUDE.md` + hooks | Full auto-activation across the event set in use — `UserPromptSubmit` (`core/trigger_router.py` matches prompts to skills, magic comments) fires trigger routing, `PreToolUse` enforces gates, `PostToolUse` runs review, `SessionStart` injects session context, and `Stop` handles signs and nudges — all without being asked. |
 | Codex, Gemini CLI, pi, Cursor | `AGENTS.md` | CLI-driven, no auto-fire. The agent reads `AGENTS.md` like any other project instructions file, and skills only activate when `AGENTS.md` tells it to run `crucible skills discover` at session start and to call `crucible review` before finishing. |
 
-`crucible init` generates `AGENTS.md` as a pointer at `CLAUDE.md` for
-every project, so Codex/Cursor/etc. see the same per-repo instructions
+`crucible init --with-claudemd` generates `AGENTS.md` as a pointer at
+`CLAUDE.md`, so Codex/Cursor/etc. see the same per-repo instructions
 Claude Code does — but without hooks, nothing fires on its own. The
 harness has to be told to ask.
 
@@ -45,11 +45,31 @@ Before finishing a task, run `crucible review` and address findings.
 Nothing in the loop skills, the enforcement gates, or the trigger
 router is model-specific — they're prose and pattern matching, and
 they run the same regardless of which model is behind the harness.
-The one exception is the opt-in LLM assertion tier (`crucible review
---llm`), which calls the Anthropic API for semantic checks that plain
-pattern matching can't do. Everything else — pattern assertions,
-skills, hooks, trigger routing, `--no-git` review — has no Anthropic
-dependency at all.
+
+Three surfaces call the Anthropic API directly, and none of them
+degrade gracefully without a key:
+
+- `crucible review --llm` — the opt-in LLM assertion tier, for
+  semantic checks plain pattern matching can't do.
+- `crucible review --verify-llm` — the LLM-backed false-positive
+  verifier (`verify/llm.py`).
+- `crucible prewrite review` — not opt-in. `cmd_prewrite_review` in
+  `cli.py` hardcodes `ComplianceConfig(enabled=True)`, so every
+  `prewrite review` invocation calls Anthropic per assertion
+  (`prewrite/review.py`).
+
+That last one has a sharp edge: with no `ANTHROPIC_API_KEY` set, each
+assertion call fails independently with an `"Anthropic API key not
+found"` error, the run collects zero findings, and `crucible prewrite
+review` exits 0 — printed and read as "passed." **If prewrite review's
+output shows key-not-found errors, the semantic gate did not run** —
+check the errors section before trusting a pass; a clean exit code
+alone doesn't mean the spec was reviewed.
+
+Everything else — pattern assertions, hooks, skills, `crucible
+review`'s deterministic tier, delegated scanners (semgrep, ruff,
+slither, bandit), trigger routing, `--no-git` review — has no
+Anthropic dependency at all.
 
 ## Related
 

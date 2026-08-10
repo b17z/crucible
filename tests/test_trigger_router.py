@@ -230,6 +230,10 @@ class TestBundledEngineeringLoopSkills:
         m = match_prompt("let's run the delivery loop on this")
         assert "meta/delivery-loop" in [x.skill_name for x in m]
 
+    def test_delivery_loop_matches_hyphenated_work_loop(self) -> None:
+        m = match_prompt("run the work-loop on this")
+        assert "meta/delivery-loop" in [x.skill_name for x in m]
+
     def test_delivery_loop_does_not_match_debugging_prompt(self) -> None:
         """A plain debugging prompt mentioning 'production' must not fire
         delivery-loop — the trigger phrases are anchored ('production

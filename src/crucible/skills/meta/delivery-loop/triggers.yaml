@@ -10,5 +10,5 @@
 
 rules:
   - type: prompt_match
-    pattern: '\b(delivery[- ]loop|professional loop|work loop|production loop)\b'
+    pattern: '\b(delivery[- ]loop|professional[- ]loop|work[- ]loop|production[- ]loop)\b'
     note: explicit reference to the professional delivery cycle

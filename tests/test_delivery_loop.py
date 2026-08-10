@@ -99,7 +99,7 @@ class TestBoundary:
 
     def test_do_not_boundary_present(self) -> None:
         text = _text()
-        assert "Do NOT" in text or "## Do NOT" in text
+        assert "Do NOT" in text
 
 
 REPO_ROOT = Path(__file__).parent.parent

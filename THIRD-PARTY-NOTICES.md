@@ -132,13 +132,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-**Adapted knowledge files:**
+**Adapted files:**
 
 - `src/crucible/knowledge/principles/design-taste.md` — adapted from
   `skills/taste-skill/SKILL.md`
   (https://github.com/Leonxlnx/taste-skill/blob/main/skills/taste-skill/SKILL.md)
 - `src/crucible/knowledge/principles/motion-interaction.md` — adapted
   from `skills/taste-skill/SKILL.md`
+  (https://github.com/Leonxlnx/taste-skill/blob/main/skills/taste-skill/SKILL.md)
+- `src/crucible/skills/uiux-engineer/SKILL.md` — critique protocol,
+  default-detection, and rule/taste split distilled in part from
+  `skills/taste-skill/SKILL.md`
+  (https://github.com/Leonxlnx/taste-skill/blob/main/skills/taste-skill/SKILL.md)
+- `src/crucible/skills/meta/frontend-taste/SKILL.md` — anti-default
+  discipline and hard rules distilled in part from
+  `skills/taste-skill/SKILL.md`
   (https://github.com/Leonxlnx/taste-skill/blob/main/skills/taste-skill/SKILL.md)
 
 Source repository: https://github.com/Leonxlnx/taste-skill
@@ -171,18 +179,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-**Adapted knowledge files:**
+**Adapted files:**
 
 - `src/crucible/knowledge/principles/motion-interaction.md` — adapted
-  from `skills/perception/visual-audit/SKILL.md`,
-  `skills/visual-language/hierarchy-principles/SKILL.md`,
-  `skills/visual-language/spatial-rhythm/SKILL.md`,
-  `skills/visual-language/color-systems/SKILL.md`,
-  `skills/typography/type-systems/SKILL.md`, and
+  from `skills/perception/visual-audit/SKILL.md` and
   `skills/interaction/motion-design/SKILL.md`
   (https://github.com/Dragoon0x/taste-skills/tree/main/skills)
 - `src/crucible/knowledge/principles/design-taste.md` — distillation
-  input from the same visual-language and typography skill set above
+  input from `skills/visual-language/hierarchy-principles/SKILL.md`,
+  `skills/visual-language/spatial-rhythm/SKILL.md`,
+  `skills/visual-language/color-systems/SKILL.md`, and
+  `skills/typography/type-systems/SKILL.md`
+  (https://github.com/Dragoon0x/taste-skills/tree/main/skills)
+- `src/crucible/skills/uiux-engineer/SKILL.md` — embeds the
+  banned-word list and critique output order from
+  `skills/perception/visual-audit/SKILL.md`
+  (https://github.com/Dragoon0x/taste-skills/tree/main/skills)
+- `src/crucible/skills/meta/frontend-taste/SKILL.md` — distills the
+  same visual-language and typography skill set above
 
 Source repository: https://github.com/Dragoon0x/taste-skills
 
@@ -384,7 +398,7 @@ Source repository: https://github.com/Dragoon0x/taste-skills
    limitations under the License.
 ```
 
-**Adapted knowledge files:**
+**Adapted files:**
 
 - `src/crucible/knowledge/principles/design-taste.md` — adapted from
   `skills/frontend-design/SKILL.md`, including the three AI-default
@@ -393,6 +407,14 @@ Source repository: https://github.com/Dragoon0x/taste-skills
 - `src/crucible/knowledge/principles/ux-writing.md` — adapted from the
   same `skills/frontend-design/SKILL.md`, its section on writing in
   design
+  (https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)
+- `src/crucible/skills/uiux-engineer/SKILL.md` — embeds the
+  default-detection cluster looks from
+  `skills/frontend-design/SKILL.md`
+  (https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)
+- `src/crucible/skills/meta/frontend-taste/SKILL.md` — distills the
+  same `skills/frontend-design/SKILL.md`, including the anti-default
+  framing
   (https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)
 
 Source repository: https://github.com/anthropics/skills

@@ -152,7 +152,7 @@ this decided, or did it just happen."
    background near `#F4F1EA`, paired with a high-contrast serif display
    face and a single terracotta/clay/oxblood accent. This is the
    reflexive answer to "premium," "editorial," or "artisan" briefs.
-   Concrete tells to watch for: backgrounds in the `#f5f1ea`–`#fbf8f1`
+   Concrete tells to watch for: backgrounds in the `#f4f1ea`–`#fbf8f1`
    "warm paper" family, accents in the `#b08947`–`#9a2436`
    "brass/clay/oxblood" family, near-black warm text
    (`#1a1714`–`#1b1814`). If the brief didn't name this palette and

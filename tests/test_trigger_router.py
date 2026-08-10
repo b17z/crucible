@@ -254,3 +254,15 @@ class TestBundledEngineeringLoopSkills:
         'design the database schema' is not UI work."""
         m = match_prompt("design the database schema")
         assert "meta/frontend-taste" not in [x.skill_name for x in m]
+
+    def test_frontend_taste_matches_build_a_dashboard(self) -> None:
+        """Construction-verb-anchored form: building a dashboard is UI
+        work and must fire frontend-taste."""
+        m = match_prompt("build a dashboard for the metrics")
+        assert "meta/frontend-taste" in [x.skill_name for x in m]
+
+    def test_frontend_taste_does_not_match_dashboard_perf_complaint(self) -> None:
+        """A performance complaint about an existing dashboard is not
+        UI-building intent and must not fire frontend-taste."""
+        m = match_prompt("the dashboard UI is slow")
+        assert "meta/frontend-taste" not in [x.skill_name for x in m]

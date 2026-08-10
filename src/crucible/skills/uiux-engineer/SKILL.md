@@ -87,6 +87,11 @@ feature cards, a centered hero over a dark mesh gradient, an
 unexamined Inter + slate-900 pairing) when nothing in the brief
 justifies them.
 
+A default-detection flag belongs in the **Findings (rules)** lane, not
+`TASTE (human call):` — it is an objective finding that this was not
+decided (severity warning), separate from the `TASTE (human call):`
+item naming the direction to move instead.
+
 ## The Rule/Taste Split (binding)
 
 Every review output keeps two lanes, never merged:

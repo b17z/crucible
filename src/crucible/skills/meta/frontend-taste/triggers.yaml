@@ -9,5 +9,5 @@
 
 rules:
   - type: prompt_match
-    pattern: '\b(build\ a\ (landing\ )?page|landing\ page|style\ this\ component|dashboard\ ui|frontend\ taste)\b'
+    pattern: '\b(build\ a\ (landing\ )?page|landing\ page|style\ this\ component|(build|create|make|style|polish)\ (a\ |an\ |the\ )?dashboard|frontend\ taste)\b'
     note: explicit UI-building or UI-styling intent, anchored phrases only

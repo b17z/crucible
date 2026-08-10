@@ -45,6 +45,18 @@ class TestProvenanceLines:
         assert result.is_ok
         assert "> Adapted from" in result.value
 
+    def test_design_taste_provenance_names_all_three_sources(self) -> None:
+        """design-taste.md embeds content from all three sources (the
+        three cluster looks and typography/color from Leonxlnx, the
+        hierarchy/spatial-rhythm/color-systems/type-systems distillation
+        input from Dragoon0x) — the provenance line must name all three
+        so extracting just this file doesn't drop an attribution."""
+        result = load_knowledge_file("design-taste.md")
+        assert result.is_ok
+        assert "Leonxlnx/taste-skill" in result.value
+        assert "Dragoon0x/taste-skills" in result.value
+        assert "anthropics/skills frontend-design" in result.value
+
     def test_motion_interaction_provenance(self) -> None:
         result = load_knowledge_file("motion-interaction.md")
         assert result.is_ok

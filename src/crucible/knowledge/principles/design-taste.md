@@ -5,8 +5,9 @@ triggers: [design, ui, ux, frontend, layout, typography, color, visual]
 type: principle
 ---
 
-> Adapted from Leonxlnx/taste-skill and anthropics/skills frontend-design
-> (MIT, © 2026 Leonxlnx; Apache-2.0, © 2025 Anthropic, PBC). See
+> Adapted from Leonxlnx/taste-skill, Dragoon0x/taste-skills, and
+> anthropics/skills frontend-design (MIT, © 2026 Leonxlnx; MIT, © 2026
+> Dragoon; Apache-2.0, © 2025 Anthropic, PBC). See
 > THIRD-PARTY-NOTICES.md.
 
 # Design Taste

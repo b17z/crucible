@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Crucible - Code review with enforcement for Claude Code</title>
-  <meta name="description" content="Code review with enforcement. Pattern and LLM assertions that block bad code. Pre-write spec review. Session context injection. 20 personas, 14 knowledge files. From spec to commit.">
+  <meta name="description" content="Code review with enforcement. Pattern and LLM assertions that block bad code. Pre-write spec review. Session context injection. 20 personas, 17 knowledge files. From spec to commit.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -609,7 +609,7 @@
 <span class="cmd">crucible review --mode staged</span>
 
 <span class="cmd">→ Static analysis:</span>  semgrep, ruff, bandit (or slither for Solidity)
-<span class="cmd">→ Pattern rules:</span>    30 bundled + your .crucible/assertions/
+<span class="cmd">→ Pattern rules:</span>    42 bundled + your .crucible/assertions/
 <span class="cmd">→ LLM assertions:</span>   Semantic checks with token budget
 <span class="cmd">→ Domain detection:</span>  python, backend, api
 <span class="cmd">→ Skills loaded:</span>     backend-engineer, security-engineer
@@ -662,7 +662,7 @@
           <p class="card-quote">Blocks violations + injects context</p>
         </div>
         <div class="card">
-          <h3 class="card-title">30 BUNDLED RULES</h3>
+          <h3 class="card-title">42 BUNDLED RULES</h3>
           <p class="card-desc">Pattern + LLM assertions</p>
           <p class="card-meta">eval, shell, pickle, reentrancy...</p>
           <p class="card-quote">Add your own in .crucible/assertions/</p>
@@ -720,7 +720,7 @@
           <h3 class="card-title">ASSERTIONS</h3>
           <p class="card-desc">Pattern + LLM rules</p>
           <p class="card-meta">"Enforce your conventions"</p>
-          <p class="card-quote">30 bundled + custom</p>
+          <p class="card-quote">42 bundled + custom</p>
         </div>
         <div class="card">
           <h3 class="card-title">SKILLS</h3>
@@ -732,7 +732,7 @@
           <h3 class="card-title">KNOWLEDGE</h3>
           <p class="card-desc">Patterns and principles</p>
           <p class="card-meta">"What to look for"</p>
-          <p class="card-quote">14 bundled. Add yours.</p>
+          <p class="card-quote">17 bundled. Add yours.</p>
         </div>
         <div class="card">
           <h3 class="card-title">PRE-WRITE</h3>
@@ -767,7 +767,7 @@
         </div>
       </div>
       <p class="section-note">
-        Bundled templates (20 skills, 14 knowledge files) are starting points.<br>
+        Bundled templates (20 skills, 17 knowledge files) are starting points.<br>
         The value is YOUR patterns, loaded when relevant.
       </p>
     </div>

@@ -1,8 +1,17 @@
 # Trigger patterns for uiux-engineer skill activation.
 # Consumed by core/trigger_router.py at Phase 4.
 # Migrated from the v1 SKILL.md `triggers:` field as prompt_match rules.
+#
+# Lesson of #18: bare "design" is dropped — "design the database schema"
+# and "design an API" are not UI work, and bare "design" fires on any
+# design discussion regardless of domain. UI-anchored design forms
+# ("design the ui", "redesign", "visual design") still fire.
 
 rules:
   - type: prompt_match
-    pattern: '\b(ui|ux|design|component|css|styling|animation|design\ system)\b'
+    pattern: '\b(ui|ux|component|css|styling|animation|design\ system)\b'
     note: migrated from v1 SKILL.md triggers field
+
+  - type: prompt_match
+    pattern: '\b(design (the|a|an) (ui|screen|page|layout|interface|component)|visual\ design|redesign)\b'
+    note: UI-anchored design forms, not bare "design"

@@ -6,10 +6,16 @@
 # first-timer framing, not general "build a feature" requests (that's
 # brainstorming/coding-discipline territory for people who already know
 # the ropes). Also user-invocable by naming the skill directly.
+#
+# Lesson of #18: bare "where do i start" fired on debugging questions
+# like "where do I start with this bug" — that's systematic-debugging
+# territory, not beginner orientation. "where do i start" now requires
+# a beginner-anchored object (building/coding/learning to code/my
+# first/a new project).
 
 rules:
   - type: prompt_match
-    pattern: "\\b(i.?m new (to|at) (this|coding|programming|building)|first (project|app|program|time building)|where do i start|help me build my first)\\b"
+    pattern: "\\b(i.?m new (to|at) (this|coding|programming|building)|first (project|app|program|time building)|where do i start( with)? (building|coding|learning to code|my first|a new project)|help me build my first)\\b"
     note: first-timer / beginner orientation language
 
   - type: prompt_match

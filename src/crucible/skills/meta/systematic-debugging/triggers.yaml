@@ -4,13 +4,25 @@
 # Fires on bug/failure/unexpected-behavior language, BEFORE fixes are
 # proposed. The whole point of the skill is to interrupt guess-and-check
 # with root-cause investigation, so trigger broadly on "something is
-# broken" language rather than narrow keywords.
+# broken" language — but NOT on the bare failure nouns "failing", "fails",
+# "failure", "error", "exception" (lesson of #18: those collide with TDD's
+# home turf, e.g. "write a failing test first" / "red-green", and with
+# error-handling-as-a-feature work, e.g. "add error handling to this
+# endpoint"). Strong-brokenness words (bug, broken, crash, traceback,
+# stack trace) stay bare since they aren't ambiguous with other skills'
+# territory. The ambiguous words only trigger inside distress phrases
+# that clearly describe a live problem rather than a feature under
+# construction or discussion.
 
 rules:
   - type: prompt_match
-    pattern: '\b(bug|broken|failing|fails?|failure|crash(es|ing)?|error|exception|traceback|stack trace)\b'
-    note: something is broken — investigate root cause before fixing
+    pattern: '\b(bug|broken|crash(es|ing)?|traceback|stack trace)\b'
+    note: strong-brokenness words — unambiguous with TDD/error-handling work
 
   - type: prompt_match
     pattern: '\b(unexpected behavior|not working|doesn.?t work|weird|flaky|intermittent|regression)\b'
     note: unexpected-behavior language
+
+  - type: prompt_match
+    pattern: "\\b((keeps?|keep) (failing|crashing|erroring)|can.?t figure out|getting an (error|exception)|throws? an (error|exception)|what does this (error|exception|traceback) mean|tests? (is|keeps?|keep) failing|(failed|failing) in (ci|prod|production|staging))\\b"
+    note: distress phrases describing a live problem, not TDD/feature language

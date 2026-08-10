@@ -6,8 +6,14 @@
 # and UI-styling phrases, never on bare "design" — "design the database
 # schema" or "design a REST API" must not activate a UI-taste skill.
 # Phrases are anchored multi-word units, not single generic words.
+#
+# "landing page" is further anchored to construction verbs paired with
+# "a"/"an" (not "the"): "make/build a landing page" signals creating a
+# new one, while "make the landing page load faster" signals modifying
+# an existing page's performance — not UI-taste work — so bare
+# "landing page" and "the landing page ..." must not fire on their own.
 
 rules:
   - type: prompt_match
-    pattern: '\b(build\ a\ (landing\ )?page|landing\ page|style\ this\ component|(build|create|make|style|polish)\ (a\ |an\ |the\ )?dashboard|frontend\ taste)\b'
+    pattern: '\b(build\ a\ (landing\ )?page|(build|create|make|style|polish)\ (a|an)\ landing\ page|style\ this\ component|(build|create|make|style|polish)\ (a\ |an\ |the\ )?dashboard|frontend\ taste)\b'
     note: explicit UI-building or UI-styling intent, anchored phrases only

@@ -266,3 +266,67 @@ class TestBundledEngineeringLoopSkills:
         UI-building intent and must not fire frontend-taste."""
         m = match_prompt("the dashboard UI is slow")
         assert "meta/frontend-taste" not in [x.skill_name for x in m]
+
+
+# Issue #18 family: adversarial-phrasing false positives across five
+# skills' triggers.yaml (systematic-debugging, uiux-engineer,
+# accessibility-engineer, engineering-loop, frontend-taste). Each row is
+# (prompt, skill, should_fire) — should_fire=False rows are MUST-NOT-FIRE,
+# True rows are MUST-STILL-FIRE. Runs against the real bundled tree so the
+# corpus pins actual triggers.yaml behavior, not a fixture stand-in.
+TRIGGER_CORPUS: list[tuple[str, str, bool]] = [
+    # -- MUST NOT FIRE --
+    ("write a failing test first", "meta/systematic-debugging", False),
+    (
+        "the failing test is expected, we're doing red-green",
+        "meta/systematic-debugging",
+        False,
+    ),
+    ("can you review this error handling code", "meta/systematic-debugging", False),
+    ("add error handling to this endpoint", "meta/systematic-debugging", False),
+    ("the error message copy sounds robotic", "meta/systematic-debugging", False),
+    ("design the database schema for users", "uiux-engineer", False),
+    ("design an API for the billing service", "uiux-engineer", False),
+    ("let's design the data model together", "uiux-engineer", False),
+    ("the dashboard UI is slow", "accessibility-engineer", False),
+    ("where do I start with this bug", "meta/engineering-loop", False),
+    ("make the landing page load faster", "meta/frontend-taste", False),
+    # -- MUST STILL FIRE --
+    (
+        "my function keeps crashing and I can't figure out why",
+        "meta/systematic-debugging",
+        True,
+    ),
+    ("this test is flaky", "meta/systematic-debugging", True),
+    ("I found a bug in the parser", "meta/systematic-debugging", True),
+    ("getting an error when I submit the form", "meta/systematic-debugging", True),
+    ("the deploy failed in CI", "meta/systematic-debugging", True),
+    ("tests keep failing after the merge", "meta/systematic-debugging", True),
+    ("what does this exception mean", "meta/systematic-debugging", True),
+    ("the checkout page needs better styling", "uiux-engineer", True),
+    ("redesign the settings screen", "uiux-engineer", True),
+    ("is this form accessible to screen readers", "accessibility-engineer", True),
+    ("where do I start with my first project", "meta/engineering-loop", True),
+    ("where do I start building this", "meta/engineering-loop", True),
+    ("build a landing page for the club", "meta/frontend-taste", True),
+    ("make a landing page", "meta/frontend-taste", True),
+]
+
+
+class TestTriggerCorpus:
+    """Table-driven corpus for the #18 false-positive family. Loads the
+    REAL bundled triggers.yaml files (via match_prompt's default spec) so
+    this test pins actual shipped behavior, not a fixture."""
+
+    @pytest.mark.parametrize("prompt,skill,should_fire", TRIGGER_CORPUS)
+    def test_corpus_line(self, prompt: str, skill: str, should_fire: bool) -> None:
+        matched = [x.skill_name for x in match_prompt(prompt)]
+        if should_fire:
+            assert skill in matched, (
+                f"expected {skill!r} to fire on {prompt!r}, but it did not "
+                f"(matched: {matched})"
+            )
+        else:
+            assert skill not in matched, (
+                f"expected {skill!r} NOT to fire on {prompt!r}, but it did"
+            )

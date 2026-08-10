@@ -1,0 +1,14 @@
+# Trigger patterns for delivery-loop skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Conservative and invocation-leaning (lesson of issue #18): fires only on
+# an explicit naming of the loop itself, not on general "this is broken"
+# or "we're in production" language — those belong to
+# systematic-debugging and similar skills, not this one. Phrases are
+# anchored so "production loop" matches but bare "production" (as in
+# "failing request in production") does not.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(delivery[- ]loop|professional loop|work loop|production loop)\b'
+    note: explicit reference to the professional delivery cycle

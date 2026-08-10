@@ -226,6 +226,17 @@ class TestBundledEngineeringLoopSkills:
         m = match_prompt("I'm new to coding, help me build my first app")
         assert "meta/engineering-loop" in [x.skill_name for x in m]
 
+    def test_delivery_loop_matches(self) -> None:
+        m = match_prompt("let's run the delivery loop on this")
+        assert "meta/delivery-loop" in [x.skill_name for x in m]
+
+    def test_delivery_loop_does_not_match_debugging_prompt(self) -> None:
+        """A plain debugging prompt mentioning 'production' must not fire
+        delivery-loop — the trigger phrases are anchored ('production
+        loop') so bare 'production' alone doesn't match."""
+        m = match_prompt("help me debug this failing request in production")
+        assert "meta/delivery-loop" not in [x.skill_name for x in m]
+
     def test_build_along_course_matches(self) -> None:
         m = match_prompt("let's add this to the course")
         assert "meta/build-along-course" in [x.skill_name for x in m]

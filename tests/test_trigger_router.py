@@ -291,6 +291,7 @@ TRIGGER_CORPUS: list[tuple[str, str, bool]] = [
     ("the dashboard UI is slow", "accessibility-engineer", False),
     ("where do I start with this bug", "meta/engineering-loop", False),
     ("make the landing page load faster", "meta/frontend-taste", False),
+    ("make the dashboard load faster", "meta/frontend-taste", False),
     # -- MUST STILL FIRE --
     (
         "my function keeps crashing and I can't figure out why",
@@ -303,6 +304,13 @@ TRIGGER_CORPUS: list[tuple[str, str, bool]] = [
     ("the deploy failed in CI", "meta/systematic-debugging", True),
     ("tests keep failing after the merge", "meta/systematic-debugging", True),
     ("what does this exception mean", "meta/systematic-debugging", True),
+    (
+        "the tests are failing after that last commit",
+        "meta/systematic-debugging",
+        True,
+    ),
+    ("the test suite is failing on main", "meta/systematic-debugging", True),
+    ("the app crashed when I clicked save", "meta/systematic-debugging", True),
     ("the checkout page needs better styling", "uiux-engineer", True),
     ("redesign the settings screen", "uiux-engineer", True),
     ("is this form accessible to screen readers", "accessibility-engineer", True),
@@ -310,6 +318,7 @@ TRIGGER_CORPUS: list[tuple[str, str, bool]] = [
     ("where do I start building this", "meta/engineering-loop", True),
     ("build a landing page for the club", "meta/frontend-taste", True),
     ("make a landing page", "meta/frontend-taste", True),
+    ("build a dashboard for the metrics", "meta/frontend-taste", True),
 ]
 
 

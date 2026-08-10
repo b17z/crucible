@@ -1,0 +1,13 @@
+# Trigger patterns for frontend-taste skill activation.
+# Consumed by core/trigger_router.py.
+#
+# Conservative and anchored (lesson of #18, same discipline as
+# meta/delivery-loop's triggers.yaml): fires on explicit UI-building
+# and UI-styling phrases, never on bare "design" — "design the database
+# schema" or "design a REST API" must not activate a UI-taste skill.
+# Phrases are anchored multi-word units, not single generic words.
+
+rules:
+  - type: prompt_match
+    pattern: '\b(build\ a\ (landing\ )?page|landing\ page|style\ this\ component|dashboard\ ui|frontend\ taste)\b'
+    note: explicit UI-building or UI-styling intent, anchored phrases only

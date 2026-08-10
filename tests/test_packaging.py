@@ -34,6 +34,11 @@ BUNDLED = [
     "skills/meta/build-along-course/references/module-template.html",
     "skills/meta/build-along-course/references/assemble.sh",
     "skills/meta/build-along-course/references/content-guide.md",
+    "skills/meta/frontend-taste/SKILL.md",
+    "skills/meta/frontend-taste/triggers.yaml",
+    "knowledge/principles/design-taste.md",
+    "knowledge/principles/motion-interaction.md",
+    "knowledge/principles/ux-writing.md",
 ]
 
 

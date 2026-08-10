@@ -244,3 +244,13 @@ class TestBundledEngineeringLoopSkills:
     def test_build_along_course_matches(self) -> None:
         m = match_prompt("let's add this to the course")
         assert "meta/build-along-course" in [x.skill_name for x in m]
+
+    def test_frontend_taste_matches_landing_page(self) -> None:
+        m = match_prompt("build a landing page for the club")
+        assert "meta/frontend-taste" in [x.skill_name for x in m]
+
+    def test_frontend_taste_does_not_match_bare_design(self) -> None:
+        """Lesson of #18: bare 'design' must never fire frontend-taste —
+        'design the database schema' is not UI work."""
+        m = match_prompt("design the database schema")
+        assert "meta/frontend-taste" not in [x.skill_name for x in m]

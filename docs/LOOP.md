@@ -136,12 +136,14 @@ mission (why you're learning this), a running record of what you've
 learned, and short lessons you can revisit later. After the first
 setup, it keeps growing with you across future sessions.
 
-**If you want that workspace to live in an Obsidian vault** instead of
-just the project folder, `meta/teach-me` will ask you once, the first
-time you use it, whether you'd like to save learning there — and offer
-to write the small config file (`teach.yaml`) that remembers your
-choice. Say yes and give it the vault path, or say no and everything
-stays in the project. You won't be asked again after you answer.
+**If you want that workspace to live in your notes folder** — any tool
+that reads markdown from a directory (Obsidian, Logseq, an in-house
+notetaker) — instead of just the project folder, `meta/teach-me` will
+ask you once, the first time you use it, whether you'd like to save
+learning there — and offer to write the small config file
+(`teach.yaml`) that remembers your choice. Say yes and give it the
+folder's path, or say no and everything stays in the project. You
+won't be asked again after you answer.
 
 Alongside the learning record, `meta/build-along-course` can turn this
 same milestone into one module of a running HTML course that grows
@@ -201,6 +203,11 @@ For the full picture — the fresh-context reasoning, the fix-loop rules,
 the ledger, and the habits that keep it honest — see the
 `meta/engineering-loop` skill's knowledge file:
 `src/crucible/skills/meta/engineering-loop/knowledge/the-loop-at-scale.md`.
+
+Already comfortable shipping software and working on real delivery
+work — a feature, a fix, a migration — rather than a first project?
+`meta/delivery-loop` is the professional counterpart to this six-step
+loop; run `crucible skills discover meta/delivery-loop` to see it.
 
 ---
 

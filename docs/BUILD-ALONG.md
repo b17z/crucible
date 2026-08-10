@@ -125,13 +125,14 @@ automatically as you work:
 crucible hooks claudecode init
 ```
 
-Optional: if you keep notes in an Obsidian vault and want your
-learning records to land there instead of inside the project folder,
-create `.crucible/teach.yaml` with a `vault:` key pointing at your
-vault's path:
+Optional: if you keep notes in your notes folder — any tool that
+reads markdown from a directory (Obsidian, Logseq, an in-house
+notetaker) — and want your learning records to land there instead of
+inside the project folder, create `.crucible/teach.yaml` with a
+`vault:` key pointing at that folder's path:
 
 ```yaml
-vault: /path/to/your/obsidian/vault
+vault: /path/to/your/notes/folder
 ```
 
 If you skip this, learning records stay inside the project instead —
@@ -167,15 +168,16 @@ for as many milestones as your project needs.
 
 ---
 
-## Worked example: a personal knowledge base in an Obsidian vault
+## Worked example: a personal knowledge base in a notes folder
 
-Say the project is: **a personal knowledge base built on top of an
-Obsidian vault** — a tool that helps organize and surface notes
-already sitting in that vault. Here's how the loop and the course
-play out together, milestone by milestone.
+Say the project is: **a personal knowledge base built on top of your
+notes folder** — any tool that reads markdown from a directory
+(Obsidian, Logseq, an in-house notetaker) — a tool that helps organize
+and surface notes already sitting there. Here's how the loop and the
+course play out together, milestone by milestone.
 
 **Milestone 0 — the spec.** Before any code, three to five sentences
-get written down: "A tool that reads notes from my Obsidian vault and
+get written down: "A tool that reads notes from my notes folder and
 helps me organize them. It creates a folder skeleton for a new topic
 area. It parses note frontmatter into a structured index. It shows an
 overview board of notes by status. Later, it automates moving notes

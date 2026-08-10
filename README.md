@@ -189,7 +189,7 @@ See [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for the full guide.
 
 **42 Bundled Assertions** — Pattern rules for security, error handling, and smart contracts.
 
-**39 Bundled Skills (20 personas + meta + pre-write)** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
+**40 Bundled Skills (20 personas + meta + pre-write)** — Domain-specific thinking: security, performance, accessibility, web3, backend, and more.
 
 **14 Knowledge Files** — Coding patterns and principles for security, testing, APIs, databases, smart contracts, etc.
 
@@ -205,11 +205,12 @@ See [SKILLS.md](docs/SKILLS.md) and [KNOWLEDGE.md](docs/KNOWLEDGE.md) for detail
 | [FEATURES.md](docs/FEATURES.md) | Complete feature reference |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
 | [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) | Override skills and knowledge for your project |
-| [SKILLS.md](docs/SKILLS.md) | All 39 bundled skills with triggers and focus areas |
+| [SKILLS.md](docs/SKILLS.md) | All 40 bundled skills with triggers and focus areas |
 | [KNOWLEDGE.md](docs/KNOWLEDGE.md) | All 14 knowledge files with topics covered |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 | [LOOP.md](docs/LOOP.md) | The beginner engineering loop, plain-language, worked example |
 | [BUILD-ALONG.md](docs/BUILD-ALONG.md) | Start a new project with crucible end to end, plus a copy-paste kickoff prompt |
+| [PORTABILITY.md](docs/PORTABILITY.md) | Harness and model portability — what auto-activates where |
 
 ## Development
 

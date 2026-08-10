@@ -131,9 +131,11 @@ Resolve a vault exactly as `meta/teach-me` does, in this exact order:
 If a vault is set: write or update ONE markdown note at
 `<vault>/crucible-learning/<project-slug>/COURSE.md` (project-slug is
 the project's directory name, slugified) listing every module (title,
-milestone, date) and linking to `course/index.html`. The HTML course
-itself always stays project-side — HTML doesn't belong in a notes
-vault, regardless of vault configuration.
+milestone, date) and linking to `course/index.html`. The vault is your
+notes folder — any tool that reads markdown from a directory
+(Obsidian, Logseq, an in-house notetaker). The HTML course itself
+always stays project-side — HTML doesn't belong in a notes folder,
+regardless of vault configuration.
 
 ## Do NOT
 

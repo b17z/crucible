@@ -10,7 +10,10 @@ optional MCP server (`crucible-mcp`) exists for in-conversation tool
 calls, but Crucible never registers it automatically and nothing here
 depends on it. In environments where MCP servers need separate
 approval (workplace data/security policies), skip it entirely: agents
-use the CLI, hooks run locally, and behavior is identical.
+use the CLI, hooks run locally, and behavior is identical. Harnesses
+that don't run Claude Code's hooks (Codex, Gemini CLI, pi, Cursor)
+should run `crucible skills discover` at session start instead, since
+nothing fires automatically for them.
 
 For full engineering principles and patterns, run:
 - `crucible knowledge list` - see available knowledge

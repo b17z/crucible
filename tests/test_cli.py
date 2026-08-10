@@ -852,6 +852,7 @@ class TestInitCommand:
         text = (tmp_path / "CLAUDE.md").read_text()
         assert "## No MCP server required" in text
         assert "never registers it automatically" in text
+        assert "crucible skills discover" in text
 
 
 class TestCiGenerateCommand:

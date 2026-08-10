@@ -61,9 +61,11 @@ live, in this exact order:
    workspace-only behavior (everything under the current directory, as
    described above) — AND, on first use in a workspace with no vault
    configured, ask the user once whether they'd like learning saved to
-   an Obsidian vault, offering to write the config (project or user
-   `teach.yaml`, per their preference) if they say yes. Don't ask again
-   in that workspace once they've answered either way.
+   their notes folder — any tool that reads markdown from a directory
+   (Obsidian, Logseq, an in-house notetaker) — offering to write the
+   config (project or user `teach.yaml`, per their preference) if they
+   say yes. Don't ask again in that workspace once they've answered
+   either way.
 
 ## Philosophy
 

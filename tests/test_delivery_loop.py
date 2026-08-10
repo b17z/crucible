@@ -100,3 +100,52 @@ class TestBoundary:
     def test_do_not_boundary_present(self) -> None:
         text = _text()
         assert "Do NOT" in text or "## Do NOT" in text
+
+
+REPO_ROOT = Path(__file__).parent.parent
+PORTABILITY_PATH = REPO_ROOT / "docs" / "PORTABILITY.md"
+README_PATH = REPO_ROOT / "README.md"
+
+GENERICIZATION_TARGETS = {
+    "docs/BUILD-ALONG.md": REPO_ROOT / "docs" / "BUILD-ALONG.md",
+    "docs/LOOP.md": REPO_ROOT / "docs" / "LOOP.md",
+    "meta/teach-me/SKILL.md": REPO_ROOT
+    / "src"
+    / "crucible"
+    / "skills"
+    / "meta"
+    / "teach-me"
+    / "SKILL.md",
+    "meta/build-along-course/SKILL.md": REPO_ROOT
+    / "src"
+    / "crucible"
+    / "skills"
+    / "meta"
+    / "build-along-course"
+    / "SKILL.md",
+}
+
+
+class TestPortabilityDoc:
+    """Spec §3: docs/PORTABILITY.md exists and is linked from README."""
+
+    def test_portability_md_exists(self) -> None:
+        assert PORTABILITY_PATH.exists()
+
+    def test_readme_links_portability(self) -> None:
+        text = README_PATH.read_text()
+        assert "PORTABILITY.md" in text
+
+
+class TestNotetakerGenericization:
+    """Spec §2: notes-folder-as-concept phrasing must appear in every
+    genericization target, so no sentence is left requiring Obsidian
+    specifically."""
+
+    def test_generic_phrase_present_in_all_targets(self) -> None:
+        for label, path in GENERICIZATION_TARGETS.items():
+            assert path.exists(), f"{label}: file missing"
+            text = path.read_text()
+            assert "reads markdown from a directory" in text, (
+                f"{label}: missing the generic notes-folder phrasing"
+            )

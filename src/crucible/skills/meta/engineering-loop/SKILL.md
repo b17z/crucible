@@ -142,3 +142,6 @@ when a step doesn't earn its keep is part of learning to build things.
   agents that build and review each other's work.
 - `meta/build-along-course` — grows a course module alongside each
   proven milestone in step 6.
+- `meta/delivery-loop` — the professional counterpart to this loop, for
+  someone who already knows how to code and is running real delivery
+  work end to end. Run `crucible skills discover meta/delivery-loop`.

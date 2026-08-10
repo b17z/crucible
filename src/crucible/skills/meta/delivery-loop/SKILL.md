@@ -51,11 +51,13 @@ spec, and has it passed prewrite review?" instead of proceeding on
 vibes. `crucible skills discover meta/spec-validator`.
 
 Prewrite review's semantic assertions need an Anthropic API key to
-run. If the output shows key-not-found errors, the gate did not
-run — that is not a pass, no matter what the exit code says. Fall
-back to running `crucible prewrite review <spec-path> --checklist`,
-which needs no key: it renders every assertion as a check for you to
-evaluate inline, and you record the completed checklist in the
+run. The CLI exits 1 when nothing was evaluated, so a key-not-found
+run won't read as a pass — but the exit code alone doesn't tell you
+*why* nothing ran. If the output shows key-not-found errors, the
+semantic gate did not run. Fall back to running `crucible prewrite
+review <spec-path> --checklist`, which needs no key: it renders
+every assertion as a check for you to evaluate inline, and you
+record the completed checklist in the
 workbench. A FAIL on any error-severity check blocks step 5 the same
 as a failed API run.
 

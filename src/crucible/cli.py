@@ -562,6 +562,8 @@ def cmd_prewrite_review(args: argparse.Namespace) -> int:
         compliance_config=config,
     )
 
+    nothing_evaluated = bool(result.errors) and result.evaluated == 0
+
     # Format output
     if args.json:
         import json
@@ -585,15 +587,25 @@ def cmd_prewrite_review(args: argparse.Namespace) -> int:
         }
         print(json.dumps(output, indent=2))
     else:
-        print(format_prewrite_result(result))
+        formatted = format_prewrite_result(result)
+        if nothing_evaluated:
+            # Nothing ran, so "PASSED" (an artifact of the no-error-findings
+            # default) would contradict the honest-exit pointer below.
+            formatted = formatted.replace(
+                "**Status:** PASSED", "**Status:** NOT EVALUATED"
+            )
+        print(formatted)
 
     # Honest exits: nothing evaluated + something errored means the run
     # didn't actually check anything (missing key, missing package, API
-    # down) — that is not a pass, and --fail-on cannot override it.
-    if result.errors and result.evaluated == 0:
+    # down) — that is not a pass, and --fail-on cannot override it. The
+    # pointer and partial-evaluation warning go to stderr so --json stdout
+    # stays parseable.
+    if nothing_evaluated:
         print(
             "Nothing was evaluated. Run with --checklist to evaluate with "
-            "the agent you already have."
+            "the agent you already have.",
+            file=sys.stderr,
         )
         return 1
 
@@ -601,7 +613,8 @@ def cmd_prewrite_review(args: argparse.Namespace) -> int:
         print(
             f"⚠ {len(result.errors)} of "
             f"{result.evaluated + len(result.errors)} assertions errored "
-            f"— partial evaluation"
+            f"— partial evaluation",
+            file=sys.stderr,
         )
 
     # Exit code based on findings
@@ -623,7 +636,12 @@ def _cmd_prewrite_checklist(
     template: str | None,
     skills: list[str] | None,
 ) -> int:
-    """Render the no-API checklist for agent-mediated review. Always exits 0.
+    """Render the no-API checklist for agent-mediated review.
+
+    Exits 0 on successful render. Exits 1 if selection errored and no
+    checks could be rendered at all (e.g. a directory path, an unreadable
+    file, broken assertion YAML) — an empty `## Checks` with exit 0 would
+    read as "nothing to check" instead of "something went wrong".
 
     Deliberately does not import anything under `crucible.enforcement.compliance`
     or `anthropic` — this path must work with no key and no `anthropic` package
@@ -638,6 +656,11 @@ def _cmd_prewrite_checklist(
     selection = select_prewrite_checks(path, template=template, skills=skills)
     checks = checks_from_assertions(selection.assertions)
 
+    if selection.errors and not checks:
+        for error in selection.errors:
+            print(f"Error: {error}", file=sys.stderr)
+        return 1
+
     if args.json:
         import json
         output = {
@@ -649,9 +672,15 @@ def _cmd_prewrite_checklist(
                 for c in checks
             ],
         }
+        if selection.errors:
+            output["errors"] = selection.errors
         print(json.dumps(output, indent=2))
     else:
         print(render_prewrite_checklist(path, selection.template, checks))
+
+    if selection.errors:
+        for error in selection.errors:
+            print(f"Warning: {error}", file=sys.stderr)
 
     return 0
 

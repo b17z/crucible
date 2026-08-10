@@ -44,6 +44,7 @@ class PrewriteSelection:
     skills_loaded: list[str]
     assertions: list[Assertion]
     errors: list[str] = field(default_factory=list)
+    read_error: str | None = None
 
 
 def select_prewrite_checks(
@@ -64,13 +65,17 @@ def select_prewrite_checks(
 
     Returns:
         PrewriteSelection with the ordered assertions and any load errors.
-        On file-read failure, `assertions` is empty and `errors` explains why.
+        On file-read failure, `assertions` is empty, `errors` explains why,
+        and `read_error` is set — the caller-facing signal that nothing
+        can proceed (distinct from an empty-but-readable file, which
+        proceeds to evaluation like any other document).
     """
     errors: list[str] = []
 
     try:
         content = Path(path).read_text()
     except OSError as e:
+        read_error = f"Failed to read file: {e}"
         return PrewriteSelection(
             content="",
             template=template,
@@ -78,7 +83,8 @@ def select_prewrite_checks(
             knowledge_to_load=set(),
             skills_loaded=[],
             assertions=[],
-            errors=[f"Failed to read file: {e}"],
+            errors=[read_error],
+            read_error=read_error,
         )
 
     # Auto-detect template type if not specified
@@ -328,8 +334,10 @@ def prewrite_review(
     result.template = selection.template
     result.errors.extend(selection.errors)
 
-    if not selection.content:
-        # File read failed; selection.errors already explains why.
+    if selection.read_error:
+        # File read failed; selection.errors already explains why. An
+        # empty-but-readable file is not a read failure — it proceeds to
+        # evaluation below like any other document.
         return result
 
     content = selection.content

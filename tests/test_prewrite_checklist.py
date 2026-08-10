@@ -85,6 +85,18 @@ class TestSelectPrewriteChecks:
         assert selection.assertions == []
         assert selection.content == ""
         assert any("Failed to read file" in e for e in selection.errors)
+        assert selection.read_error is not None
+        assert "Failed to read file" in selection.read_error
+
+    def test_empty_file_is_not_a_read_failure(self, tmp_path: Path) -> None:
+        """A 0-byte file reads successfully — it's an empty document, not a
+        read error. It must proceed to evaluation like any other spec."""
+        empty = tmp_path / "empty.md"
+        empty.write_text("")
+        selection = select_prewrite_checks(str(empty))
+        assert selection.read_error is None
+        assert selection.content == ""
+        assert len(selection.assertions) >= 8
 
     def test_explicit_template_skips_detection(self, spec_file: Path) -> None:
         selection = select_prewrite_checks(str(spec_file), template="tdd")
@@ -189,6 +201,98 @@ class TestChecklistCliRender:
         assert exit_code == 0
 
 
+class TestChecklistErrorHandling:
+    """Finding 2: `--checklist` must not swallow `selection.errors`."""
+
+    def test_directory_path_exits_one_with_error(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """A directory arg passes the exists() check in cmd_prewrite_review
+        but can't be read as a spec — must not render an empty checklist
+        with exit 0."""
+        args = _make_namespace(str(tmp_path), checklist=True)
+        exit_code = cmd_prewrite_review(args)
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "## Checks" not in captured.out
+        assert captured.err.strip() != ""
+
+    def test_directory_path_json_exits_one_with_error(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        args = _make_namespace(str(tmp_path), checklist=True, json=True)
+        exit_code = cmd_prewrite_review(args)
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        # No JSON is emitted when nothing could be rendered at all.
+        assert captured.err.strip() != ""
+
+    def test_errors_with_some_checks_surface_on_stderr_and_exit_zero(
+        self, spec_file: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Partial failure: some checks still rendered, so the render
+        succeeded overall (exit 0), but the error must not vanish."""
+        from crucible.prewrite.review import PrewriteSelection
+
+        real_selection = select_prewrite_checks(str(spec_file))
+        assert real_selection.assertions, "fixture must yield at least one check"
+
+        partial_selection = PrewriteSelection(
+            content=real_selection.content,
+            template=real_selection.template,
+            checklist=real_selection.checklist,
+            knowledge_to_load=real_selection.knowledge_to_load,
+            skills_loaded=real_selection.skills_loaded,
+            assertions=real_selection.assertions,
+            errors=["broken-assertions.yaml: invalid YAML"],
+        )
+
+        with patch(
+            "crucible.prewrite.review.select_prewrite_checks",
+            return_value=partial_selection,
+        ):
+            args = _make_namespace(str(spec_file), checklist=True)
+            exit_code = cmd_prewrite_review(args)
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "## Checks" in captured.out
+        assert "broken-assertions.yaml" in captured.err
+
+    def test_errors_with_some_checks_json_includes_errors_key(
+        self, spec_file: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        import json
+
+        from crucible.prewrite.review import PrewriteSelection
+
+        real_selection = select_prewrite_checks(str(spec_file))
+        partial_selection = PrewriteSelection(
+            content=real_selection.content,
+            template=real_selection.template,
+            checklist=real_selection.checklist,
+            knowledge_to_load=real_selection.knowledge_to_load,
+            skills_loaded=real_selection.skills_loaded,
+            assertions=real_selection.assertions,
+            errors=["broken-assertions.yaml: invalid YAML"],
+        )
+
+        with patch(
+            "crucible.prewrite.review.select_prewrite_checks",
+            return_value=partial_selection,
+        ):
+            args = _make_namespace(str(spec_file), checklist=True, json=True)
+            exit_code = cmd_prewrite_review(args)
+
+        assert exit_code == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert "errors" in payload
+        assert payload["errors"] == ["broken-assertions.yaml: invalid YAML"]
+        assert payload["checks"], "expected checks to still render"
+
+
 class TestApiPathExitCodes:
     """Exit-code fix: honest exits when nothing evaluated, partial, full."""
 
@@ -204,8 +308,9 @@ class TestApiPathExitCodes:
         exit_code = cmd_prewrite_review(args)
 
         assert exit_code == 1
-        out = capsys.readouterr().out
-        assert "--checklist" in out
+        captured = capsys.readouterr()
+        assert "--checklist" in captured.err
+        assert "PASSED" not in captured.out
 
     def test_keyless_fail_on_info_still_exits_one(
         self, spec_file: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
@@ -219,7 +324,7 @@ class TestApiPathExitCodes:
         exit_code = cmd_prewrite_review(args)
 
         assert exit_code == 1
-        assert "--checklist" in capsys.readouterr().out
+        assert "--checklist" in capsys.readouterr().err
 
     def test_partial_error_warns_and_exits_on_findings(
         self, spec_file: Path, capsys: pytest.CaptureFixture
@@ -237,9 +342,9 @@ class TestApiPathExitCodes:
             args = _make_namespace(str(spec_file))
             exit_code = cmd_prewrite_review(args)
 
-        out = capsys.readouterr().out
-        assert "partial evaluation" in out
-        assert "⚠" in out
+        err = capsys.readouterr().err
+        assert "partial evaluation" in err
+        assert "⚠" in err
         assert exit_code == 0
 
     def test_full_pass_exit_unchanged(
@@ -252,8 +357,9 @@ class TestApiPathExitCodes:
             args = _make_namespace(str(spec_file))
             exit_code = cmd_prewrite_review(args)
 
-        out = capsys.readouterr().out
-        assert "partial evaluation" not in out
+        captured = capsys.readouterr()
+        assert "partial evaluation" not in captured.out
+        assert "partial evaluation" not in captured.err
         assert exit_code == 0
 
     def test_full_fail_exit_unchanged(
@@ -270,8 +376,9 @@ class TestApiPathExitCodes:
             args = _make_namespace(str(spec_file))
             exit_code = cmd_prewrite_review(args)
 
-        out = capsys.readouterr().out
-        assert "partial evaluation" not in out
+        captured = capsys.readouterr()
+        assert "partial evaluation" not in captured.out
+        assert "partial evaluation" not in captured.err
         assert exit_code == 1
 
     def test_api_json_output_gains_evaluated_count(
@@ -291,10 +398,69 @@ class TestApiPathExitCodes:
         assert "evaluated" in payload
         assert payload["evaluated"] == payload_expected_count(str(spec_file))
 
+    def test_keyless_json_stdout_is_valid_json(
+        self, spec_file: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The honest-exit pointer must not corrupt --json stdout."""
+        import json
+
+        args = _make_namespace(str(spec_file), json=True)
+        exit_code = cmd_prewrite_review(args)
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        payload = json.loads(captured.out)  # raises if pointer leaked into stdout
+        assert payload["evaluated"] == 0
+        assert "--checklist" in captured.err
+
 
 def payload_expected_count(spec_path: str) -> int:
     selection = select_prewrite_checks(spec_path)
     return len(checks_from_assertions(selection.assertions))
+
+
+class TestEmptySpecRegression:
+    """Finding 1: a 0-byte spec must be evaluated, not silently PASSED."""
+
+    @pytest.fixture
+    def empty_spec_file(self, tmp_path: Path) -> Path:
+        p = tmp_path / "empty.md"
+        p.write_text("")
+        return p
+
+    def test_empty_file_with_mocked_runner_invokes_assertions(
+        self, empty_spec_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With a key present, assertions actually run against the empty
+        document instead of short-circuiting on empty content."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key-for-test")
+
+        call_count = {"n": 0}
+
+        def fake_run(assertion_id, compliance_text, content, severity, model="sonnet"):
+            call_count["n"] += 1
+            assert content == ""
+            return [], 5, None
+
+        with patch("crucible.prewrite.review._run_prewrite_assertion", side_effect=fake_run):
+            args = _make_namespace(str(empty_spec_file))
+            exit_code = cmd_prewrite_review(args)
+
+        assert call_count["n"] > 0
+        assert exit_code == 0
+
+    def test_empty_file_keyless_is_honest_exit_not_passed(
+        self, empty_spec_file: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Keyless + empty file: every assertion errors (no key), so this
+        is the nothing-evaluated honest exit — not a silent PASSED/exit 0."""
+        args = _make_namespace(str(empty_spec_file))
+        exit_code = cmd_prewrite_review(args)
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "PASSED" not in captured.out
+        assert "--checklist" in captured.err
 
 
 class TestChecklistDocsWiring:

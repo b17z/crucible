@@ -34,11 +34,13 @@ class TestNoticesFileExists:
 
     def test_contains_both_full_mit_texts(self) -> None:
         """Full MIT text (not just the copyright line) appears once per
-        source repo — checked via a distinctive clause from the license
-        body that only appears in the full text."""
+        MIT-licensed source repo — checked via a distinctive clause from
+        the license body that only appears in the full text. Four MIT
+        sources: obra/superpowers, mattpocock/skills, Leonxlnx/taste-skill,
+        Dragoon0x/taste-skills."""
         text = NOTICES.read_text()
-        assert text.count("Permission is hereby granted, free of charge") == 2
-        assert text.count('THE SOFTWARE IS PROVIDED "AS IS"') == 2
+        assert text.count("Permission is hereby granted, free of charge") == 4
+        assert text.count('THE SOFTWARE IS PROVIDED "AS IS"') == 4
 
     def test_lists_source_urls(self) -> None:
         text = NOTICES.read_text()

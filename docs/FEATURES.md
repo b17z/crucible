@@ -206,11 +206,11 @@ Call this at session start so Claude knows what patterns to avoid *before* writi
 
 ### load_knowledge(files?, topic?, include_bundled?)
 
-Load knowledge/principles files without running static analysis. Loads all 14 bundled knowledge files by default.
+Load knowledge/principles files without running static analysis. Loads all 17 bundled knowledge files by default.
 
 ```
 load_knowledge()
-→ All 14 bundled knowledge files (project/user files override)
+→ All 17 bundled knowledge files (project/user files override)
 
 load_knowledge(topic="security")
 → SECURITY.md content
@@ -258,7 +258,7 @@ check_tools()
 
 Domain-specific thinking that Claude loads based on what you're working on.
 
-### Bundled Skills (40: 20 personas + meta + pre-write)
+### Bundled Skills (41: 20 personas + meta + pre-write)
 
 | Skill | Triggers | Focus |
 |-------|----------|-------|
@@ -314,7 +314,7 @@ When the skill loads, linked knowledge is available via `get_principles()`.
 
 Engineering principles organized by domain.
 
-### 14 Domain Files
+### 17 Domain Files
 
 | File | Content |
 |------|---------|
@@ -332,6 +332,9 @@ Engineering principles organized by domain.
 | **DOCUMENTATION.md** | FEATURES, ROADMAP, ARCHITECTURE patterns |
 | **GITIGNORE.md** | Defense-in-depth patterns for preventing secret commits |
 | **PRECOMMIT.md** | Automated guardrails before code enters the repo |
+| **design-taste.md** | Typographic scale, spacing rhythm, color roles, hierarchy, density, the three AI-default cluster looks |
+| **motion-interaction.md** | Purposeful motion, forbidden animation patterns, mandatory reduced motion, interactive-state matrix |
+| **ux-writing.md** | Copy as design material, active voice, exact verbs, direct errors, inviting empty states |
 
 ### Knowledge Resolution Cascade
 

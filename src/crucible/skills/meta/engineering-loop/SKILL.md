@@ -76,6 +76,11 @@ to what you actually asked for, nothing speculative bolted on. `crucible
 skills discover meta/coding-discipline` shows the full list. It
 activates automatically any time code is being written or changed.
 
+Building something people will actually look at — a page, a component,
+anything with a UI — also brings in **`meta/frontend-taste`**, the
+same discipline aimed at visual and interaction choices. `crucible
+skills discover meta/frontend-taste` shows the full list.
+
 ### 5. Prove it honestly
 
 "It looks right" is not proof. Two things happen here:

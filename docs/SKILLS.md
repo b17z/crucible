@@ -1,6 +1,6 @@
 # Crucible Personas
 
-Crucible bundles 40 skills; 20 of them are personas. This doc covers those 20 personas.
+Crucible bundles 41 skills; 20 of them are personas. This doc covers those 20 personas.
 
 ## Overview
 
@@ -185,15 +185,16 @@ Personas are domain-specific thinking that Claude loads based on context. Each p
 
 **Triggers:** `ui`, `ux`, `design`, `component`, `css`, `styling`, `animation`, `design system`
 
-**Knowledge:** TYPE_SAFETY.md
+**Knowledge:** TYPE_SAFETY.md; Tier-3 pointers to `design-taste.md`, `motion-interaction.md`, `ux-writing.md`
 
-**Focus:** Design consistency, interaction patterns, user feedback.
+**Focus:** Design consistency, interaction patterns, user feedback. Findings follow a critique protocol (observations, not feelings; banned vague words like "clean" or "modern") and a binding rule/taste split — objective violations are findings with severity, subjective calls go under `TASTE (human call):`, unresolved, never blocking.
 
 **Key questions:**
 - Is this using the design system?
 - Is the feedback immediate and clear?
 - Are animations purposeful?
 - Does this handle all visual states?
+- Is this a deliberate choice, or the nearest default?
 
 ---
 

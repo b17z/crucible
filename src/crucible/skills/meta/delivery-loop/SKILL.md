@@ -89,6 +89,11 @@ everything — don't re-derive that discipline from scratch. Run
 the fix-loop shape, and the escalation path after repeated failed
 fixes all live there.
 
+When the change touches user-facing surfaces, the independent review
+includes the UX pass — `uiux-engineer`, with `accessibility-engineer`
+alongside — and its `TASTE (human call)` items go to the human with
+the review, unresolved.
+
 ### 6. Prove and close
 
 Run the project's full checks. Take one skeptical pass over the whole

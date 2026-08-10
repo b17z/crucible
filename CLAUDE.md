@@ -86,8 +86,8 @@ src/crucible/
 │   ├── review.py          # Pre-write review logic
 │   └── models.py          # PrewriteMetadata, PrewriteResult
 ├── templates/prewrite/    # 5 bundled spec templates
-├── knowledge/             # 14 bundled knowledge files
-└── skills/                # 40 bundled persona skills
+├── knowledge/             # 17 bundled knowledge files
+└── skills/                # 41 bundled persona skills
 ```
 
 ## Patterns
@@ -150,9 +150,9 @@ See `docs/` for:
 - FEATURES.md - Complete feature reference
 - ARCHITECTURE.md - How pieces fit together
 - CUSTOMIZATION.md - Skill/knowledge/assertion cascade
-- SKILLS.md - All 40 bundled skills
+- SKILLS.md - All 41 bundled skills
 - PORTABILITY.md - Harness/model portability contract
-- KNOWLEDGE.md - All 14 knowledge files
+- KNOWLEDGE.md - All 17 knowledge files
 - CONTRIBUTING.md - For contributors
 - LOOP.md - The beginner engineering loop, plain-language, worked example
 
@@ -188,6 +188,7 @@ Crucible ships meta-skills that shape *how* the agent works, discoverable via `c
 - **`meta/engineering-loop`** — beginner-facing six-step build cycle (say it plainly, think small, write it down, build the smallest thing, prove it honestly, keep what you learned), each step naming the skill that carries it. See `docs/LOOP.md`.
 - **`meta/build-along-course`** — piecewise course generation: grows an interactive HTML course next to the project being built, one module per proven milestone, starting with module 0 as the spec itself. Clean-room original inspired by codebase-to-course, no code or text reused.
 - **`meta/delivery-loop`** — the professional counterpart to `meta/engineering-loop`: seven steps from framing to handoff, spec-first and independently reviewed, ledgered, git/CI-agnostic; workbench artifacts (spec, plan, ledger, decision log) are never committed to the repo. Original to crucible.
+- **`meta/frontend-taste`** — generation-side taste discipline for frontend/UI building, the counterpart to `meta/coding-discipline` for visual and interaction work: a stated design read before coding, anti-default discipline, and binding hard rules (design-system-first, interactive-state matrix, reduced motion, purposeful animation, UX-writing copy, responsive floor, visible focus). Distilled from Leonxlnx/taste-skill, Dragoon0x/taste-skills, and anthropics/skills frontend-design; the review-side counterpart is the upgraded `uiux-engineer` persona, which adds the same rule/taste split — objective violations as findings, subjective calls under `TASTE (human call):`, never silently resolved.
 
 When writing or changing code in this repo, `meta/coding-discipline` applies: minimum code that solves the problem, surgical diffs, verify against success criteria. When authoring a skill, `meta/writing-good-skills` applies.
 

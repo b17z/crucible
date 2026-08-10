@@ -11,7 +11,7 @@ Documentation index with links to core codebase components.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How MCP, tools, skills, and knowledge fit together |
 | [CUSTOMIZATION.md](CUSTOMIZATION.md) | Override skills, knowledge, and assertions |
 | [SKILLS.md](SKILLS.md) | All 20 personas with triggers and focus |
-| [KNOWLEDGE.md](KNOWLEDGE.md) | All 14 knowledge files |
+| [KNOWLEDGE.md](KNOWLEDGE.md) | All 17 knowledge files |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Adding tools, skills, and knowledge |
 
 ## Feature → Code Mapping
@@ -50,7 +50,7 @@ Documentation index with links to core codebase components.
 | **Skill Loading** | `load_skill()` | [`skills/loader.py`](../src/crucible/skills/loader.py) |
 | **Bundled Skills** | 20 personas | [`skills/*/SKILL.md`](../src/crucible/skills/) |
 | **Knowledge Loading** | `load_knowledge()` | [`knowledge/loader.py`](../src/crucible/knowledge/loader.py) |
-| **Bundled Knowledge** | 14 files | [`knowledge/principles/`](../src/crucible/knowledge/principles/) |
+| **Bundled Knowledge** | 17 files | [`knowledge/principles/`](../src/crucible/knowledge/principles/) |
 
 ### Pre-Write Review
 

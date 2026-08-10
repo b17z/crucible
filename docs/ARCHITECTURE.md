@@ -293,7 +293,7 @@ src/crucible/
 │
 ├── knowledge/
 │   ├── loader.py          # Load principles with cascade
-│   └── principles/        # 14 bundled knowledge files
+│   └── principles/        # 17 bundled knowledge files
 │       ├── SECURITY.md
 │       ├── TESTING.md
 │       ├── SMART_CONTRACT.md
@@ -335,7 +335,7 @@ docs/
 ├── ARCHITECTURE.md        # This document
 ├── CUSTOMIZATION.md       # Skills + knowledge cascade
 ├── SKILLS.md              # All 20 personas
-├── KNOWLEDGE.md           # All 14 knowledge files
+├── KNOWLEDGE.md           # All 17 knowledge files
 └── CONTRIBUTING.md        # For contributors
 ```
 

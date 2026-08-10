@@ -17,6 +17,7 @@ PKG = Path(crucible.__file__).parent
 UIUX_ENGINEER_SKILL = PKG / "skills" / "uiux-engineer" / "SKILL.md"
 FRONTEND_TASTE_SKILL = PKG / "skills" / "meta" / "frontend-taste" / "SKILL.md"
 FRONTEND_TASTE_TRIGGERS = PKG / "skills" / "meta" / "frontend-taste" / "triggers.yaml"
+DELIVERY_LOOP_SKILL = PKG / "skills" / "meta" / "delivery-loop" / "SKILL.md"
 
 KNOWLEDGE_FILES = [
     "design-taste.md",
@@ -225,3 +226,22 @@ class TestFrontendTasteSkill:
         assert "design-taste.md" in content
         assert "motion-interaction.md" in content
         assert "ux-writing.md" in content
+
+
+class TestDeliveryLoopUxGate:
+    """Binding content per spec section 4: delivery-loop step 5 names the
+    conditional UX gate — uiux-engineer alongside accessibility-engineer,
+    with TASTE (human call) items going to the human unresolved."""
+
+    def test_skill_exists(self) -> None:
+        assert DELIVERY_LOOP_SKILL.exists()
+
+    def test_step_5_names_uiux_engineer_and_taste_gate(self) -> None:
+        text = DELIVERY_LOOP_SKILL.read_text()
+        step5_idx = text.index("### 5. Execute with gates")
+        step6_idx = text.index("### 6. Prove and close")
+        section = text[step5_idx:step6_idx]
+        assert "uiux-engineer" in section
+        assert "accessibility-engineer" in section
+        assert "TASTE (human call)" in section
+        assert "unresolved" in section

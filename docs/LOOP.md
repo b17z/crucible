@@ -98,6 +98,11 @@ minimum code that solves the problem, nothing speculative bolted on
 top. `crucible skills discover meta/coding-discipline` shows the full
 list of habits it enforces.
 
+Building something people will actually see — a page, a component, any
+UI — also brings in `meta/frontend-taste`, the same discipline aimed at
+visual and interaction choices. `crucible skills discover
+meta/frontend-taste` shows the full list.
+
 ### Step 5 — Prove it honestly
 
 "It looks right" is not proof that it works. Two checks happen here:

@@ -1,6 +1,6 @@
 # Crucible Knowledge
 
-All 14 bundled engineering knowledge files.
+All 17 bundled engineering knowledge files.
 
 ## Overview
 
@@ -257,6 +257,55 @@ Automated guardrails before code enters the repo.
 - Blocked commit response handling
 
 **Linked by:** security-engineer, devops-engineer
+
+---
+
+### design-taste.md
+
+Typographic scale and pairing, spacing rhythm, color roles, hierarchy, density, and materiality for visual design.
+
+**Topics covered:**
+- Typographic scale and pairing
+- Spacing rhythm and grid consistency
+- Color roles and calibration
+- Hierarchy (where the eye goes first, and whether it's intentional)
+- Density matched to use case
+- Materiality and shadows
+- The three AI-default cluster looks as default-detection signals
+- Anti-default discipline
+
+**Linked by:** uiux-engineer (Tier-3), meta/frontend-taste (Tier-3)
+
+---
+
+### motion-interaction.md
+
+Purposeful motion, forbidden animation patterns, mandatory reduced motion, and the full interactive-state matrix.
+
+**Topics covered:**
+- Purposeful motion only (feedback, orientation, emphasis, delight)
+- Forbidden animation patterns
+- Reduced-motion support (mandatory)
+- The interactive-state matrix (hover, focus, active, disabled, loading, empty, error)
+- Timing and feedback
+
+**Linked by:** uiux-engineer (Tier-3), meta/frontend-taste (Tier-3)
+
+---
+
+### ux-writing.md
+
+Copy as design material — active voice, exact verbs, consistent naming, direct errors, and inviting empty states.
+
+**Topics covered:**
+- Copy is design material, not decoration
+- Writing from the user's side of the screen
+- Active voice and exact verbs ("Save changes", not "Submit")
+- One action keeps one name through a flow
+- Errors that explain and direct, never apologize or go vague
+- Empty states as invitations to act
+
+**Linked by:** uiux-engineer (Tier-3), meta/frontend-taste (Tier-3)
 
 ---
 
